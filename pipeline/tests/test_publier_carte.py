@@ -17,33 +17,14 @@ RACINE = os.path.dirname(PIPELINE)
 sys.path.insert(0, PIPELINE)
 import publier_carte as pc  # noqa: E402
 
-KIT = os.path.join(RACINE, 'jeu_essai', 'donnees')
-
-
-def lancer(*args):
-    subprocess.run([sys.executable, *args], check=True, capture_output=True)
-
-
-def construire(dossier, ln, annonces, personnes):
-    base, chaines = os.path.join(dossier, 'base.sqlite'), os.path.join(dossier, 'chaines.json')
-    lancer(os.path.join(PIPELINE, 'construire_base.py'), '--liste-noire', ln, '--rc-annonces', annonces,
-           '--rc-personnes', personnes, '--base', base)
-    lancer(os.path.join(PIPELINE, 'chaines_dessin.py'), '--base', base, '--excel', os.path.join(dossier, 'c.xlsx'),
-           '--html', '', '--json', chaines)
-    return base, chaines
+sys.path.insert(0, os.path.join(RACINE, 'jeu_essai'))
+import fabrique  # noqa: E402
 
 
 @pytest.fixture(scope='session', params=['kit', 'genere'])
 def jeu(request, tmp_path_factory):
     d = str(tmp_path_factory.mktemp(request.param))
-    if request.param == 'kit':
-        base, chaines = construire(d, os.path.join(KIT, 'liste_noire_fictive.csv'),
-                                   os.path.join(KIT, 'rc_annonces.csv'), os.path.join(KIT, 'rc_personnes.csv'))
-    else:
-        g = os.path.join(d, 'donnees')
-        lancer(os.path.join(RACINE, 'jeu_essai', 'generer.py'), '--echelle', 'petit', '--sortie', g)
-        base, chaines = construire(d, os.path.join(g, 'liste_noire.csv'), os.path.join(g, 'rc_annonces.csv'),
-                                   os.path.join(g, 'rc_personnes.csv'))
+    base, chaines = fabrique.du_kit(d) if request.param == 'kit' else fabrique.generee(d)
     pub = os.path.join(d, 'publication')
     m = pc.publier(base, chaines, pub)
     with open(os.path.join(pub, 'geometrie.json'), encoding='utf-8') as f:
