@@ -158,18 +158,32 @@ class Generateur:
                 self.personnes[pid]['societes'].append(k)
             self.societes.append(s)
 
-    def _ecrire_annonce(self, s, type_acte, quand, personnes, ecriture=None, cin_annonce=''):
+    def _entete_annonce(self, s, ecr):
+        """Dénomination, RC, tribunal et siège tels qu'une annonce en latin ou en arabe les écrit."""
+        _code, ville_lat, ville_ar = s['ville']
+        if ecr == 'ar':
+            rc = s['rc'].translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩')) if self.r.random() < 0.5 else s['rc']
+            return (s['nom_ar'], rc, f'المحكمة التجارية ب{ville_ar}',
+                    f'زنقة المثال رقم {self.r.randrange(1, 99)} {ville_ar}')
+        siege = f'{self.r.randrange(1, 99)} RUE EXEMPLE {ville_lat.upper()}'
+        return s['nom'], s['rc'], self.r.choice((f'Tribunal de commerce de {ville_lat}', ville_lat)), siege
+
+    def _ligne_personne(self, aid, pid, role, parts, ecr):
+        p = self.personnes[pid]
+        prenom, nom = p['prenom'], p['nom']
+        if ecr == 'ar':
+            nom_complet, role_txt = f'{prenom[1]} {nom[1]}', ROLES_AR[role]
+        else:
+            nom_complet = self.r.choice((f'{prenom[0].title()} {nom[0]}', f'M. {nom[0]} {prenom[0].title()}'))
+            role_txt = ROLES_LAT[role]
+        return dict(annonce_id=aid, role=role_txt, nom_complet=nom_complet, nom='', prenom='',
+                    cin=p['cin'] or '', parts=parts or '', date_naissance='', nationalite='', adresse='')
+
+    def _ecrire_annonce(self, s, type_acte, quand, personnes, ecriture=None):
         source, ecr = self.r.choice(SOURCES)
         ecr = ecriture or ecr
         aid = 'FX-%07d' % (len(self.annonces) + 1)
-        code, ville_lat, ville_ar = s['ville']
-        if ecr == 'ar':
-            denom, tribunal = s['nom_ar'], f'المحكمة التجارية ب{ville_ar}'
-            rc = s['rc'].translate(str.maketrans('0123456789', '٠١٢٣٤٥٦٧٨٩')) if self.r.random() < 0.5 else s['rc']
-            siege = f'زنقة المثال رقم {self.r.randrange(1, 99)} {ville_ar}'
-        else:
-            denom, rc, siege = s['nom'], s['rc'], f'{self.r.randrange(1, 99)} RUE EXEMPLE {ville_lat.upper()}'
-            tribunal = self.r.choice((f'Tribunal de commerce de {ville_lat}', ville_lat))
+        denom, rc, tribunal, siege = self._entete_annonce(s, ecr)
         self.annonces.append(dict(
             annonce_id=aid, source=source, type_acte=type_acte, date_publication=quand.isoformat(),
             numero_publication='', denomination=denom, rc=rc, tribunal=tribunal, depot='',
@@ -177,18 +191,8 @@ class Generateur:
             capital=self.r.choice(('10000', '100000', '')) if type_acte == 'Création' else '',
             siege=siege if type_acte in ('Création', 'Transfert de siège') else '', objet=act_de(s['nom']),
             nouveau_capital='', nouveau_siege='', nouvelle_denomination='', complet='1', ice='',
-            url=DOMAINE + aid, cin=cin_annonce))
-        for pid, role, parts in personnes:
-            p = self.personnes[pid]
-            prenom, nom = p['prenom'], p['nom']
-            if ecr == 'ar':
-                nom_complet, role_txt = f'{prenom[1]} {nom[1]}', ROLES_AR[role]
-            else:
-                nom_complet = self.r.choice((f'{prenom[0].title()} {nom[0]}', f'M. {nom[0]} {prenom[0].title()}'))
-                role_txt = ROLES_LAT[role]
-            self.lignes_pers.append(dict(
-                annonce_id=aid, role=role_txt, nom_complet=nom_complet, nom='', prenom='',
-                cin=p['cin'] or '', parts=parts or '', date_naissance='', nationalite='', adresse=''))
+            url=DOMAINE + aid, cin=''))
+        self.lignes_pers += [self._ligne_personne(aid, pid, role, parts, ecr) for pid, role, parts in personnes]
         return aid
 
     def annonces_registre(self):
@@ -219,88 +223,105 @@ class Generateur:
                     break
 
     # -- liste noire -------------------------------------------------------------------------------------------
-    def liste_noire(self):
-        lignes = []
-        n_pp = max(40, int(self.n_soc * 0.03))
-        n_pm = max(15, int(self.n_soc * 0.01))
-        num = [100_000]
+    def _inscription(self, **valeurs):
+        """Ajoute une ligne de liste noire ; les champs non donnés sont tirés ou laissés vides."""
+        self.num_seq += 1
+        ligne = {c: '' for c in COLONNES_BL}
+        ligne.update(num_seq=self.num_seq, note='Exemple fictif', type_liste=self.r.choice(LISTES),
+                     motif2=self.r.choice(MOTIFS), orig_liste=self.r.choice(ORIGINES),
+                     dat_sais=self._date(2018, 2026).isoformat())
+        ligne.update(valeurs)
+        self.bl.append(ligne)
+        return ligne
 
-        def ligne(**v):
-            num[0] += 1
-            base = {c: '' for c in COLONNES_BL}
-            base.update(num_seq=num[0], note='Exemple fictif', type_liste=self.r.choice(LISTES),
-                        motif2=self.r.choice(MOTIFS), orig_liste=self.r.choice(ORIGINES),
-                        dat_sais=self._date(2018, 2026).isoformat())
-            base.update(v)
-            lignes.append(base)
-            return base
+    def _champs_societe(self, s, regle):
+        """Ce que la liste noire saisit d'une société pour qu'elle soit retrouvée par `regle`."""
+        code, ville_lat, _ = s['ville']
+        if regle == 'R02':
+            return dict(regist_com=s['rc'], regist_tribune=self.r.choice((code[:5], ville_lat.upper())))
+        if regle == 'R03':
+            return dict(regist_com='RC' + s['rc'])
+        if regle == 'R04':
+            return dict(ville=ville_lat.upper())
+        return dict(regist_com=str(self.r.randrange(900_000, 999_999)))      # société absente du registre
 
-        # Sociétés inscrites, avec plusieurs façons d'être retrouvées
-        socs = self.r.sample(self.societes, min(n_pm, len(self.societes)))
-        for s in socs:
-            sc = self.r.choices(['R02', 'R03', 'R04', 'absent'], [40, 20, 15, 25])[0]
-            code, ville_lat, _ = s['ville']
-            if sc == 'R02':
-                v = dict(regist_com=s['rc'], regist_tribune=self.r.choice((code[:5], ville_lat.upper())))
-            elif sc == 'R03':
-                v = dict(regist_com='RC' + s['rc'])
-            elif sc == 'R04':
-                v = dict(ville=ville_lat.upper())
-            else:                                                     # société absente du registre
-                v = dict(regist_com=str(self.r.randrange(900_000, 999_999)))
-            nom_ras = s['nom'] if sc != 'absent' else f'{self._syllabe()[0]}{self._syllabe()[0]} SERVICES SARL'
-            ligne(cli_phy_mor='PM', nom_ras=nom_ras, **v)
-            self.verite.append(dict(type='PM', societe=s['id'] if sc != 'absent' else None, regle=sc))
+    def _inscrire_societes(self, n_pm):
+        for s in self.r.sample(self.societes, min(n_pm, len(self.societes))):
+            regle = self.r.choices(['R02', 'R03', 'R04', 'absent'], [40, 20, 15, 25])[0]
+            v = self._champs_societe(s, regle)
+            nom_ras = s['nom'] if regle != 'absent' else f'{self._syllabe()[0]}{self._syllabe()[0]} SERVICES SARL'
+            self._inscription(cli_phy_mor='PM', nom_ras=nom_ras, **v)
+            self.verite.append(dict(type='PM', societe=s['id'] if regle != 'absent' else None, regle=regle))
 
-        # Personnes inscrites
+    def _champs_personne(self, p, regle, cin):
+        """Ce que la liste noire saisit d'une personne pour qu'elle soit retrouvée par `regle`."""
+        code, ville_lat, _ = p['ville']
+        v = dict(cin=cin + ('X' if regle == 'R01v' else ''), nom=p['nom'][0], prenom=p['prenom'][0],
+                 date_naiss=p['naissance'].isoformat() if self.r.random() < 0.5 else '')
+        if regle == 'R07':
+            v['ville'] = '2' if code == 'CASABLANCA' and self.r.random() < 0.5 else ville_lat.upper()
+        if regle == 'R08':
+            v['lib_emp'] = 'STE ' + self.societes[p['societes'][0]]['nom']
+        return v
+
+    def _inscrire_dirigeants(self, n):
         dirigeants = [p for p in self.personnes if p['societes']]
-        choisies = self.r.sample(dirigeants, min(int(n_pp * 0.7), len(dirigeants)))
+        choisies = self.r.sample(dirigeants, min(n, len(dirigeants)))
         for p in choisies:
-            sc = self.r.choices(['R01', 'R01v', 'R07', 'R08', 'nom_seul'], [25, 5, 40, 15, 15])[0]
-            cin = self._cin() if not p['cin'] else p['cin']
-            if sc in ('R01', 'R01v'):
+            regle = self.r.choices(['R01', 'R01v', 'R07', 'R08', 'nom_seul'], [25, 5, 40, 15, 15])[0]
+            cin = p['cin'] or self._cin()
+            if regle in ('R01', 'R01v'):
                 p['cin'] = cin                                       # publié dans les annonces (écrites ensuite)
-            code, ville_lat, _ = p['ville']
-            v = dict(cin=cin + ('X' if sc == 'R01v' else ''), nom=p['nom'][0], prenom=p['prenom'][0],
-                     date_naiss=p['naissance'].isoformat() if self.r.random() < 0.5 else '')
-            if sc == 'R07':
-                v['ville'] = '2' if code == 'CASABLANCA' and self.r.random() < 0.5 else ville_lat.upper()
-            if sc == 'R08':
-                v['lib_emp'] = 'STE ' + self.societes[p['societes'][0]]['nom']
-            l1 = ligne(cli_phy_mor='PP', **v)
+            premiere = self._inscription(cli_phy_mor='PP', **self._champs_personne(p, regle, cin))
             if self.r.random() < 0.15:                               # seconde inscription, CIN saisi autrement
-                copie = {c: x for c, x in l1.items() if c != 'num_seq'}
-                ligne(**{**copie, 'cin': cin[:2] + ' ' + cin[2:], 'type_liste': 'BLACKLIST', 'orig_liste': 'DGSN'})
-            self.verite.append(dict(type='PP', personne=p['id'], regle=sc))
-        for _ in range(n_pp - len(choisies)):                        # inscrits absents du registre
+                copie = {c: x for c, x in premiere.items() if c != 'num_seq'}
+                self._inscription(**{**copie, 'cin': cin[:2] + ' ' + cin[2:], 'type_liste': 'BLACKLIST',
+                                     'orig_liste': 'DGSN'})
+            self.verite.append(dict(type='PP', personne=p['id'], regle=regle))
+        return len(choisies)
+
+    def _inscrire_absents(self, n):
+        """Inscrits qu'aucune annonce ne cite."""
+        for _ in range(n):
             nom, prenom = self.r.choices(self.familles, self.zipf)[0], self.r.choice(PRENOMS)
             ville = self._ville()
-            ligne(cli_phy_mor='PP', cin=self._cin(), nom=nom[0], prenom=prenom[0], ville=ville[1].upper())
+            self._inscription(cli_phy_mor='PP', cin=self._cin(), nom=nom[0], prenom=prenom[0], ville=ville[1].upper())
             self.verite.append(dict(type='PP', personne=None, regle='absent'))
 
-        # Réseaux typiques : société inscrite dont plusieurs dirigeants sont inscrits ; RC consécutifs, même gérant
-        for _ in range(max(2, self.n_soc // 2000)):
-            ville = self._ville()
-            g = self.nouvelle_personne(ville)
-            g['cin'] = self._cin()
-            base_rc = self.r.randrange(100_000, 800_000)
-            for j in range(3):
-                s = dict(id=len(self.societes), nom=f'{self._syllabe()[0]}{self._syllabe()[0]} {ACTIVITES[j]} SARL',
-                         nom_ar=None, ville=ville, rc=str(base_rc + j), personnes=[(g['id'], 'gerant', None)],
-                         creation=self._date(2023, 2026))
-                s['nom_ar'] = 'شركة ' + s['nom']
-                g['societes'].append(s['id'])
-                self.societes.append(s)
-                self._ecrire_annonce(s, 'Création', s['creation'], s['personnes'], ecriture='lat')
-                ligne(cli_phy_mor='PM', nom_ras=s['nom'], regist_com=s['rc'], regist_tribune=ville[0][:5])
-            ligne(cli_phy_mor='PP', cin=g['cin'], nom=g['nom'][0], prenom=g['prenom'][0])
-            self.verite.append(dict(type='reseau_rc_consecutifs', personne=g['id'], regle='R01+R02'))
+    def _reseau_rc_consecutifs(self):
+        """Trois sociétés inscrites aux RC consécutifs, gérées par la même personne, elle aussi inscrite."""
+        ville = self._ville()
+        g = self.nouvelle_personne(ville)
+        g['cin'] = self._cin()
+        base_rc = self.r.randrange(100_000, 800_000)
+        for j in range(3):
+            s = dict(id=len(self.societes), nom=f'{self._syllabe()[0]}{self._syllabe()[0]} {ACTIVITES[j]} SARL',
+                     nom_ar=None, ville=ville, rc=str(base_rc + j), personnes=[(g['id'], 'gerant', None)],
+                     creation=self._date(2023, 2026))
+            s['nom_ar'] = 'شركة ' + s['nom']
+            g['societes'].append(s['id'])
+            self.societes.append(s)
+            self._ecrire_annonce(s, 'Création', s['creation'], s['personnes'], ecriture='lat')
+            self._inscription(cli_phy_mor='PM', nom_ras=s['nom'], regist_com=s['rc'], regist_tribune=ville[0][:5])
+        self._inscription(cli_phy_mor='PP', cin=g['cin'], nom=g['nom'][0], prenom=g['prenom'][0])
+        self.verite.append(dict(type='reseau_rc_consecutifs', personne=g['id'], regle='R01+R02'))
 
-        # Quelques saisies abîmées, comme dans la vraie liste
-        ligne(cli_phy_mor='PP', regist_tribune='PP', nom='EXEMPLE', prenom='ANOMALIE', motif2='IndÃ©sirable',
-              lib_emp='7}%=%T30%; #M\\E[40M')
-        ligne(cli_phy_mor='PP', cin='XXXXXXXX', nom='EXEMPLE', prenom='MASQUE', date_naiss='1890-01-01')
-        return lignes
+    def _saisies_abimees(self):
+        """Comme dans la vraie liste : type client dans la colonne tribunal, encodage cassé, CIN masqué."""
+        self._inscription(cli_phy_mor='PP', regist_tribune='PP', nom='EXEMPLE', prenom='ANOMALIE',
+                          motif2='IndÃ©sirable', lib_emp='7}%=%T30%; #M\\E[40M')
+        self._inscription(cli_phy_mor='PP', cin='XXXXXXXX', nom='EXEMPLE', prenom='MASQUE', date_naiss='1890-01-01')
+
+    def liste_noire(self):
+        self.bl, self.num_seq = [], 100_000
+        n_pp = max(40, int(self.n_soc * 0.03))
+        self._inscrire_societes(max(15, int(self.n_soc * 0.01)))
+        trouves = self._inscrire_dirigeants(int(n_pp * 0.7))
+        self._inscrire_absents(n_pp - trouves)
+        for _ in range(max(2, self.n_soc // 2000)):
+            self._reseau_rc_consecutifs()
+        self._saisies_abimees()
+        return self.bl
 
     def tout(self):
         self.registre()
