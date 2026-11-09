@@ -53,3 +53,45 @@ def publication_reelle(kit, tmp_path_factory):
 def env(publication, tmp_path):
     return {'CARTE_CLE_JWT': CLE, 'CARTE_BASE_URL': f'sqlite:///{tmp_path}/carte.db',
             'CARTE_PUBLICATION': publication}
+
+
+# ---- application, comptes et connexion -------------------------------------------------------------------------
+MDP = 'mot-de-passe-de-test-1'
+
+
+@pytest.fixture
+def app_test(env):
+    from fastapi.testclient import TestClient
+
+    from app.config import lire_reglages
+    from app.main import creer_app
+    app = creer_app(lire_reglages(env))
+    with TestClient(app, base_url='https://testserver') as client:
+        yield client, app.state.etat
+
+
+@pytest.fixture
+def client(app_test):
+    return app_test[0]
+
+
+@pytest.fixture
+def etat(app_test):
+    return app_test[1]
+
+
+def creer(etat, identifiant, role, mdp=MDP):
+    from app import comptes
+    comptes.creer(etat.base, identifiant, role, mdp)
+
+
+def connecter(client, identifiant, mdp=MDP):
+    return client.post('/api/auth/connexion', json={'identifiant': identifiant, 'mot_de_passe': mdp})
+
+
+@pytest.fixture
+def analyste(client, etat):
+    """Client connecté en analyste (cookie posé)."""
+    creer(etat, 'analyste1', 'ANALYSTE')
+    assert connecter(client, 'analyste1').status_code == 200
+    return client
