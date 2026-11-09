@@ -52,8 +52,6 @@ def noms(demande: DemandeNoms, request: Request, session: Session = Depends(exig
 
 @routeur.get('/noeud/{indice}')
 def noeud(indice: int, request: Request, session: Session = Depends(exige('carte.noeud')), p=Depends(publication)):
-    if not 0 <= indice < p.noeuds:
-        raise HTTPException(404, 'Nœud inconnu')
     etat = _etat(request)
     quotas.fiches(etat, session)
     f = identites.fiche(p, indice)

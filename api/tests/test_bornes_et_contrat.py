@@ -44,7 +44,7 @@ def test_chaque_variable_lue_sous_son_nom(env, variable, valeur, champ, attendu)
 
 
 def test_zero_refuse(env):
-    with pytest.raises(ReglageInvalide, match='CARTE_JOURNAL_JOURS doit être positif'):
+    with pytest.raises(ReglageInvalide, match='^CARTE_JOURNAL_JOURS doit être positif$'):
         lire_reglages(dict(env, CARTE_JOURNAL_JOURS='0'))
 
 
@@ -111,7 +111,7 @@ def test_deconnexion_efface_le_cookie_et_n_emet_pas_de_jeton_neuf(client, etat):
     vieux = jwt.encode({'sub': 'ana', 'sid': 's1', 'iat': t, 'exp': t + 3600}, CLE, algorithm='HS256')
     r = client.post('/api/auth/deconnexion', headers={'Authorization': f'Bearer {vieux}'})
     assert r.status_code == 204 and 'x-jeton' not in r.headers
-    cookie = r.headers['set-cookie'].lower()
+    (cookie,) = (c.lower() for c in r.headers.get_list('set-cookie'))     # l'effacement seul, pas de jeton neuf
     for attribut in ('carte_jeton=""', 'max-age=0', 'path=/api', 'httponly', 'secure', 'samesite=strict'):
         assert attribut in cookie, attribut
 
@@ -242,6 +242,21 @@ def test_recherche_jokers_pris_a_la_lettre(etat, q):
     assert couche2.recherche(etat.publication, q) == []
 
 
+def test_motif_like_jokers_echappes():
+    assert couche2.motif_like('A%B_C\\D') == '%A\\%B\\_C\\\\D%'
+
+
+def test_401_noms_refuses(client, etat):
+    connecte(client, etat, 'ana', 'ANALYSTE')
+    r = client.post('/api/carte/noms', json={'indices': [0] * 401})
+    assert r.status_code == 422 and r.json()['champs'] == ['body.indices']
+
+
+def test_noms_champ_inconnu_refuse(client, etat):
+    connecte(client, etat, 'ana', 'ANALYSTE')
+    assert client.post('/api/carte/noms', json={'indices': [0], 'tout': True}).status_code == 422
+
+
 def test_recherche_plafonnee_a_50(etat, monkeypatch):
     monkeypatch.setattr(couche2, 'MAX_RESULTATS', 2)
     assert len(couche2.recherche(etat.publication, 'A')) == 2
@@ -327,7 +342,7 @@ def test_cors_admet_post_json_avec_jeton(client_avec):
         r = c.options('/api/carte/noms', headers={
             'Origin': 'https://carte.exemple.invalid', 'Access-Control-Request-Method': 'POST',
             'Access-Control-Request-Headers': 'Authorization, Content-Type'})
-    assert r.status_code == 200
+    assert r.status_code == 200 and r.headers['access-control-allow-credentials'] == 'true'
     assert {'GET', 'POST'} <= set(r.headers['access-control-allow-methods'].replace(' ', '').split(','))
     assert {'authorization', 'content-type'} <= set(r.headers['access-control-allow-headers'].lower()
                                                      .replace(' ', '').split(','))
@@ -391,3 +406,24 @@ def test_journal_du_et_au_inclus(client, etat):
                 horodatage=datetime.fromisoformat(jour).replace(hour=heure)))
     r = client.get('/api/admin/journal', params={'utilisateur': 'ana', 'du': '2026-03-01', 'au': '2026-03-02'})
     assert sorted(l['action'] for l in r.json()['lignes']) == ['2026-03-01', '2026-03-02']
+
+
+def test_messages_de_publication_refusee(publication, publication_reelle, tmp_path):
+    import json
+    import shutil
+
+    from app.graphe import PublicationRefusee, charger
+    vide = str(tmp_path / 'vide')
+    with pytest.raises(PublicationRefusee, match=f'^manifeste absent ou illisible dans {vide}$'):
+        charger(vide, False)
+    autre = str(tmp_path / 'autre')
+    shutil.copytree(publication, autre)
+    with open(f'{autre}/manifeste.json', encoding='utf-8') as f:
+        m = json.load(f)
+    with open(f'{autre}/manifeste.json', 'w', encoding='utf-8') as f:
+        json.dump(dict(m, format=9), f)
+    with pytest.raises(PublicationRefusee, match=r'^format de publication 9 inconnu \(attendu 1\)$'):
+        charger(autre, False)
+    with pytest.raises(PublicationRefusee,
+                       match='^publication de données réelles : CARTE_DONNEES_REELLES=1 requis sur ce serveur$'):
+        charger(publication_reelle, False)

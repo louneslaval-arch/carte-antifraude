@@ -49,10 +49,15 @@ def forme_recherche(q):
     return ('nom',), nettoye, False
 
 
+def motif_like(valeur):
+    """Motif LIKE « contient », les jokers de la saisie pris à la lettre (échappement par \\)."""
+    return '%' + valeur.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+
+
 def recherche(publication, q):
     champs, valeur, exacte = forme_recherche(q)
     condition = 'r.valeur = ?' if exacte else "r.valeur LIKE ? ESCAPE '\\'"
-    motif = valeur if exacte else '%' + valeur.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+    motif = valeur if exacte else motif_like(valeur)
     with _ouvrir(publication) as con:
         return [dict(indice=i, type=t, nom=n) for i, t, n in con.execute(
             f"""SELECT DISTINCT r.indice, n.type, i.nom FROM recherche r JOIN noeud n USING (indice)

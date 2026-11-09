@@ -32,7 +32,8 @@ def deconnexion(request: Request, response: Response, session: Session = Depends
     etat = request.app.state.etat
     revoquer(etat, session)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'deconnexion', ip=session.ip)
+    for entete in ('x-jeton', 'set-cookie'):        # pas de jeton neuf pour une session qu'on ferme
+        if entete in response.headers:
+            del response.headers[entete]
     response.delete_cookie(COOKIE, path='/api', secure=etat.reglages.cookie_securise, httponly=True,
                            samesite='strict')
-    if 'x-jeton' in response.headers:
-        del response.headers['x-jeton']             # pas de jeton neuf pour une session qu'on ferme
