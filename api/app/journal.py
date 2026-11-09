@@ -17,11 +17,11 @@ def ecrire(fabrique, utilisateur, role, action, indices=(), ip='', nombre=None):
         s.add_all(JournalIndice(journal_id=ligne.id, indice=i) for i in indices)
 
 
-def indices_servis(fabrique, utilisateur, action, depuis=timedelta(hours=1)):
-    """Indices distincts déjà servis à cet utilisateur pour cette action pendant la période."""
+def indices_servis(fabrique, utilisateur, actions, depuis=timedelta(hours=1)):
+    """Indices distincts déjà servis à cet utilisateur pour ces actions pendant la période."""
     with fabrique() as s:
         return set(s.scalars(select(JournalIndice.indice).join(Journal).where(
-            Journal.utilisateur == utilisateur, Journal.action == action,
+            Journal.utilisateur == utilisateur, Journal.action.in_(actions),
             Journal.horodatage >= maintenant() - depuis)))
 
 

@@ -32,6 +32,12 @@ def creer_app(reglages: Reglages) -> FastAPI:
         return {'etat': 'ok', 'version': VERSION, 'date_publication': p.manifeste['date_publication'],
                 'noeuds': p.noeuds, 'fictif': p.manifeste['fictif']}
 
+    @app.middleware('http')
+    async def pas_de_cache(request, call_next):
+        reponse = await call_next(request)
+        reponse.headers.setdefault('Cache-Control', 'no-store')     # identités : jamais en cache
+        return reponse
+
     app.include_router(auth.routeur)
     app.include_router(carte.routeur)
     return app

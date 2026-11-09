@@ -95,3 +95,48 @@ def analyste(client, etat):
     creer(etat, 'analyste1', 'ANALYSTE')
     assert connecter(client, 'analyste1').status_code == 200
     return client
+
+
+@pytest.fixture
+def client_avec(env):
+    """Fabrique d'applications aux réglages modifiés : with client_avec(CARTE_QUOTA_FICHES='2') as (c, etat)."""
+    import contextlib
+
+    from fastapi.testclient import TestClient
+
+    from app.config import lire_reglages
+    from app.main import creer_app
+
+    @contextlib.contextmanager
+    def fabriquer(**surcharges):
+        app = creer_app(lire_reglages(dict(env, **surcharges)))
+        with TestClient(app, base_url='https://testserver') as c:
+            yield c, app.state.etat
+    return fabriquer
+
+
+def connecte(client, etat, identifiant, role):
+    creer(etat, identifiant, role)
+    assert connecter(client, identifiant).status_code == 200
+    return client
+
+
+def identites(publication, requete, *params):
+    con = sqlite3.connect(os.path.join(publication, 'identites.sqlite'))
+    try:
+        return con.execute(requete, params).fetchall()
+    finally:
+        con.close()
+
+
+def indice_de(publication, ref):
+    return identites(publication, 'SELECT indice FROM noeud WHERE ref_id = ?', ref)[0][0]
+
+
+def tout_le_journal(etat):
+    """Toutes les valeurs de toutes les lignes du journal, en texte, pour y chercher une fuite."""
+    from sqlalchemy import text
+    with etat.base() as s:
+        lignes = s.execute(text('SELECT * FROM journal')).fetchall() + \
+            s.execute(text('SELECT * FROM journal_indice')).fetchall()
+    return ' '.join(str(v) for l in lignes for v in l)
