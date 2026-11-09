@@ -17,7 +17,7 @@ class ReglageInvalide(Exception):
 class Reglages:
     cle_jwt: str
     base_url: str                                # base du journal, des comptes et des révocations
-    publication: Optional[str]                   # dossier « publication/courant »
+    publication: Optional[str] = None            # dossier « publication/courant »
     donnees_reelles: bool = False                # CARTE_DONNEES_REELLES=1, posé seulement sur le serveur
     duree_jeton_s: int = 8 * 3600
     renouveler_apres_s: int = 15 * 60            # un jeton plus vieux est renouvelé à la requête suivante
@@ -31,10 +31,14 @@ class Reglages:
     cookie_securise: bool = True
 
 
-def _entier(env, nom, defaut):
+def _texte(env, nom):
+    return env.get(nom) or None
+
+
+def _entier(env, nom):
     brut = env.get(nom)
     if brut in (None, ''):
-        return defaut
+        return None
     try:
         valeur = int(brut)
     except ValueError:
@@ -51,14 +55,16 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
     base_url = env.get('CARTE_BASE_URL')
     if not base_url:
         raise ReglageInvalide('CARTE_BASE_URL absente')
-    return Reglages(
-        cle_jwt=cle, base_url=base_url, publication=env.get('CARTE_PUBLICATION') or None,
+    lus = dict(
+        publication=_texte(env, 'CARTE_PUBLICATION'),
         donnees_reelles=env.get('CARTE_DONNEES_REELLES') == '1',
-        duree_jeton_s=_entier(env, 'CARTE_DUREE_JETON_S', 8 * 3600),
-        quota_etiquettes=_entier(env, 'CARTE_QUOTA_ETIQUETTES', 20_000),
-        quota_fiches=_entier(env, 'CARTE_QUOTA_FICHES', 2_000),
-        debit=env.get('CARTE_DEBIT') or '60/minute',
-        debit_connexion=env.get('CARTE_DEBIT_CONNEXION') or '10/minute',
-        journal_jours=_entier(env, 'CARTE_JOURNAL_JOURS', 365),
-        origine=env.get('CARTE_ORIGINE') or None,
+        duree_jeton_s=_entier(env, 'CARTE_DUREE_JETON_S'),
+        quota_etiquettes=_entier(env, 'CARTE_QUOTA_ETIQUETTES'),
+        quota_fiches=_entier(env, 'CARTE_QUOTA_FICHES'),
+        debit=_texte(env, 'CARTE_DEBIT'),
+        debit_connexion=_texte(env, 'CARTE_DEBIT_CONNEXION'),
+        journal_jours=_entier(env, 'CARTE_JOURNAL_JOURS'),
+        origine=_texte(env, 'CARTE_ORIGINE'),
         cookie_securise=env.get('CARTE_COOKIE_NON_SECURISE') != '1')
+    # une variable absente garde la valeur par défaut de Reglages : chaque défaut n'est écrit qu'une fois
+    return Reglages(cle_jwt=cle, base_url=base_url, **{k: v for k, v in lus.items() if v is not None})

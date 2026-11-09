@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from sqlalchemy import delete, func, select
 
-from .base import Journal, JournalIndice, maintenant
+from .base import Journal, JournalIndice, Revocation, maintenant
 
 
 def ecrire(fabrique, utilisateur, role, action, indices=(), ip='', nombre=None):
@@ -33,8 +33,9 @@ def nombre_actions(fabrique, utilisateur, actions, depuis=timedelta(hours=1)):
 
 
 def purger(fabrique, jours):
-    """Retire les lignes plus anciennes que la durée de conservation."""
+    """Retire les lignes plus anciennes que la durée de conservation, et les révocations de jetons expirés."""
     with fabrique.begin() as s:
+        s.execute(delete(Revocation).where(Revocation.expire < maintenant()))
         limite = maintenant() - timedelta(days=jours)
         anciens = select(Journal.id).where(Journal.horodatage < limite)
         s.execute(delete(JournalIndice).where(JournalIndice.journal_id.in_(anciens)))

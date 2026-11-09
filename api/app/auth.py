@@ -126,9 +126,9 @@ def verifier_mot_de_passe(etat, identifiant, mot_de_passe):
     """Vérifie le mot de passe ; compte les échecs et verrouille le compte au-delà du maximum."""
     with etat.base.begin() as s:
         u = s.scalar(select(Utilisateur).where(Utilisateur.identifiant == identifiant))
-        bon = _mot_de_passe_bon(u.hachage if u else _HACHAGE_LEURRE, mot_de_passe) and u is not None
+        bon = _mot_de_passe_bon(u.hachage if u else _HACHAGE_LEURRE, mot_de_passe)   # même durée si inconnu
         if u is None:
-            return Verdict(decider(False, bon, False, False, 0, etat.reglages.echecs_max)[0])
+            return Verdict('echec_connexion')
         action, u.echecs, u.verrouille = decider(True, bon, u.actif, u.verrouille, u.echecs,
                                                  etat.reglages.echecs_max)
         return Verdict(action, u.role, True)
