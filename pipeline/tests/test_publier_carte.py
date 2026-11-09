@@ -201,7 +201,7 @@ def test_publier_deux_fois_donne_une_publication_complete_et_coherente(jeu, tmp_
     dossier = str(tmp_path / 'pub')
     pc.publier(jeu['base'], jeu['chaines'], dossier)
     m = pc.publier(jeu['base'], jeu['chaines'], dossier)
-    assert sorted(os.listdir(dossier)) == ['geometrie.json', 'identites.sqlite', 'manifeste.json']
+    assert sorted(os.listdir(dossier)) == ['geometrie.json', 'identites.sqlite', 'manifeste.json', 'statistiques.json']
     for nom, h in m['fichiers'].items():
         assert pc.empreinte(os.path.join(dossier, nom)) == h
 
@@ -274,7 +274,7 @@ def test_societe_racine_differente_arrete_la_publication(jeu, tmp_path):
 # ---- manifeste, empreintes, droits -------------------------------------------------------------------------------
 def test_empreinte_globale_et_horodatage(jeu):
     m = jeu['manifeste']
-    attendue = hashlib.sha256((m['fichiers']['geometrie.json'] + m['fichiers']['identites.sqlite']).encode())
+    attendue = hashlib.sha256(''.join(m['fichiers'][f] for f in sorted(m['fichiers'])).encode())
     assert m['empreinte'] == attendue.hexdigest()
     assert re.fullmatch(r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ', m['date_publication'])
     assert m['date_publication'] == jeu['geo']['construction']['date'] or m['date_publication'] >= \
@@ -428,3 +428,23 @@ def test_fusion_des_noeuds_fiche_ville_et_liste_noire():
     assert identite[1] == dict(nom='B', rc='123', tribunal='RABAT', ville='RABAT', derniere='2025-01-02',
                                url='https://exemple.invalid/annonce/1', dissoute=1)   # la première carte l'emporte
     assert identite[3]['nom'] == 'D' and identite[2]['url'] is None
+
+
+# ---- statistiques agrégées ---------------------------------------------------------------------------------------
+def test_statistiques_par_regle_et_par_statut(jeu):
+    with open(os.path.join(jeu['pub'], 'statistiques.json'), encoding='utf-8') as f:
+        st = json.load(f)
+    con = sqlite3.connect(jeu['base'])
+    attendu = [dict(regle=r, niveau=n, correspondances=c, inscrits=i) for r, n, c, i in con.execute(
+        """SELECT regle, niveau, COUNT(*), COUNT(DISTINCT bl_entite_id) FROM correspondance_retenue
+           GROUP BY regle, niveau ORDER BY regle, niveau""")]
+    assert st['regles'] == attendu and attendu
+    assert st['statuts'] == dict(con.execute('SELECT statut, COUNT(*) FROM correspondance_retenue GROUP BY statut'))
+    assert 'statistiques.json' in jeu['manifeste']['fichiers']
+
+
+def test_statistiques_sans_identite(jeu):
+    with open(os.path.join(jeu['pub'], 'statistiques.json'), encoding='utf-8') as f:
+        st = json.load(f)
+    for s in chaines_de(st):
+        assert not CIN_RE.search(s) and not CHIFFRES_RE.search(s) and not ARABE_RE.search(s), s

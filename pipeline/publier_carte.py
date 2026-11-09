@@ -34,6 +34,7 @@ FORMAT = 1
 T_SOCIETE, T_PERSONNE, T_INSCRIT_PP, T_INSCRIT_PM = 0, 1, 2, 3
 NOMS_TYPES = ['societe', 'personne', 'inscrit_personne', 'inscrit_societe']
 STYLES = ['', 'rap', 'pont']          # rôle simple, rapprochement inscrit ↔ registre, passage d'une société à l'autre
+FICHIERS = ('geometrie.json', 'identites.sqlite', 'statistiques.json')   # tous portés par le manifeste
 PREFIXE_FICTIF = 'ZZ'                 # tous les CIN du jeu d'essai et du générateur
 
 from chaines_dessin import ROLES_FR  # noqa: E402  (même dossier que ce script)
@@ -341,6 +342,15 @@ def ecrire_identites(chemin, con, idx, couche2):
     os.chmod(chemin, 0o640)
 
 
+def statistiques(con):
+    """Agrégats sans identité : correspondances retenues par règle et niveau, et par statut."""
+    regles = [dict(regle=r, niveau=n, correspondances=c, inscrits=i) for r, n, c, i in con.execute(
+        """SELECT regle, niveau, COUNT(*), COUNT(DISTINCT bl_entite_id) FROM correspondance_retenue
+           GROUP BY regle, niveau ORDER BY regle, niveau""")]
+    statuts = dict(con.execute('SELECT statut, COUNT(*) FROM correspondance_retenue GROUP BY statut'))
+    return dict(regles=regles, statuts=statuts)
+
+
 def horodatage():
     return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -361,7 +371,7 @@ def est_fictif(cins):
 def manifeste(con, dossier, n):
     pp, pm = (con.execute('SELECT COUNT(*) FROM bl_entite WHERE type_entite = ?', (t,)).fetchone()[0]
               for t in ('PP', 'PM'))
-    fichiers = {f: empreinte(os.path.join(dossier, f)) for f in ('geometrie.json', 'identites.sqlite')}
+    fichiers = {f: empreinte(os.path.join(dossier, f)) for f in FICHIERS}
     m = dict(format=FORMAT, date_publication=horodatage(), noeuds=n, inscrits_personnes=pp, inscrits_societes=pm,
              fictif=est_fictif([c for (c,) in con.execute('SELECT cin FROM bl_entite WHERE cin IS NOT NULL')]),
              fichiers=fichiers,
@@ -395,6 +405,8 @@ def publier(base, chemin_chaines, dossier):
         with open(os.path.join(provisoire, 'geometrie.json'), 'w', encoding='utf-8') as f:
             json.dump(geo, f, ensure_ascii=False, separators=(',', ':'))
         ecrire_identites(os.path.join(provisoire, 'identites.sqlite'), con, idx, couche2)
+        with open(os.path.join(provisoire, 'statistiques.json'), 'w', encoding='utf-8') as f:
+            json.dump(statistiques(con), f, ensure_ascii=False)
         m = manifeste(con, provisoire, len(idx))
         os.chmod(provisoire, 0o750)
         basculer(provisoire, dossier)

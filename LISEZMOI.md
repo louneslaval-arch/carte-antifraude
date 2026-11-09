@@ -28,12 +28,13 @@ JSON, pages générées et fichiers de secrets.
 
 ## Publication
 
-`pipeline/publier_carte.py --base … --chaines chaines.json --sortie publication/<date>` écrit trois fichiers :
+`pipeline/publier_carte.py --base … --chaines chaines.json --sortie publication/<date>` écrit quatre fichiers :
 
 | Fichier | Contenu |
 | --- | --- |
 | `geometrie.json` | couche 1 : pour chaque nœud (indice opaque) son type, l'indicateur liste noire, son réseau, son degré, sa ville ; les arêtes (style, force) ; pour chaque inscrit la structure de sa carte (nœuds, arêtes avec le libellé du rôle, chaînes réduites à distance, fiabilité, force, liste noire oui ou non) |
 | `identites.sqlite` | couche 2 : `noeud` (indice → identifiant interne), `identite` (nom, CIN, RC, tribunal, ville, listes, motifs), `lien`, `annonce`, `chaine` (chaîne complète au format de la carte actuelle), `recherche` (nom, CIN, RC) |
+| `statistiques.json` | agrégats sans identité : correspondances retenues par règle et niveau, et par statut |
 | `manifeste.json` | date, nombre de nœuds et d'inscrits, `fictif` (vrai seulement si tous les CIN commencent par « ZZ »), empreintes SHA-256 |
 
 Les indices sont tirés au hasard à chaque publication : ils ne révèlent ni l'ordre alphabétique ni le RC.
