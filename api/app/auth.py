@@ -102,26 +102,36 @@ class Verdict:
         return self.action == 'connexion'
 
 
+def decider(existe, bon, actif, verrouille, echecs, echecs_max):
+    """(action, échecs, verrouillé) après une tentative ; un compte verrouillé ne compte plus ses échecs."""
+    if not existe:
+        return 'echec_connexion', 0, False
+    if verrouille:
+        return 'echec_connexion', echecs, True
+    if bon:
+        return ('connexion', 0, False) if actif else ('echec_connexion', echecs, False)
+    if echecs + 1 >= echecs_max:
+        return 'verrouillage', echecs + 1, True
+    return 'echec_connexion', echecs + 1, False
+
+
+def _mot_de_passe_bon(hachage, mot_de_passe):
+    try:
+        return HACHEUR.verify(hachage, mot_de_passe)
+    except (VerificationError, InvalidHashError):
+        return False
+
+
 def verifier_mot_de_passe(etat, identifiant, mot_de_passe):
     """Vérifie le mot de passe ; compte les échecs et verrouille le compte au-delà du maximum."""
     with etat.base.begin() as s:
         u = s.scalar(select(Utilisateur).where(Utilisateur.identifiant == identifiant))
-        try:
-            HACHEUR.verify(u.hachage if u else _HACHAGE_LEURRE, mot_de_passe)
-            bon = u is not None
-        except (VerificationError, InvalidHashError):
-            bon = False
+        bon = _mot_de_passe_bon(u.hachage if u else _HACHAGE_LEURRE, mot_de_passe) and u is not None
         if u is None:
-            return Verdict('echec_connexion')
-        if bon and u.actif and not u.verrouille:
-            u.echecs = 0
-            return Verdict('connexion', u.role, True)
-        if not bon and not u.verrouille:
-            u.echecs += 1
-            if u.echecs >= etat.reglages.echecs_max:
-                u.verrouille = True
-                return Verdict('verrouillage', u.role, True)
-        return Verdict('echec_connexion', u.role, True)
+            return Verdict(decider(False, bon, False, False, 0, etat.reglages.echecs_max)[0])
+        action, u.echecs, u.verrouille = decider(True, bon, u.actif, u.verrouille, u.echecs,
+                                                 etat.reglages.echecs_max)
+        return Verdict(action, u.role, True)
 
 
 def revoquer(etat, session):

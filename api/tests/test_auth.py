@@ -162,3 +162,17 @@ def test_connexions_journalisees_sans_recopier_un_identifiant_inconnu(client, et
         [('ana', 'ANALYSTE', 'echec_connexion')] * 4 + [('ana', 'ANALYSTE', 'verrouillage'),
                                                          ('ana', 'ANALYSTE', 'connexion'),
                                                          ('ana', 'ANALYSTE', 'deconnexion')]
+
+
+@pytest.mark.parametrize('existe, bon, actif, verrouille, echecs, attendu', [
+    (False, False, True, False, 0, ('echec_connexion', 0, False)),
+    (True, True, True, False, 3, ('connexion', 0, False)),
+    (True, True, False, False, 0, ('echec_connexion', 0, False)),        # désactivé, bon mot de passe
+    (True, True, True, True, 5, ('echec_connexion', 5, True)),           # verrouillé, bon mot de passe
+    (True, False, True, False, 3, ('echec_connexion', 4, False)),
+    (True, False, True, False, 4, ('verrouillage', 5, True)),
+    (True, False, True, True, 5, ('echec_connexion', 5, True)),          # déjà verrouillé : on ne compte plus
+])
+def test_decision_de_connexion(existe, bon, actif, verrouille, echecs, attendu):
+    from app.auth import decider
+    assert decider(existe, bon, actif, verrouille, echecs, echecs_max=5) == attendu
