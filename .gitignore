@@ -8,6 +8,7 @@
 !jeu_essai/donnees/*.csv
 *.json
 !api/**/schemas/*.json
+!pipeline/tests/attendu_*.json
 *.parquet
 *.jsonl
 publication/

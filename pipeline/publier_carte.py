@@ -36,12 +36,11 @@ NOMS_TYPES = ['societe', 'personne', 'inscrit_personne', 'inscrit_societe']
 STYLES = ['', 'rap', 'pont']          # rôle simple, rapprochement inscrit ↔ registre, passage d'une société à l'autre
 PREFIXE_FICTIF = 'ZZ'                 # tous les CIN du jeu d'essai et du générateur
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from chaines_dessin import ROLES_FR  # noqa: E402
+from chaines_dessin import ROLES_FR  # noqa: E402  (même dossier que ce script)
 
 # Libellés de rôle admis dans la couche 1 : le vocabulaire de chaines_dessin.role_txt, part détenue comprise.
 # Tout autre libellé (rôle brut inattendu) ne va que dans la couche 2.
-_ROLES = sorted(set(ROLES_FR.values()) | {'associée de'}, key=len, reverse=True)
+_ROLES = sorted(set(ROLES_FR.values()) | {'associée de'})          # ordre indifférent : expression ancrée
 ROLE_PERMIS_RE = re.compile('^(' + '|'.join(map(re.escape, _ROLES)) + r')( \(\d+(\.\d+)? %\))?$')
 
 
