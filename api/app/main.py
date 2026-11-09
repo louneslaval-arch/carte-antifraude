@@ -3,10 +3,11 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from . import journal
 from .base import ouvrir
 from .config import Reglages
 from .graphe import charger
-from .routes import auth, carte
+from .routes import admin, auth, carte, chaines, stats
 
 VERSION = '0.3.0'
 
@@ -17,6 +18,7 @@ class Etat:
     def __init__(self, reglages: Reglages):
         self.reglages = reglages
         self.base = ouvrir(reglages.base_url)
+        journal.purger(self.base, reglages.journal_jours)        # conservation : aussi à chaque rechargement
         self.publication = charger(reglages.publication, reglages.donnees_reelles) if reglages.publication else None
 
 
@@ -39,5 +41,6 @@ def creer_app(reglages: Reglages) -> FastAPI:
         return reponse
 
     app.include_router(auth.routeur)
-    app.include_router(carte.routeur)
+    for module in (carte, chaines, stats, admin):
+        app.include_router(module.routeur)
     return app
