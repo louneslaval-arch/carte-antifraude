@@ -179,9 +179,9 @@ class Generateur:
         return dict(annonce_id=aid, role=role_txt, nom_complet=nom_complet, nom='', prenom='',
                     cin=p['cin'] or '', parts=parts or '', date_naissance='', nationalite='', adresse='')
 
-    def _ecrire_annonce(self, s, type_acte, quand, personnes, ecriture=None):
+    def _annoncer(self, s, type_acte, quand, personnes):
         source, ecr = self.r.choice(SOURCES)
-        ecr = ecriture or ecr
+        ecr = s.get('ecriture') or ecr
         aid = 'FX-%07d' % (len(self.annonces) + 1)
         denom, rc, tribunal, siege = self._entete_annonce(s, ecr)
         self.annonces.append(dict(
@@ -197,7 +197,7 @@ class Generateur:
 
     def annonces_registre(self):
         for s in self.societes:
-            self._ecrire_annonce(s, 'Création', s['creation'], s['personnes'])
+            self._annoncer(s, 'Création', s['creation'], s['personnes'])
             jour = s['creation']
             for _ in range(self.r.choice((0, 0, 0, 1, 1, 2))):
                 jour = jour + timedelta(days=self.r.randrange(60, 500))
@@ -209,17 +209,17 @@ class Generateur:
                     nouveau = self.personne_pour(s['ville'], sauf={ancien})
                     nouveau['societes'].append(s['id'])
                     s['personnes'].insert(0, (nouveau['id'], 'gerant', None))
-                    self._ecrire_annonce(s, 'Changement de gérant', jour,
+                    self._annoncer(s, 'Changement de gérant', jour,
                                          [(ancien, 'gerant_sortant', None), (nouveau['id'], 'gerant', None)])
                 elif evt == 'cession':
                     cess = self.personne_pour(s['ville'], sauf={ancien})
                     cess['societes'].append(s['id'])
-                    self._ecrire_annonce(s, 'Cession de parts', jour,
+                    self._annoncer(s, 'Cession de parts', jour,
                                          [(ancien, 'cedant', 500), (cess['id'], 'cessionnaire', 500)])
                 elif evt == 'siege':
-                    self._ecrire_annonce(s, 'Transfert de siège', jour, [])
+                    self._annoncer(s, 'Transfert de siège', jour, [])
                 else:
-                    self._ecrire_annonce(s, 'Dissolution', jour, [(ancien, 'liquidateur', None)])
+                    self._annoncer(s, 'Dissolution', jour, [(ancien, 'liquidateur', None)])
                     break
 
     # -- liste noire -------------------------------------------------------------------------------------------
@@ -297,11 +297,10 @@ class Generateur:
         for j in range(3):
             s = dict(id=len(self.societes), nom=f'{self._syllabe()[0]}{self._syllabe()[0]} {ACTIVITES[j]} SARL',
                      nom_ar=None, ville=ville, rc=str(base_rc + j), personnes=[(g['id'], 'gerant', None)],
-                     creation=self._date(2023, 2026))
+                     creation=self._date(2023, 2026), ecriture='lat')     # nom sans graphie arabe
             s['nom_ar'] = 'شركة ' + s['nom']
             g['societes'].append(s['id'])
             self.societes.append(s)
-            self._ecrire_annonce(s, 'Création', s['creation'], s['personnes'], ecriture='lat')
             self._inscription(cli_phy_mor='PM', nom_ras=s['nom'], regist_com=s['rc'], regist_tribune=ville[0][:5])
         self._inscription(cli_phy_mor='PP', cin=g['cin'], nom=g['nom'][0], prenom=g['prenom'][0])
         self.verite.append(dict(type='reseau_rc_consecutifs', personne=g['id'], regle='R01+R02'))

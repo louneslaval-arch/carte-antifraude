@@ -99,3 +99,8 @@ def test_verite_decrit_chaque_inscription_de_personne_ou_societe(jeu):
 def test_saisies_abimees_signalees_comme_anomalies(jeu):
     con = sqlite3.connect(jeu['base'])
     assert con.execute('SELECT COUNT(*) FROM bl_anomalie').fetchone()[0] >= 2
+
+
+def test_chaque_societe_a_une_seule_annonce_de_creation(jeu):
+    creations = sum(1 for a in jeu['fichiers']['rc_annonces.csv'] if a['type_acte'] == 'Création')
+    assert creations == jeu['verite']['societes']

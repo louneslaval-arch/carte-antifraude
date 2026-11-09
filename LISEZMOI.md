@@ -37,7 +37,7 @@ JSON, pages générées et fichiers de secrets.
 | `manifeste.json` | date, nombre de nœuds et d'inscrits, `fictif` (vrai seulement si tous les CIN commencent par « ZZ »), empreintes SHA-256 |
 
 Les indices sont tirés au hasard à chaque publication : ils ne révèlent ni l'ordre alphabétique ni le RC.
-Un libellé de rôle hors du vocabulaire du kit ne passe pas en couche 1. Tests : `python3 -m pytest pipeline/tests`.
+Un libellé de rôle hors du vocabulaire du kit ne passe pas en couche 1. Tests : `python3 -m pytest pipeline/tests jeu_essai/tests`.
 
 ## Construire le jeu d'essai
 
@@ -55,11 +55,11 @@ sociétés, inscrits retrouvables par chacune des règles R01 à R08, sociétés
 Il écrit aussi `verite.json` (ce qui a été caché exprès), pour mesurer ce que le pipeline retrouve.
 Tous les CIN commencent par « ZZ », tous les liens pointent vers `exemple.invalid`.
 
-| Taille | Sociétés | Annonces | Inscriptions | Base + chaînes |
+| Taille | Sociétés | Annonces | Inscriptions | Construction complète |
 | --- | ---: | ---: | ---: | ---: |
-| petit | 424 | 666 | 68 | 1 s |
-| moyen | 8 273 | 12 750 | 354 | 11 s |
-| grand | 61 041 | 96 563 | 2 714 | 95 s |
+| petit | 423 | 660 | 68 | 1 s |
+| moyen | 8 272 | 12 743 | 354 | 13 s |
+| grand | 61 043 | 96 519 | 2 714 | 125 s |
 
 ## Décisions prises
 
