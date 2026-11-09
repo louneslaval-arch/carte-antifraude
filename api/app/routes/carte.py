@@ -1,7 +1,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .. import identites, journal, quotas
 from ..auth import Session, exige
@@ -34,6 +34,7 @@ def geometrie(request: Request, response: Response, session: Session = Depends(e
 
 
 class DemandeNoms(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     indices: List[int] = Field(min_length=1, max_length=MAX_NOMS)
 
 
@@ -63,6 +64,7 @@ def noeud(indice: int, request: Request, session: Session = Depends(exige('carte
 
 
 class DemandeRecherche(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     q: str = Field(min_length=2, max_length=100)
 
     @field_validator('q')

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .. import journal
 from ..auth import COOKIE, Session, emettre, poser_cookie, revoquer, session_courante, verifier_mot_de_passe
@@ -8,6 +8,7 @@ routeur = APIRouter(prefix='/api/auth')
 
 
 class Connexion(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     identifiant: str = Field(max_length=64)
     mot_de_passe: str = Field(max_length=256)
 

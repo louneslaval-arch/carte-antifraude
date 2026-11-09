@@ -58,6 +58,7 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
         quota_etiquettes=_entier(env, 'CARTE_QUOTA_ETIQUETTES', 20_000),
         quota_fiches=_entier(env, 'CARTE_QUOTA_FICHES', 2_000),
         debit=env.get('CARTE_DEBIT') or '60/minute',
+        debit_connexion=env.get('CARTE_DEBIT_CONNEXION') or '10/minute',
         journal_jours=_entier(env, 'CARTE_JOURNAL_JOURS', 365),
         origine=env.get('CARTE_ORIGINE') or None,
         cookie_securise=env.get('CARTE_COOKIE_NON_SECURISE') != '1')
