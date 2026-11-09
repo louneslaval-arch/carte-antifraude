@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réseaux liste noire</title>
+<style>
+:root {
+  --fond: #f6f7f9; --carte: #ffffff; --texte: #17202a; --doux: #5b6773; --trait: #d5dbe1; --ligne: #8a96a3;
+  --accent: #1f5f8b; --accent-doux: #e3eef6; --alerte: #b42318; --alerte-doux: #fde8e6; --pont: #b06d00;
+  --pont-doux: #fff3dc; --ombre: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #6b7886;
+    --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+    --pont-doux: #3a2a0c; --ombre: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #6b7886;
+  --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+  --pont-doux: #3a2a0c; --ombre: 0 1px 2px rgba(0, 0, 0, .4);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--fond); color: var(--texte);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", Arial, sans-serif; }
+header { padding: 18px 20px 10px; border-bottom: 1px solid var(--trait); background: var(--carte); }
+header h1 { margin: 0 0 4px; font-size: 19px; letter-spacing: -.01em; }
+header p { margin: 0; color: var(--doux); font-size: 13px; max-width: 980px; }
+.chiffres { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chiffre { background: var(--fond); border: 1px solid var(--trait); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--doux); }
+.chiffre b { color: var(--texte); font-size: 15px; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.chiffre.rouge b { color: var(--alerte); }
+main { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 0; min-height: calc(100vh - 140px); }
+aside { border-right: 1px solid var(--trait); background: var(--carte); display: flex; flex-direction: column; min-height: 0; }
+.onglets { display: flex; padding: 10px 12px 0; gap: 6px; }
+.onglets button { flex: 1; border: 1px solid var(--trait); background: var(--fond); color: var(--doux); border-radius: 7px;
+  padding: 7px 8px; font: inherit; font-size: 13px; cursor: pointer; }
+.onglets button[aria-pressed="true"] { background: var(--accent-doux); color: var(--accent); border-color: transparent; font-weight: 600; }
+.filtres { padding: 10px 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--trait); }
+.filtres input[type="search"] { width: 100%; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 7px;
+  background: var(--fond); color: var(--texte); font: inherit; }
+.filtres label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--doux); cursor: pointer; }
+#liste { overflow: auto; flex: 1; min-height: 200px; }
+.item { padding: 9px 12px; border-bottom: 1px solid var(--trait); cursor: pointer; display: grid; gap: 3px; }
+.item:hover { background: var(--fond); }
+.item[aria-current="true"] { background: var(--accent-doux); }
+.item .nom { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.item .nom .point { width: 8px; height: 8px; border-radius: 50%; background: var(--alerte); flex: none; }
+.item .compte { font-size: 12px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.vide { padding: 16px 12px; color: var(--doux); font-size: 13px; }
+section#vue { min-width: 0; display: flex; flex-direction: column; }
+.barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 12px 16px; border-bottom: 1px solid var(--trait); background: var(--carte); }
+.barre h2 { margin: 0; font-size: 16px; }
+.barre .meta { color: var(--doux); font-size: 12px; }
+.barre .seuil { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--doux); }
+.legende { display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 16px; font-size: 12px; color: var(--doux); border-bottom: 1px solid var(--trait); }
+.legende span { display: inline-flex; align-items: center; gap: 6px; }
+.legende i { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--ligne); }
+.legende i.pont { border-top: 2px dashed var(--pont); }
+.legende i.rap { border-top: 2px dashed var(--accent); }
+.legende b.bl { width: 12px; height: 12px; border: 2px solid var(--alerte); border-radius: 3px; background: var(--alerte-doux); display: inline-block; }
+#toile { overflow: auto; flex: 1; position: relative; padding: 8px 4px 16px; min-height: 320px; }
+#toile svg { display: block; }
+.carte-noeud rect.fond { fill: var(--carte); stroke: var(--trait); stroke-width: 1; }
+.carte-noeud.bl rect.fond { fill: var(--alerte-doux); stroke: var(--alerte); stroke-width: 2; }
+.carte-noeud.racine rect.fond { stroke: var(--accent); stroke-width: 2; }
+.carte-noeud.choisi rect.fond { stroke: var(--accent); stroke-width: 2.5; }
+.carte-noeud { cursor: pointer; }
+.carte-noeud text { fill: var(--texte); font-size: 12.5px; }
+.carte-noeud text.sous { fill: var(--doux); font-size: 11px; }
+.carte-noeud text.tag { fill: var(--alerte); font-size: 10.5px; font-weight: 700; letter-spacing: .02em; }
+.carte-noeud .icone { fill: none; stroke: var(--doux); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.carte-noeud.bl .icone { stroke: var(--alerte); }
+path.arete { fill: none; stroke: var(--ligne); stroke-width: 1.6; }
+path.arete.pont { stroke: var(--pont); stroke-dasharray: 6 4; }
+path.arete.rap { stroke: var(--accent); stroke-dasharray: 6 4; }
+path.arete.terne { opacity: .18; }
+g.carte-noeud.terne { opacity: .25; }
+text.etiquette { font-size: 11px; fill: var(--doux); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; stroke-linejoin: round; }
+text.colonne { font-size: 11px; fill: var(--doux); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+#detail { border-top: 1px solid var(--trait); background: var(--carte); padding: 12px 16px; font-size: 13px; min-height: 60px; }
+#detail h3 { margin: 0 0 4px; font-size: 14px; }
+#detail .ligne { color: var(--doux); }
+#detail .rouge { color: var(--alerte); font-weight: 600; }
+#detail a { color: var(--accent); }
+#chaines { padding: 12px 16px 24px; }
+#chaines h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--doux); margin: 8px 0; }
+#chaines ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+#chaines li { font-size: 13px; }
+#chaines li.bl { color: var(--alerte); }
+#chaines li small { color: var(--doux); }
+.note { color: var(--doux); font-size: 12px; padding: 0 16px 16px; max-width: 980px; }
+@media (max-width: 860px) {
+  main { grid-template-columns: 1fr; }
+  aside { border-right: 0; border-bottom: 1px solid var(--trait); max-height: 46vh; }
+  header, .barre, .legende, #detail, #chaines { padding-left: 16px; padding-right: 16px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Réseaux liste noire × registre du commerce</h1>
+  <p id="sous-titre">Chaînes du dessin : inscrit –gérant– société –associé– personne –gérant– société –associé– personne.
+    Chaque arête est un rôle publié dans une annonce légale ; les traits pointillés sont des rapprochements à valider.</p>
+  <div class="chiffres" id="chiffres"></div>
+</header>
+<main>
+  <aside>
+    <div class="onglets" role="tablist">
+      <button id="tab-pp" aria-pressed="true">Personnes inscrites</button>
+      <button id="tab-pm" aria-pressed="false">Sociétés inscrites</button>
+    </div>
+    <div class="filtres">
+      <input type="search" id="recherche" placeholder="Rechercher un nom, une société, un RC…" aria-label="Rechercher">
+      <label><input type="checkbox" id="boucles"> Seulement les réseaux qui reviennent vers la liste noire</label>
+      <label><input type="checkbox" id="profonds"> Seulement les chaînes de 3 ou 4 arêtes</label>
+    </div>
+    <div id="liste" role="list"></div>
+  </aside>
+  <section id="vue">
+    <div class="barre">
+      <div><h2 id="titre-vue">—</h2><div class="meta" id="meta-vue"></div></div>
+      <div class="seuil"><label for="seuil">Masquer les liens faibles</label>
+        <input type="range" id="seuil" min="0" max="100" value="0"><span id="seuil-val">tout</span></div>
+    </div>
+    <div class="legende">
+      <span><i></i> rôle publié (gérant, associé…)</span>
+      <span><i class="rap"></i> inscrit ↔ registre : rapprochement à valider</span>
+      <span><i class="pont"></i> même personne d'une société à l'autre (même nom + même ville)</span>
+      <span><b class="bl"></b> élément de la liste noire</span>
+    </div>
+    <div id="toile"></div>
+    <div id="detail"><span class="ligne">Cliquer sur une personne ou une société pour voir le détail et le chemin qui y mène.</span></div>
+    <div id="chaines"></div>
+    <p class="note">Fiabilité d'une chaîne = rapprochement inscrit ↔ registre × passages d'une société à l'autre (1 pour un
+      même CIN, 0,8 × n<sup>−½</sup> pour un même nom + même ville, n = nombre de sociétés qui portent ce nom). Force =
+      fiabilité × poids des rôles × taille des sociétés. Données confidentielles : fichier local, à ne pas diffuser.</p>
+  </section>
+</main>
+<script>
+const DONNEES = /*__DONNEES__*/[];
+const $ = (s) => document.querySelector(s);
+const etat = { type: 'PP', choisi: null, noeud: null, seuil: 0 };
+const NS = 'http://www.w3.org/2000/svg';
+const COLONNES = {
+  PP: ['Inscrit', '1 arête · PM n°1', '2 arêtes · PP n°2', '3 arêtes · PM n°2', '4 arêtes · PP n°3'],
+  PM: ['Société inscrite', '1 arête · personnes', '2 arêtes · sociétés', '3 arêtes · personnes', '4 arêtes · sociétés'],
+};
+const fmt = (n) => n.toLocaleString('fr-FR');
+
+function chiffres() {
+  const pp = DONNEES.filter((x) => x.type === 'PP'), pm = DONNEES.filter((x) => x.type === 'PM');
+  const somme = (l, k) => l.reduce((s, x) => s + (x.compte[k] || 0), 0);
+  const avec = (l, k) => l.filter((x) => x.compte[k] > 0).length;
+  const blocs = [
+    [pp.length, 'personnes inscrites retrouvées au registre'],
+    [avec(pp, '3'), 'avec une chaîne de 3 arêtes'],
+    [avec(pp, '4'), 'avec une chaîne de 4 arêtes'],
+    [pp.filter((x) => x.alerte).length, 'personnes dont le réseau revient vers la liste noire', true],
+    [pm.length, 'sociétés inscrites retrouvées au registre'],
+    [pm.filter((x) => x.alerte).length, 'sociétés dont le réseau revient vers la liste noire', true],
+  ];
+  $('#chiffres').innerHTML = blocs.map(([n, t, r]) => `<span class="chiffre${r ? ' rouge' : ''}"><b>${fmt(n)}</b>${t}</span>`).join('');
+}
+
+function liste() {
+  const q = $('#recherche').value.trim().toLowerCase();
+  const boucles = $('#boucles').checked, profonds = $('#profonds').checked;
+  const items = DONNEES.filter((x) => x.type === etat.type)
+    .filter((x) => !boucles || x.alerte)
+    .filter((x) => !profonds || x.compte['3'] > 0 || x.compte['4'] > 0)
+    .filter((x) => !q || x.recherche.includes(q));
+  const el = $('#liste');
+  if (!items.length) { el.innerHTML = '<div class="vide">Aucun résultat.</div>'; return; }
+  el.innerHTML = '';
+  for (const x of items) {
+    const d = document.createElement('div');
+    d.className = 'item'; d.setAttribute('role', 'listitem'); d.tabIndex = 0;
+    if (etat.choisi === x.id) d.setAttribute('aria-current', 'true');
+    const c = x.compte;
+    d.innerHTML = `<div class="nom">${x.alerte ? '<span class="point" title="revient vers la liste noire"></span>' : ''}<span></span></div>
+      <div class="compte">1 arête ${c['1']} · 2 : ${c['2']} · 3 : ${c['3']} · 4 : ${c['4']}</div>`;
+    d.querySelector('.nom span:last-child').textContent = x.nom;
+    d.onclick = () => choisir(x.id);
+    d.onkeydown = (e) => { if (e.key === 'Enter') choisir(x.id); };
+    el.appendChild(d);
+  }
+}
+
+function choisir(id) {
+  etat.choisi = id; etat.noeud = null;
+  try { localStorage.setItem('carte-choisi', id); } catch (e) { /* stockage indisponible */ }
+  liste(); dessiner();
+}
+
+function visible(x) {
+  // une arête reste si sa force atteint le seuil ; un nœud reste s'il est relié à la racine par des arêtes visibles
+  const s = etat.seuil;
+  const ar = x.aretes.filter((a) => a.force >= s);
+  const vus = new Set(['R']);
+  const parD = Object.entries(x.noeuds).sort((a, b) => a[1].d - b[1].d);
+  for (const [k, n] of parD) {
+    if (k === 'R') continue;
+    if (ar.some((a) => a.b === k && vus.has(a.a))) vus.add(k);
+  }
+  return { noeuds: vus, aretes: ar.filter((a) => vus.has(a.a) && vus.has(a.b)) };
+}
+
+function dessiner() {
+  const x = DONNEES.find((d) => d.id === etat.choisi);
+  const toile = $('#toile');
+  if (!x) { toile.innerHTML = '<div class="vide">Choisir un inscrit dans la liste.</div>'; $('#chaines').innerHTML = ''; return; }
+  $('#titre-vue').textContent = x.nom;
+  const meta = [x.type === 'PP' ? 'Personne inscrite' : 'Société inscrite'];
+  if (x.cin) meta.push('CIN ' + x.cin);
+  if (x.listes) meta.push(x.listes);
+  if (x.motifs) meta.push(x.motifs);
+  $('#meta-vue').textContent = meta.join(' · ');
+  const vis = visible(x);
+  const W = 214, H = 58, GX = 120, GY = 14, MX = 16, MY = 34;
+  const cols = [[], [], [], [], []];
+  for (const k of vis.noeuds) cols[x.noeuds[k].d].push(k);
+  // ordre : barycentre des parents dans la colonne précédente
+  const pos = {};
+  cols[0].forEach((k, i) => (pos[k] = i));
+  for (let c = 1; c < cols.length; c++) {
+    const bary = (k) => {
+      const p = vis.aretes.filter((a) => a.b === k && pos[a.a] !== undefined).map((a) => pos[a.a]);
+      return p.length ? p.reduce((s, v) => s + v, 0) / p.length : 1e9;
+    };
+    cols[c].sort((a, b) => bary(a) - bary(b) || x.noeuds[a].nom.localeCompare(x.noeuds[b].nom));
+    cols[c].forEach((k, i) => (pos[k] = i));
+  }
+  const nbCols = Math.max(...cols.map((c, i) => (c.length ? i + 1 : 0)));
+  const hauteur = Math.max(...cols.map((c) => c.length)) * (H + GY) + MY + 10;
+  const largeur = MX * 2 + nbCols * W + (nbCols - 1) * GX;
+  const xy = {};
+  cols.forEach((c, ci) => {
+    const total = c.length * (H + GY) - GY;
+    const y0 = MY + Math.max(0, (hauteur - MY - 10 - total) / 2);
+    c.forEach((k, i) => (xy[k] = { x: MX + ci * (W + GX), y: y0 + i * (H + GY) }));
+  });
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', largeur); svg.setAttribute('height', hauteur);
+  svg.setAttribute('viewBox', `0 0 ${largeur} ${hauteur}`);
+  svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Réseau de ' + x.nom);
+  const col = COLONNES[x.type];
+  for (let c = 0; c < nbCols; c++) {
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', MX + c * (W + GX)); t.setAttribute('y', 16); t.setAttribute('class', 'colonne');
+    t.textContent = col[c]; svg.appendChild(t);
+  }
+  const chemin = etat.noeud ? cheminVers(x, vis, etat.noeud) : null;
+  const gA = document.createElementNS(NS, 'g'), gN = document.createElementNS(NS, 'g'), gE = document.createElementNS(NS, 'g');
+  for (const a of vis.aretes) {
+    const p = xy[a.a], q = xy[a.b];
+    if (!p || !q) continue;
+    const x1 = p.x + W, y1 = p.y + H / 2, x2 = q.x, y2 = q.y + H / 2, mx = (x1 + x2) / 2;
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
+    path.setAttribute('class', 'arete' + (a.style ? ' ' + a.style : '') + (chemin && !chemin.aretes.has(a) ? ' terne' : ''));
+    const titre = document.createElementNS(NS, 'title');
+    titre.textContent = `${a.lib}${a.pont ? ' — ' + a.pont : ''} (fiabilité ${a.fiab}, force ${a.force})`;
+    path.appendChild(titre); gA.appendChild(path);
+    const lab = document.createElementNS(NS, 'text');
+    lab.setAttribute('x', mx); lab.setAttribute('y', (y1 + y2) / 2 - 4); lab.setAttribute('text-anchor', 'middle');
+    lab.setAttribute('class', 'etiquette'); lab.textContent = a.lib;
+    if (chemin && !chemin.aretes.has(a)) lab.setAttribute('opacity', '.25');
+    gE.appendChild(lab);
+  }
+  for (const k of vis.noeuds) {
+    const n = x.noeuds[k], p = xy[k];
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'carte-noeud' + (n.bl ? ' bl' : '') + (k === 'R' ? ' racine' : '') +
+      (etat.noeud === k ? ' choisi' : '') + (chemin && !chemin.noeuds.has(k) ? ' terne' : ''));
+    g.setAttribute('transform', `translate(${p.x},${p.y})`);
+    g.setAttribute('tabindex', '0');
+    const r = document.createElementNS(NS, 'rect');
+    r.setAttribute('class', 'fond'); r.setAttribute('width', W); r.setAttribute('height', H); r.setAttribute('rx', 8);
+    g.appendChild(r);
+    const ic = document.createElementNS(NS, 'path');
+    ic.setAttribute('class', 'icone');
+    ic.setAttribute('d', n.t === 'PP'
+      ? 'M18 15 a5 5 0 1 0 0.01 0 M9 37 c0-6 4-10 9-10 s9 4 9 10'
+      : 'M9 37 V20 l9-7 9 7 v17 Z M15 37 v-7 h6 v7 M13 23 h3 M20 23 h3');
+    g.appendChild(ic);
+    const t1 = document.createElementNS(NS, 'text');
+    t1.setAttribute('x', 34); t1.setAttribute('y', 20); t1.textContent = couper(n.nom, 25);
+    const tt = document.createElementNS(NS, 'title'); tt.textContent = n.nom; g.appendChild(tt);
+    g.appendChild(t1);
+    const t2 = document.createElementNS(NS, 'text');
+    t2.setAttribute('x', 34); t2.setAttribute('y', 36); t2.setAttribute('class', 'sous');
+    t2.textContent = couper(n.t === 'PM' ? [n.rc ? 'RC ' + n.rc : '', n.ville || ''].filter(Boolean).join(' · ') : (n.sous || ''), 30);
+    g.appendChild(t2);
+    if (n.bl) {
+      const t3 = document.createElementNS(NS, 'text');
+      t3.setAttribute('x', 34); t3.setAttribute('y', 50); t3.setAttribute('class', 'tag');
+      t3.textContent = k === 'R' ? 'POINT DE DÉPART' : 'LISTE NOIRE'; g.appendChild(t3);
+    } else if (k === 'R') {
+      const t3 = document.createElementNS(NS, 'text');
+      t3.setAttribute('x', 34); t3.setAttribute('y', 50); t3.setAttribute('class', 'tag');
+      t3.textContent = 'INSCRIT'; g.appendChild(t3);
+    }
+    g.onclick = () => { etat.noeud = etat.noeud === k ? null : k; dessiner(); };
+    g.onkeydown = (e) => { if (e.key === 'Enter') g.onclick(); };
+    gN.appendChild(g);
+  }
+  svg.appendChild(gA); svg.appendChild(gN); svg.appendChild(gE);
+  // à l'écran : on réduit le dessin pour qu'il tienne en largeur (jusqu'à 70 %), sinon défilement horizontal
+  const dispo = toile.clientWidth - 12;
+  if (dispo > 0 && largeur > dispo) {
+    const w = Math.max(dispo, largeur * 0.7);
+    svg.setAttribute('width', Math.round(w)); svg.setAttribute('height', Math.round(hauteur * w / largeur));
+  }
+  toile.innerHTML = ''; toile.appendChild(svg);
+  detail(x, vis);
+  chainesTexte(x);
+}
+
+function couper(t, n) { t = t || ''; return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+function cheminVers(x, vis, k) {
+  const noeuds = new Set([k]), aretes = new Set();
+  let front = [k];
+  while (front.length) {
+    const suiv = [];
+    for (const b of front) for (const a of vis.aretes) if (a.b === b && !aretes.has(a)) { aretes.add(a); noeuds.add(a.a); suiv.push(a.a); }
+    front = suiv;
+  }
+  return { noeuds, aretes };
+}
+
+function detail(x, vis) {
+  const el = $('#detail');
+  const k = etat.noeud;
+  if (!k) { el.innerHTML = '<span class="ligne">Cliquer sur une personne ou une société pour voir le détail et le chemin qui y mène.</span>'; return; }
+  const n = x.noeuds[k];
+  const entrants = vis.aretes.filter((a) => a.b === k);
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let h = `<h3><bdi>${esc(n.nom)}</bdi></h3>`;
+  if (n.t === 'PM') {
+    h += `<div class="ligne">${[n.rc ? 'RC ' + esc(n.rc) : 'RC non lu', esc(n.trib || ''), esc(n.ville || ''),
+      n.dern ? 'dernière annonce ' + esc(n.dern) : '', n.diss ? 'dissoute' : ''].filter(Boolean).join(' · ')}</div>`;
+    if (n.url) h += `<div class="ligne"><a href="${esc(n.url)}" target="_blank" rel="noopener">Ouvrir la dernière annonce</a></div>`;
+  } else if (n.sous) h += `<div class="ligne">${esc(n.sous)}</div>`;
+  if (n.bl) h += `<div class="rouge">${esc(n.bl)}</div>`;
+  for (const a of entrants) h += `<div class="ligne">← <bdi>${esc(x.noeuds[a.a].nom)}</bdi> : ${esc(a.lib)}${a.pont ? ' — ' + esc(a.pont) : ''} · fiabilité ${a.fiab} · force ${a.force}</div>`;
+  el.innerHTML = h;
+}
+
+function chainesTexte(x) {
+  const el = $('#chaines');
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const l = x.chaines.filter((c) => c.force >= etat.seuil);
+  if (!l.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<h3>Chaînes (${l.length})</h3><ol>${l.map((c) =>
+    `<li class="${c.bl ? 'bl' : ''}">${esc(c.texte)} <small>· ${c.distance} arête${c.distance > 1 ? 's' : ''} · fiabilité ${c.fiab} · force ${c.force}${c.bl ? ' · ' + esc(c.bl) : ''}</small></li>`).join('')}</ol>`;
+}
+
+function seuil() {
+  const v = +$('#seuil').value;
+  // échelle logarithmique : 0 = tout, 100 = force ≥ 0,1
+  etat.seuil = v === 0 ? 0 : Math.pow(10, -5 + 4 * v / 100);
+  $('#seuil-val').textContent = v === 0 ? 'tout' : 'force ≥ ' + etat.seuil.toPrecision(2);
+  dessiner();
+}
+
+for (const x of DONNEES) x.recherche = (x.nom + ' ' + Object.values(x.noeuds).map((n) => n.nom + ' ' + (n.rc || '')).join(' ')).toLowerCase();
+$('#tab-pp').onclick = () => { etat.type = 'PP'; $('#tab-pp').setAttribute('aria-pressed', 'true'); $('#tab-pm').setAttribute('aria-pressed', 'false'); liste(); };
+$('#tab-pm').onclick = () => { etat.type = 'PM'; $('#tab-pm').setAttribute('aria-pressed', 'true'); $('#tab-pp').setAttribute('aria-pressed', 'false'); liste(); };
+$('#recherche').oninput = liste;
+$('#boucles').onchange = liste;
+$('#profonds').onchange = liste;
+$('#seuil').oninput = seuil;
+chiffres();
+window.addEventListener('resize', () => { clearTimeout(window.__t); window.__t = setTimeout(dessiner, 150); });
+let depart = null;
+try { depart = localStorage.getItem('carte-choisi'); } catch (e) { /* stockage indisponible */ }
+if (!DONNEES.some((x) => x.id === depart)) depart = (DONNEES.find((x) => x.type === 'PP') || DONNEES[0] || {}).id;
+etat.choisi = depart;
+const premier = DONNEES.find((x) => x.id === depart);
+if (premier && premier.type === 'PM') $('#tab-pm').onclick();
+liste(); dessiner();
+</script>
+</body>
+</html>
