@@ -1,0 +1,6 @@
+[run]
+patch = subprocess
+parallel = true
+include =
+    pipeline/publier_carte.py
+    jeu_essai/generer.py
