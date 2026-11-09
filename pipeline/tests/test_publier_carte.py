@@ -176,3 +176,30 @@ def test_indices_tires_au_hasard_a_chaque_publication(jeu, tmp_path):
     b = sqlite3.connect(str(tmp_path / 'p2' / 'identites.sqlite')).execute(
         'SELECT ref_id FROM noeud ORDER BY indice').fetchall()
     assert sorted(a) == sorted(b) and a != b
+
+
+# ---- reprise après incident ------------------------------------------------------------------------------------
+def test_un_arret_en_cours_laisse_la_publication_precedente_intacte(jeu, tmp_path, monkeypatch):
+    dossier = str(tmp_path / 'pub')
+    avant = pc.publier(jeu['base'], jeu['chaines'], dossier)
+
+    def panne(*_a, **_k):
+        raise RuntimeError('panne simulée pendant l\'écriture du manifeste')
+
+    monkeypatch.setattr(pc, 'manifeste', panne)
+    with pytest.raises(RuntimeError):
+        pc.publier(jeu['base'], jeu['chaines'], dossier)
+    with open(os.path.join(dossier, 'manifeste.json'), encoding='utf-8') as f:
+        assert json.load(f) == avant
+    for nom, h in avant['fichiers'].items():
+        assert pc.empreinte(os.path.join(dossier, nom)) == h, f'{nom} remplacé sans manifeste'
+    assert sorted(os.listdir(tmp_path)) == ['pub'], 'dossier temporaire laissé derrière'
+
+
+def test_publier_deux_fois_donne_une_publication_complete_et_coherente(jeu, tmp_path):
+    dossier = str(tmp_path / 'pub')
+    pc.publier(jeu['base'], jeu['chaines'], dossier)
+    m = pc.publier(jeu['base'], jeu['chaines'], dossier)
+    assert sorted(os.listdir(dossier)) == ['geometrie.json', 'identites.sqlite', 'manifeste.json']
+    for nom, h in m['fichiers'].items():
+        assert pc.empreinte(os.path.join(dossier, nom)) == h
