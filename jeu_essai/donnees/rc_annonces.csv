@@ -1,0 +1,9 @@
+annonce_id,source,type_acte,date_publication,numero_publication,denomination,rc,tribunal,depot,date_acte,capital,siege,objet,nouveau_capital,nouveau_siege,nouvelle_denomination,complet,ice,url,cin
+EX-0001,jalmaroc,Création,2024-05-14,,EXEMPLE ATLAS NEGOCE SARL,999001,Tribunal de commerce de Casablanca,D-1001,2024-04-30,100000,12 RUE EXEMPLE ETG 2 N 5 MAARIF CASABLANCA,Négoce de marchandises,,,,1,,,
+EX-0002,bo,Cession de parts,2025-02-03,5900,شركة إكسومبل أطلس نيكوس ش.م.م,٩٩٩٠٠١,المحكمة التجارية بالدار البيضاء,,2025-01-15,,,,,,,0,,,
+EX-0003,bo,Création,2023-11-20,5820,شركة مثال نور للخدمات ش.م.م,999003,المحكمة التجارية بالدار البيضاء,,2023-10-02,10000,زنقة المثال رقم 4 الدار البيضاء,خدمات,,,,1,,,
+EX-0004,aumaroc,Changement de gérant,2025-06-30,,EXEMPLE NOVA TRANS SARL AU,999004,Tanger,,2025-06-01,,7 AV EXEMPLE TANGER,,,,,1,,,
+EX-0005,flasheconomie,Transfert de siège,2024-09-01,,EXEMPLE ORION LOGISTIQUE S.A.R.L,999002,Tribunal de commerce de Tanger,,2024-08-12,,,Logistique,,ZONE FRANCHE EXEMPLE LOT 9 TANGER,,1,,,
+EX-0006,jaldumaroc,Création,2022-03-15,,STE EXEMPLE DELTA SERVICES SARL,999005,Rabat,,2022-02-20,50000,3 RUE EXEMPLE AGDAL RABAT,Services,,,,1,,,
+EX-0007,jalmaroc,Changement de gérant,2025-01-10,,EXEMPLE ATLAS NEGOCE SARL,999001,Casablanca,,2024-12-20,,,,,,,1,,,
+EX-0008,umaroc,Dissolution,2025-03-03,,EXEMPLE SIGMA BTP,999006,Tribunal de commerce de Marrakech,,2025-02-14,,,,,,,0,,,ZZ900001
