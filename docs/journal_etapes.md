@@ -107,3 +107,6 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   `.verif/a_copier/` (le bac à sable interdit l'écriture dans `.claude/skills/`) ; Lounès lance la copie.
   pyright-lsp en attente : il faut ajouter la place de marché et `enabledPlugins` dans `.claude/settings.json`
   (accord explicite, règle 7) et installer `pyright`.
+- **pyright-lsp**, sur accord explicite de Lounès : place de marché `claude-plugins-official` (source GitHub) et
+  `enabledPlugins` ajoutés à `.claude/settings.json`. `pyright` figé à 1.1.414 (10/09/2026), installé par Lounès avec
+  npm ; le paquet de PyPI est écarté parce qu'il télécharge Node à son premier lancement.
