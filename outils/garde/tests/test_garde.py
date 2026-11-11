@@ -166,3 +166,23 @@ def test_dossiers_ignores(tmp_path, capsys):
     (tmp_path / '.verif').mkdir()
     (tmp_path / '.verif' / 'm.py').write_text('cin = "' + CIN_REEL + '"\n')
     assert garde_donnees.main(['--fichiers', '.verif/m.py'], racine=str(tmp_path)) == 0
+
+
+def test_dossier_ignore_mais_indexe_est_controle(tmp_path, capsys):
+    # un fichier d'un dossier ignoré qui entre quand même dans l'index va être enregistré : il est contrôlé
+    depot = tmp_path / 'depot'
+    depot.mkdir()
+    _git(depot, 'init', '-q')
+    (depot / '.verif').mkdir()
+    (depot / '.verif' / 'm.py').write_text('cin = "' + CIN_REEL + '"\n')
+    _git(depot, 'add', '-' + 'f', '.verif/m.py')
+    assert garde_donnees.main(['--index'], racine=str(depot)) == 1
+    assert '.verif/m.py:1: cin' in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('codage', ['utf-16', 'utf-16-le', 'utf-16-be'])
+def test_texte_en_utf16_avec_marque_est_lu(tmp_path, capsys, codage):
+    bom = {'utf-16': b'', 'utf-16-le': b'\xff\xfe', 'utf-16-be': b'\xfe\xff'}[codage]
+    (tmp_path / 'notes.txt').write_bytes(bom + ('cin = "' + CIN_REEL + '"\n').encode(codage))
+    assert garde_donnees.main(['--fichiers', 'notes.txt'], racine=str(tmp_path)) == 1
+    assert 'notes.txt:1: cin' in capsys.readouterr().out

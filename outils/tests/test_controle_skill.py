@@ -247,6 +247,27 @@ def test_ligne_de_commande_dossier_absent(tmp_path):
     assert 'dossier introuvable' in r.stderr
 
 
+@pytest.mark.parametrize('code', [0xE0001, 0xE0041, 0xE007F])
+def test_caracteres_d_etiquette_invisibles_refus(tmp_path, code):
+    # les caractères du bloc « Tags » d'Unicode cachent du texte lisible par un modèle, invisible à l'écran
+    ecrire(tmp_path, 'SKILL.md', ENTETE + 'texte' + chr(code) + '\n')
+    constats = categories(tmp_path)
+    assert 'U+%05X' % code in constats['unicode_invisible'][0].detail
+    assert controle_skill.proposition(constats) == controle_skill.REFUS
+
+
+def test_erreur_de_lecture_sort_en_3(tmp_path):
+    p = ecrire(tmp_path, 'SKILL.md', ENTETE)
+    p.chmod(0)
+    try:
+        r = subprocess.run([sys.executable, os.path.join(RACINE, 'outils', 'controle_skill.py'), str(tmp_path)],
+                           capture_output=True, text=True)
+    finally:
+        p.chmod(0o644)
+    assert r.returncode == 3
+    assert 'erreur de lecture' in r.stderr
+
+
 def test_bom_en_tete_signale(tmp_path):
     ecrire(tmp_path, 'SKILL.md', BOM + ENTETE)
     assert lignes_de(categories(tmp_path), 'unicode_invisible') == [('SKILL.md', 1)]

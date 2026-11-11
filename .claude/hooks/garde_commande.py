@@ -6,7 +6,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _commun import RACINE, bloquer, lire_entree, repere_present  # noqa: E402
 
-GIT_ADD_FORCE = re.compile(r'\bgit\s+add\b[^;&|\n]*\s(?:--force\b|-[A-Za-z]*f[A-Za-z]*\b)')
+# « git », puis d'éventuelles options globales (-C dossier, -c clé=valeur, --git-dir=…), puis la sous-commande
+GIT = r'\bgit\b(?:\s+(?:-[Cc]\s+\S+|--\S+))*\s+'
+GIT_ADD_FORCE = re.compile(GIT + r'add\b[^;&|\n]*\s(?:--force\b|-[A-Za-z]*f[A-Za-z]*\b)')
+# -n est la forme courte de --no-verify pour git commit, seule ou groupée (-anm)
+GIT_COMMIT_SANS_CROCHET = re.compile(GIT + r'commit\b[^;&|\n]*\s-[A-Za-z]*n[A-Za-z]*\b')
+# git ne distingue pas la casse des clés de configuration
+HOOKS_PATH = re.compile(r'core\.hookspath', re.IGNORECASE)
 MUTMUT = re.compile(r'\bmutmut\s+run\b')
 
 
@@ -27,9 +33,9 @@ def main():
     if repere:
         bloquer('Refusé : la commande vise un emplacement ou un réglage de données réelles '
                 '(.claude/hooks/chemins_interdits.txt). Les essais réels, c\'est Lounès qui les lance.')
-    if '--no-verify' in commande:
-        bloquer('Refusé : --no-verify contourne le crochet git (CLAUDE.md, règle 7).')
-    if 'core.hooksPath' in commande:
+    if '--no-verify' in commande or GIT_COMMIT_SANS_CROCHET.search(commande):
+        bloquer('Refusé : --no-verify (ou -n) contourne le crochet git (CLAUDE.md, règle 7).')
+    if HOOKS_PATH.search(commande):
         bloquer('Refusé : core.hooksPath ne se change pas sans demande explicite de Lounès (règle 7).')
     if GIT_ADD_FORCE.search(commande):
         bloquer('Refusé : ajout forcé d\'un fichier ignoré (règle 7).')

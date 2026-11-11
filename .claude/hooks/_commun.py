@@ -23,10 +23,11 @@ def reperes_interdits():
 
 
 def repere_present(texte):
-    """Rend le premier repère interdit présent dans le texte (comparaison sensible à la casse), sinon None."""
-    texte = os.path.expanduser(texte) + '\n' + texte
+    """Rend le premier repère interdit présent dans le texte, sinon None. La comparaison ignore la casse : le disque
+    du Mac ne la distingue pas, ~/downloads ouvre le même dossier que ~/Downloads."""
+    texte = (os.path.expanduser(texte) + '\n' + texte).casefold()
     for r in reperes_interdits():
-        if r in texte:
+        if r.casefold() in texte:
             return r
     return None
 

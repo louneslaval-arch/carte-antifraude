@@ -38,9 +38,14 @@ def _controler(rel, lire_octets):
     if motifs.fichier_refuse(rel):
         return [f'{rel}: fichier_refuse']
     octets = lire_octets()
-    if octets is None or b'\0' in octets[:8192]:
+    if octets is None:
         return []
-    texte = octets.decode('utf-8', errors='replace')
+    if octets[:2] in (b'\xff\xfe', b'\xfe\xff'):  # texte en UTF-16 avec marque : il contient des octets nuls
+        texte = octets.decode('utf-16', errors='replace')
+    elif b'\0' in octets[:8192]:
+        return []
+    else:
+        texte = octets.decode('utf-8', errors='replace')
     return [f'{rel}:{ligne}: {motif}' for ligne, motif in motifs.analyser(texte, rel)]
 
 
@@ -87,7 +92,8 @@ def main(argv=None, racine=None):
 
     constats = []
     for rel, lire in a_controler:
-        if not _ignore(rel):
+        # un fichier indexé va être enregistré : il est contrôlé même s'il vient d'un dossier ignoré
+        if args.index or not _ignore(rel):
             constats.extend(_controler(rel, lire))
     for c in constats:
         print(c)

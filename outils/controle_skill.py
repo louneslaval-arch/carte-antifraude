@@ -5,7 +5,7 @@ N'exécute, n'importe et ne suit rien de ce qu'il analyse : il lit des octets, c
 Markdown par catégorie, avec fichier:ligne, puis une proposition : rien à signaler, à lire de près, refus.
 
 Usage : outils/controle_skill.py <dossier>
-Code de sortie : 0 rien à signaler, 1 à lire de près, 2 refus, 3 dossier introuvable.
+Code de sortie : 0 rien à signaler, 1 à lire de près, 2 refus, 3 dossier introuvable ou illisible.
 """
 import os
 import re
@@ -58,7 +58,8 @@ MOTIFS_TEXTE = {
         re.IGNORECASE),
 }
 URL = re.compile(r'https?://[^\s<>"\'`()\[\]]+')
-INVISIBLES = re.compile('[​-‏‪-‮⁠-⁤⁦-⁩﻿]')
+# plages de l'annexe H.1, plus le bloc « Tags » (texte caché lisible par un modèle, invisible à l'écran)
+INVISIBLES = re.compile('[​-‏‪-‮⁠-⁤⁦-⁩﻿\U000e0000-\U000e007f]')
 ALLOWED_TOOLS = re.compile(r'^\s*allowed-tools\s*:', re.IGNORECASE)
 CLE_HOOKS_FRONTMATTER = re.compile(r'^hooks\s*:')
 CLE_HOOKS_JSON = re.compile(r'"hooks"\s*:')
@@ -196,9 +197,9 @@ def proposition(constats):
     return resultat
 
 
-def rapport(dossier):
+def rapport(dossier, constats=None):
     fichiers = lister_fichiers(dossier)
-    constats = analyser_dossier(dossier)
+    constats = analyser_dossier(dossier) if constats is None else constats
     prop = proposition(constats)
     sortie = [f'# Contrôle de `{dossier}`', '', f'Proposition : **{prop}**', '',
               f'## Fichiers ({len(fichiers)})', '', '| Fichier | Taille | Type |', '| --- | ---: | --- |']
@@ -230,9 +231,15 @@ def main(argv=None):
     if not os.path.isdir(dossier):
         print('dossier introuvable', file=sys.stderr)
         return 3
-    texte = rapport(dossier)
+    try:
+        constats = analyser_dossier(dossier)
+        texte = rapport(dossier, constats)
+    except (OSError, UnicodeDecodeError) as e:
+        # un fichier illisible n'est pas « à lire de près » : le contrôle n'a pas eu lieu
+        print(f'erreur de lecture ({type(e).__name__}) : contrôle impossible', file=sys.stderr)
+        return 3
     sys.stdout.write(texte)
-    return {RIEN: 0, A_LIRE: 1, REFUS: 2}[proposition(analyser_dossier(dossier))]
+    return {RIEN: 0, A_LIRE: 1, REFUS: 2}[proposition(constats)]
 
 
 if __name__ == '__main__':

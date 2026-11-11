@@ -52,15 +52,36 @@ def test_commande_sur_les_telechargements_refusee():
     'git add --force essai.xlsx',
     'git add -Af .',
     'CARTE_DONNEES_REELLES' + '=1 python x.py',
+    # forme courte de --no-verify, seule ou groupée, avec ou sans options avant la sous-commande
+    'git commit -n -m x',
+    'git commit -anm x',
+    'git -C . commit -n -m x',
+    'git commit --amend -n',
+    # git ne distingue pas la casse des clés de configuration
+    'git config core.hooks' + 'path /dev/null',
+    'git -c core.HOOKS' + 'PATH=/dev/null commit -m x',
+    # options entre git et add
+    'git -C . add -f essai.xlsx',
+    'git --git-dir=.git add --force essai.xlsx',
 ])
 def test_commande_interdite_refusee(commande):
     assert bash(commande).returncode == 2
+
+
+def test_chemin_de_donnees_refuse_quelle_que_soit_la_casse():
+    # le disque du Mac ne distingue pas la casse : ~/downloads ouvre le même dossier que ~/Downloads
+    assert bash('ls ~/down' + 'loads').returncode == 2
+    assert bash('cat ' + DONNEES.upper()).returncode == 2
+    assert outil('Read', {'file_path': DONNEES.replace('antifraude', 'AntiFraude') + '/x.txt'}).returncode == 2
 
 
 @pytest.mark.parametrize('commande', [
     '.venv/bin/python -m pytest outils/garde/tests -q',
     'git add docs/journal_etapes.md',
     'git status --short',
+    'git commit -m "essai"',
+    'git log -n 5 --oneline',
+    'git -C . status',
 ])
 def test_commande_ordinaire_acceptee(commande):
     r = bash(commande)
@@ -156,6 +177,16 @@ def test_verif_python_ignore_un_autre_fichier(tmp_path):
 def test_garde_arbre_ne_bloque_pas_si_deja_relance():
     r = lancer('garde_arbre.py', {'hook_event_name': 'Stop', 'stop_hook_active': True})
     assert r.returncode == 0
+
+
+def test_garde_arbre_bloque_si_la_garde_echoue(tmp_path):
+    # une garde qui ne peut pas tourner (dépôt introuvable, erreur git) ne doit pas laisser conclure en silence
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp_path))
+    r = subprocess.run([sys.executable, os.path.join(CROCHETS, 'garde_arbre.py')],
+                       input=json.dumps({'hook_event_name': 'Stop'}), capture_output=True, text=True,
+                       cwd=str(tmp_path), env=env, timeout=60)
+    assert r.returncode == 2
+    assert 'garde' in r.stderr
 
 
 # --- rappel_session.py ---
