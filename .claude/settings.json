@@ -96,7 +96,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rappel_session.py",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/rappel_session.py",
             "timeout": 20
           }
         ]
@@ -108,7 +108,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/garde_commande.py",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_commande.py || exit 2",
             "timeout": 20
           }
         ]
@@ -118,7 +118,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/garde_fichier.py",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_fichier.py || exit 2",
             "timeout": 20
           }
         ]
@@ -130,7 +130,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/verif_python.py",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/verif_python.py",
             "timeout": 60
           }
         ]
@@ -141,7 +141,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.venv/bin/python \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/garde_arbre.py",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_arbre.py",
             "timeout": 60
           }
         ]

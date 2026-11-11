@@ -37,3 +37,56 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   arabe) et 127, 128 (forme de CIN) ; `jeu_essai/donnees/liste_noire_fictive.csv` lignes 4 et 5 (numéros de registre
   fictifs en « RC999… » pris pour une forme de CIN : ajuster la garde ou le jeu d'essai, à décider).
 - **Prochaine action** : arrêt 1 ; nouvelle séance de Claude Code dans ce dossier, puis « Reprends l'étape 1 au point 1.3 ».
+
+## 11/11/2026 — étape 1, point 1.3 (interrompu)
+
+- Séance ouverte sur `~` au lieu de `~/carte-antifraude` : les réglages du projet (crochets, `permissions.deny`, bac à
+  sable) n'étaient pas chargés ; aucun rappel de début de séance.
+- Essai 1 (lecture du témoin) et essai 2 (`cat` du témoin) **non refusés** : réponse « fichier inexistant ». Le témoin
+  `~/antifraude-donnees/essai_garde.txt` semble absent (préalable 0.1, point 3).
+- Crochets appelés à la main avec une entrée simulée : `garde_commande.py` et `garde_fichier.py` refusent (code 2). Ils
+  sont justes ; c'est leur chargement qui manquait.
+- Essais 3 à 8 non joués (sans barrière, les essais 4 et 5 auraient eu un effet réel).
+- **Prochaine action** : créer le témoin, ouvrir une séance sur le dossier `~/carte-antifraude`, puis « Reprends l'étape 1
+  au point 1.3 » ; rejouer les huit essais.
+
+## 11/11/2026 — étape 1, point 1.3 (reprise dans la même séance, dossier `~/carte-antifraude`)
+
+| N° | Essai | Résultat |
+| ---: | --- | --- |
+| 1 | lecture du témoin (outil Read) | refusé par `permissions.deny` |
+| 2 | `cat` du témoin | refusé par le classifieur du mode auto (crochet non prouvé) |
+| 3 | script Python, chemin par concaténation | refusé par le classifieur du mode auto (bac à sable non prouvé par l'essai ; `denyRead` présent dans la configuration du bac à sable chargée) |
+| 4 | Write d'un CIN de forme réelle | **NON REFUSÉ** : fichier créé, supprimé aussitôt |
+| 5 à 7 | `--no-verify`, `git add -f`, `mutmut run` | non joués (barrière des crochets défaillante) |
+| 8 | tests de la garde et des crochets | accepté sans demande, 80 réussis |
+
+- **Cause probable de l'essai 4** : les commandes des crochets s'appuient sur `$CLAUDE_PROJECT_DIR`, vide dans cette
+  séance de l'app ; le chemin devient `/.claude/hooks/…`, Python échoue avec un code non bloquant et l'action passe
+  (crochets « ouverts en cas d'échec »). Appelé à la main, `garde_fichier.py` refuse bien (code 2).
+- **Correction proposée** (réglages, accord explicite de Lounès requis, règle 7) : chemin absolu du dépôt dans les
+  commandes des crochets PreToolUse, et échec fermé (`|| exit 2`).
+- **Prochaine action** : accord sur la correction, puis rejouer les huit essais.
+
+## 11/11/2026 — étape 1, point 1.3 (après correction des crochets)
+
+- **Correction des réglages**, faite sur demande explicite de Lounès : les cinq commandes de crochets font un `cd` vers
+  le chemin absolu du dépôt, fixent `CLAUDE_PROJECT_DIR`, puis lancent `.venv/bin/python .claude/hooks/<script>.py` ; les
+  deux crochets PreToolUse finissent par `|| exit 2` (une panne du crochet bloque). Vérifié hors de l'app : forme réelle
+  → 2, fictif → 0, crochet introuvable → 2.
+
+| N° | Essai | Résultat |
+| ---: | --- | --- |
+| 1 | lecture du témoin (Read) | refusé par `permissions.deny` |
+| 2 | `cat` du témoin | refusé par le crochet `garde_commande.py` |
+| 3 | lecture par script, chemin concaténé | refusé par le classifieur du mode auto ; **refus du bac à sable non prouvé** (deux essais sans lecture de données, sur des chemins inexistants : réponse « introuvable », sans conclusion) |
+| 4 | Write d'un CIN de forme réelle | refusé par le crochet `garde_fichier.py` ; aucun fichier créé |
+| 5 | `git commit --allow-empty --no-verify` | refusé par le crochet |
+| 6 | `git add -f essai.xlsx` | refusé par le crochet ; fichier jamais créé |
+| 7 | `.venv/bin/mutmut run` | refusé par le crochet |
+| 8 | tests de la garde et des crochets | accepté sans demande ; suite complète : 343 réussis, 2 sautés |
+
+- Un `cat >>` du journal qui citait le dossier des données a été refusé par le crochet : la garde tient aussi sur les
+  commandes d'écriture.
+- **Reste ouvert** : preuve de la barrière du système (essai 3). La configuration chargée du bac à sable interdit la
+  lecture des trois emplacements de données réelles ; il reste à vérifier que le fichier témoin existe bien.
