@@ -110,3 +110,35 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **pyright-lsp**, sur accord explicite de Lounès : place de marché `claude-plugins-official` (source GitHub) et
   `enabledPlugins` ajoutés à `.claude/settings.json`. `pyright` figé à 1.1.414 (10/09/2026), installé par Lounès avec
   npm ; le paquet de PyPI est écarté parce qu'il télécharge Node à son premier lancement.
+
+## 11/11/2026 — étape 1, points 1.7 à 1.9
+
+- **Consigne de Lounès** (même jour) : « tu peux tout faire, arrête de me demander ». Les choix qui auraient attendu sa
+  réponse sont tranchés au plus prudent et inscrits dans `docs/questions_ouvertes.md` (n°20 à 23).
+- **Copie des skills** (1.6) : lancée par Lounès ; `diff -r` contre la source : seuls `PROVENANCE.md` et `LICENSE`
+  diffèrent. Deux pages `.html` de skill-creator étaient ignorées par `*.html` : exception
+  `!.claude/skills/**/*.html` ajoutée, pages versionnées. `pyright` : l'installation par npm n'a rien laissé dans
+  `/usr/local` (dossier `~/.npm` appartenant à root, d'après npm) ; le plugin reste inactif tant que
+  `pyright-langserver` n'est pas dans le PATH.
+- **1.7** : `controle-skill`, `jeu-essai-v2`, `essai-donnees-reelles` rédigés avec skill-creator (sans ses scripts
+  d'évaluation), 100, 85 et 89 lignes. Essai de déclenchement à la main (15 demandes, 3 qui doivent déclencher et 2 qui
+  ne doivent pas, par skill) : 13 justes ; 2 écarts sur `jeu-essai-v2`, dont la description est imposée par H.2
+  (question n°21). Usage réel : `controle-skill` sur test-driven-development (admis avec réserves) ;
+  `essai-donnees-reelles` sur l'étape A (arrêt correct : aucun script n'a de sortie limitée aux comptages, trois des
+  quatre chiffres de référence ne sont produits par aucun script présent) ; `jeu-essai-v2` sur S04 (arrêt correct :
+  structure de Kamal absente ; contradiction S04 / S12 relevée, question n°20). Chaque skill corrigé d'après ces essais.
+  Commandes d'état de `deroule-etape` exécutées ; sa présence dans le menu `/` reste à voir par Lounès.
+- **1.8** : `relecteur` : forme courte `-n` de l'option qui saute le crochet git, `core.hookspath` en minuscules et
+  `git -C . add -f` passaient le crochet ; garde aveugle aux fichiers indexés d'un dossier ignoré et aux textes UTF-16 ;
+  crochet de fin de tour muet en cas d'erreur ; tout corrigé, tests d'abord (rouges puis verts). Aussi : chemins de
+  données comparés sans la casse (le disque du Mac ne la distingue pas) ; bloc Tags d'Unicode ajouté au contrôle des
+  skills. Non corrigé : tests et code dans un même enregistrement en 1.2 (historique déjà écrit). `verificateur-spec` :
+  1.1, 1.2, 1.4, 1.5 faits ; manques repris ici. `gardien-donnees` : retrouve les constats connus de la notice du kit et
+  du jeu d'essai ; constats hors étape notés (question n°23). `testeur-mutation` : bloqué par le bac à sable (pas de
+  pseudo-terminal pour mutmut), sans contournement ; état du dépôt identique avant et après (question n°22).
+- **1.9, essais de 1.3 rejoués** : 1, 2, 4, 5 (et sa forme `-n`), 6, 7 refusés ; 3 prouvé par équivalence (ouvrir un
+  fichier existant du dossier personnel, sans le lire : erreur d'accès du système, le crochet ne voyant aucun chemin
+  interdit) ; 8 accepté.
+- **Tests** : 439 réussis, 2 sautés (début d'étape : 263 réussis, 2 sautés).
+- **Coût en contexte** : avant, 0 caractère de description de skill du projet ; après, 1 499 caractères (environ
+  375 jetons) par séance, `deroule-etape` non compté (lancé par Lounès seulement).

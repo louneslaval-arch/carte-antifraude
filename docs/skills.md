@@ -5,10 +5,13 @@ Pas d'installation sans ligne dans ce tableau ; pas de mise à jour sans nouveau
 
 | Nom | Nature | Source et version | Licence | Contrôle (date, résultat) | Sert à (étapes) | Coût en contexte | État |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| deroule-etape | skill du projet | ce dépôt | — | — | toutes | — | actif |
+| deroule-etape | skill du projet | ce dépôt | — | — | toutes | — (lancé par Lounès seulement) | actif |
+| controle-skill | skill du projet | ce dépôt, appuyé sur `outils/controle_skill.py` | — | 11/11/2026 : essai réel sur test-driven-development (admis avec réserves) | toute installation ou mise à jour | 252 caractères | actif |
+| jeu-essai-v2 | skill du projet | ce dépôt | — | 11/11/2026 : essai réel sur S04, arrêt correct faute de structure de Kamal | B à K | 348 caractères ; chargé seulement dans `jeu_essai/`, les tests, `flux/`, `pipeline/couches/` | actif |
+| essai-donnees-reelles | skill du projet | ce dépôt | — | 11/11/2026 : essai réel sur l'étape A, arrêt correct (aucune sortie limitée aux comptages) | A, E, puis au besoin | 276 caractères | actif |
 | skill-creator | skill tiers copié | anthropics/claude-plugins-official, `plugins/skill-creator/skills/skill-creator`, `43fd1f9` | Apache 2.0 | 11/11/2026, à lire de près → retenu avec consignes d'usage | 1 (skills du projet), puis au besoin | 319 caractères | actif dès la copie |
-| test-driven-development | skill tiers copié | obra/superpowers, `skills/test-driven-development`, `bb92a77` | MIT | 11/11/2026, rien à signaler | toutes | ~25 jetons | actif dès la copie |
-| verification-before-completion | skill tiers copié | obra/superpowers, `skills/verification-before-completion`, `bb92a77` | MIT | 11/11/2026, rien à signaler | toutes | ~60 jetons | actif dès la copie |
+| test-driven-development | skill tiers copié | obra/superpowers, `skills/test-driven-development`, `bb92a77` | MIT | 11/11/2026, rien à signaler | toutes | 79 caractères | actif dès la copie |
+| verification-before-completion | skill tiers copié | obra/superpowers, `skills/verification-before-completion`, `bb92a77` | MIT | 11/11/2026, rien à signaler | toutes | 225 caractères | actif dès la copie |
 | pyright-lsp | plugin officiel | anthropics/claude-plugins-official, `plugins/pyright-lsp`, `43fd1f9` | Apache 2.0 | 11/11/2026, rien à signaler (lance seulement `pyright-langserver --stdio` ; ni crochet ni serveur MCP) | toutes | 0 | activé dans les réglages (`enabledPlugins`) ; demande `pyright` 1.1.414 installé par npm (`-g`) |
 | property-based-testing | skill tiers à copier | trailofbits/skills, `plugins/property-based-testing/skills/property-based-testing`, `e4dd0bb` | CC BY-SA 4.0 | 11/11/2026, à lire de près → retenu | B, E, F, H, I | à mesurer | prévu à l'étape B (après accord sur hypothesis) |
 | semgrep-rule-creator | skill tiers à copier | trailofbits/skills, `plugins/semgrep-rule-creator/skills/semgrep-rule-creator`, `e4dd0bb` | CC BY-SA 4.0 | 11/11/2026, à lire de près | B, J | à mesurer | prévu à l'étape B (Semgrep local, ligne `allowed-tools` à retirer : décision) |
@@ -22,7 +25,8 @@ Natures : plugin officiel (place de marché `claude-plugins-official`, portée p
 
 1. Espace de travail des essais dans le bloc-notes de la séance, jamais dans `.claude/skills/`.
 2. Pas de `run_eval.py`, `run_loop.py` ni `improve_description.py` sans accord de Lounès (écriture dans
-   `.claude/commands/`, dizaines d'appels `claude -p`) ; le test de déclenchement se fait à la main.
+   `.claude/commands/`, dizaines d'appels `claude -p`) ; le test de déclenchement se fait à la main. Pas de
+   `generate_report.py` non plus : son rapport charge des polices Google (règle 4).
 3. Visionneuse en `--static` seulement, sans ouverture automatique ; ne jamais suivre l'étape qui lit le dossier
    Téléchargements.
 4. Ne pas suivre la consigne de descriptions « insistantes » ni la limite de 500 lignes : descriptions sobres,

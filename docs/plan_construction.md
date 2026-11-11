@@ -4,7 +4,7 @@
 
 | Étape | Contenu | Durée indicative | État |
 | --- | --- | --- | --- |
-| 1 | skills et cadre de travail | 1 séance | en cours |
+| 1 | skills et cadre de travail | 1 séance | fait (11/11/2026), fusionné |
 | A | remise à niveau, import contrôlé du kit et de la structure de Kamal | 1–2 j | à faire |
 | B | socle des couches, lecture de la structure de Kamal, carte de correspondance | 3–4 j | à faire |
 | C | générateur et serveur v2 fictifs, au format exact des types de Kamal | 2–3 j | à faire |
