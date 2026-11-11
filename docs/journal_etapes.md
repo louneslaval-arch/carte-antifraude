@@ -90,3 +90,20 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   commandes d'écriture.
 - **Reste ouvert** : preuve de la barrière du système (essai 3). La configuration chargée du bac à sable interdit la
   lecture des trois emplacements de données réelles ; il reste à vérifier que le fichier témoin existe bien.
+
+## 11/11/2026 — étape 1, points 1.4 à 1.6
+
+- **1.4** : `claude-code-setup` non lancé (`/plugin` absent de l'app). Sources récupérées dans `.verif/` par archives
+  figées (le bac à sable interdit à git d'écrire `.git/config`, donc aucun clone ; il a aussi refusé d'extraire les
+  `.mcp.json` et `.zshrc` des archives) : claude-plugins-official `43fd1f9`, anthropics/skills `2c5958e`,
+  trailofbits/skills `e4dd0bb`, obra/superpowers `bb92a77` (figé par la place de marché officielle). Aucun skill livré
+  avec les paquets du `.venv`. Recherche web : seuls playwright-cli (Microsoft, étape K) et le skill du paquet FastAPI
+  (SSE natif à partir de 0.135 seulement) sont crédibles ; rien pour Prisma depuis Python, SQLite, performance.
+- **1.5** : `outils/controle_skill.py` et 75 tests ; 16 candidats contrôlés (grilles H.1 dans `.verif/rapports/`, lues
+  par quatre sous-agents). Arrêt 2 : Lounès retient verification-before-completion, test-driven-development,
+  pyright-lsp et skill-creator maintenant ; property-based-testing (B), semgrep-rule-creator (B) et sharp-edges (J)
+  pour plus tard. Registre : `docs/skills.md`.
+- **1.6** : skill-creator copié comme skill (il n'a ni crochet ni serveur). Copies exactes préparées dans
+  `.verif/a_copier/` (le bac à sable interdit l'écriture dans `.claude/skills/`) ; Lounès lance la copie.
+  pyright-lsp en attente : il faut ajouter la place de marché et `enabledPlugins` dans `.claude/settings.json`
+  (accord explicite, règle 7) et installer `pyright`.
