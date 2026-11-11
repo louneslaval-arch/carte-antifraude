@@ -40,7 +40,7 @@ def publication_reelle(kit, tmp_path_factory):
     base = os.path.join(d, 'base.sqlite')
     shutil.copy(kit['base'], base)
     con = sqlite3.connect(base)
-    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE entite_id = "
+    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE entite_id = "  # fictif-volontaire
                 "(SELECT MIN(entite_id) FROM bl_entite WHERE cin IS NOT NULL)")
     con.commit()
     con.close()

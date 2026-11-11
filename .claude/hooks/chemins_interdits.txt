@@ -1,0 +1,9 @@
+# Repères des emplacements de données réelles : toute commande ou tout chemin qui en contient un est refusé.
+# Un repère par ligne, comparaison sensible à la casse. Compléter avec les endroits donnés par Lounès (point 1.1).
+antifraude-donnees
+antifraude-eqdom
+exclusions_carte
+Liste_noir_
+CARTE_DONNEES_REELLES=1
+# Ajouté au point 1.1 (réponse de Lounès) : téléchargements
+Downloads

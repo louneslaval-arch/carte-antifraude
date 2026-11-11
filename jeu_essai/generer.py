@@ -309,7 +309,7 @@ class Generateur:
         """Comme dans la vraie liste : type client dans la colonne tribunal, encodage cassé, CIN masqué."""
         self._inscription(cli_phy_mor='PP', regist_tribune='PP', nom='EXEMPLE', prenom='ANOMALIE',
                           motif2='IndÃ©sirable', lib_emp='7}%=%T30%; #M\\E[40M')
-        self._inscription(cli_phy_mor='PP', cin='XXXXXXXX', nom='EXEMPLE', prenom='MASQUE', date_naiss='1890-01-01')
+        self._inscription(cli_phy_mor='PP', cin='XXXXXXXX', nom='EXEMPLE', prenom='MASQUE', date_naiss='1890-01-01')  # fictif-volontaire
 
     def liste_noire(self):
         self.bl, self.num_seq = [], 100_000
