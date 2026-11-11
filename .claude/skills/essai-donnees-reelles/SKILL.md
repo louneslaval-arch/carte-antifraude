@@ -23,8 +23,9 @@ rapporte. Ce skill organise ce pont.
 
 ## 1. Vérifier que le script ne sort que des comptages
 
-Le script lancé doit avoir une sortie limitée aux comptages et aux identifiants techniques (option `--agregats` ou
-équivalent), parce que sa sortie s'affiche dans le terminal de Lounès et peut finir collée ici.
+Le script lancé doit avoir une sortie limitée aux comptages (option `--agregats` ou équivalent), parce que sa sortie
+s'affiche dans le terminal de Lounès et peut finir collée ici. Seuls s'y ajoutent les identifiants techniques que
+`CLAUDE.md` (règle 3) admet : numéro de version, nom de table, code d'erreur, jamais une clé qui contient une identité.
 
 - S'il a cette option : relire le code qui l'imprime (aucun nom, CIN, référence, adresse, ni valeur brute ; pas de
   trace d'exception qui afficherait une ligne de données) ; aucun chiffre calculé sur moins de 5 clients.
@@ -34,8 +35,9 @@ Le script lancé doit avoir une sortie limitée aux comptages et aux identifiant
   lit ses sorties.
 - Ce que le script affiche en chemin (bilans intermédiaires, barres de progression, avertissements) compte aussi :
   comptages et identifiants techniques seulement.
-- « Moins de 5 clients » (`CLAUDE.md`, règle 6) : un comptage portant sur un groupe de moins de 5 clients distincts
-  ne s'affiche pas (remplacé par « < 5 »).
+- « Moins de 5 clients » (`CLAUDE.md`, règle 6) : un comptage qui décrit un groupe de moins de 5 clients distincts
+  (une ville, une règle, un motif) ne s'affiche pas (remplacé par « < 5 »). Un total technique sur l'ensemble du lot
+  (opérations reconstituées, valeurs retenues) n'est pas visé.
 - `CARTE_DONNEES_REELLES=1` est le garde-fou que le code lit pour accepter des données non fictives (aujourd'hui
   `api/app/config.py`). Le garder dans la commande seulement si le script lancé le lit ; sinon, le retirer et le
   signaler dans le compte rendu (un script qui tourne sur du réel sans ce garde-fou est à corriger).
