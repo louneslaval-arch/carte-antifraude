@@ -142,7 +142,7 @@ def test_un_seul_cin_reel_suffit_a_refuser_le_fictif(jeu, tmp_path):
     base = str(tmp_path / 'base.sqlite')
     shutil.copy(jeu['base'], base)
     con = sqlite3.connect(base)
-    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE entite_id = "
+    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE entite_id = "  # fictif-volontaire
                 "(SELECT MIN(entite_id) FROM bl_entite WHERE cin IS NOT NULL)")
     con.commit()
     m = pc.publier(base, jeu['chaines'], str(tmp_path / 'pub'))
@@ -309,7 +309,7 @@ def test_ligne_de_commande_signale_des_donnees_reelles(jeu, tmp_path):
     base = str(tmp_path / 'base.sqlite')
     shutil.copy(jeu['base'], base)
     con = sqlite3.connect(base)
-    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE cin IS NOT NULL")
+    con.execute("UPDATE bl_entite SET cin = 'AB123456' WHERE cin IS NOT NULL")  # fictif-volontaire
     con.commit()
     r = subprocess.run([sys.executable, os.path.join(PIPELINE, 'publier_carte.py'), '--base', base,
                         '--chaines', jeu['chaines'], '--sortie', str(tmp_path / 'pub')], capture_output=True, text=True)

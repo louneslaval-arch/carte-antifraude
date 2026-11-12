@@ -113,6 +113,24 @@ Tous les CIN commencent par « ZZ », tous les liens pointent vers `exemple.inva
 - **Recherche** : la requête n'est jamais journalisée, même quand ce n'est pas un CIN (un nom est une identité).
 - **Verrouillage** : après 5 échecs, jusqu'au déverrouillage par l'administrateur (pas de délai automatique).
 
+## Travailler avec Claude Code
+
+- Ouvrir la séance **sur ce dossier** : les réglages (`.claude/settings.json`), les crochets et le bac à sable ne se
+  chargent que là. Le rappel de début de séance (fin du journal, règles) prouve qu'ils sont actifs.
+- Consignes permanentes : `CLAUDE.md`. Une étape se lance par `/deroule-etape <lettre>` ; elle s'arrête d'elle-même en
+  fin d'étape, et rien n'est fusionné dans `main` sans accord.
+- Garde-fous, testés (`.claude/hooks/tests`, `outils/garde/tests`) : les permissions, les crochets (`.claude/hooks/`)
+  et le bac à sable refusent toute lecture des emplacements de données réelles (`.claude/hooks/chemins_interdits.txt`),
+  toute écriture d'une forme réelle, le contournement du crochet git et mutmut hors d'une copie jetable ; le crochet git
+  (`.githooks/pre-commit`) refuse d'enregistrer une forme réelle. Un crochet qui tombe en panne bloque au lieu de
+  laisser passer.
+- Données réelles : jamais dans une séance. Le skill `essai-donnees-reelles` prépare la commande que Lounès lance dans
+  son terminal ; il ne rapporte que des comptages.
+- Skills et plugins : registre dans `docs/skills.md` ; rien ne s'installe sans le contrôle du skill `controle-skill`
+  (`outils/controle_skill.py`, grille de sécurité, version figée, `PROVENANCE.md`).
+- Sous-agents de fin d'étape : `relecteur`, `gardien-donnees`, `verificateur-spec`, `testeur-mutation`
+  (`.claude/agents/`).
+
 ## Contenu
 
 | Dossier | Rôle |

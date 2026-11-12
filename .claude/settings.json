@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "blockReadsOutsideWorkingDirectories": true,
+    "additionalDirectories": [
+      "~/.claude/plugins"
+    ],
+    "allow": [
+      "Bash(.venv/bin/python -m pytest *)",
+      "Bash(.venv/bin/python outils/garde/garde_donnees.py *)",
+      "Bash(jeu_essai/construire.sh *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git add *)",
+      "Bash(git commit -m *)",
+      "Bash(git switch *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore *)",
+      "Bash(git clean *)",
+      "Bash(git branch -D *)",
+      "Bash(git stash drop *)",
+      "Bash(git clone *)",
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/python -m pip install *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python3 -m pip install *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npx *)",
+      "Bash(brew install *)",
+      "Bash(claude plugin *)",
+      "Edit(/.githooks/**)",
+      "Edit(/outils/garde/**)",
+      "Edit(/reference/v2/**)"
+    ],
+    "deny": [
+      "Read(~/antifraude-donnees/**)",
+      "Edit(~/antifraude-donnees/**)",
+      "Read(~/Documents/antifraude-eqdom/**)",
+      "Edit(~/Documents/antifraude-eqdom/**)",
+      "Read(~/Downloads/**)",
+      "Edit(~/Downloads/**)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Bash(* --no-verify)",
+      "Bash(* --no-verify *)",
+      "Bash(git config core.hooksPath *)",
+      "Bash(git add -f *)",
+      "Bash(git add --force *)",
+      "Bash(git filter-branch *)",
+      "Bash(git filter-repo *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/antifraude-donnees",
+        "~/Documents/antifraude-eqdom",
+        "~/Downloads"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "pypi.org",
+        "files.pythonhosted.org",
+        "github.com"
+      ],
+      "allowLocalBinding": true
+    }
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "pyright-lsp@claude-plugins-official": true
+  },
+  "env": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/rappel_session.py",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_commande.py || exit 2",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write|NotebookEdit|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_fichier.py || exit 2",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/verif_python.py",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/louneslaval/carte-antifraude && CLAUDE_PROJECT_DIR=/Users/louneslaval/carte-antifraude .venv/bin/python .claude/hooks/garde_arbre.py",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

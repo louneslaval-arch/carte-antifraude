@@ -1,0 +1,5 @@
+#!/bin/sh
+# Refuse tout enregistrement qui ferait entrer une donnée de forme réelle ou un fichier interdit.
+# Ne jamais le contourner : corriger le fichier, ou demander à Lounès.
+RACINE="$(git rev-parse --show-toplevel)" || exit 1
+exec "$RACINE/.venv/bin/python" "$RACINE/outils/garde/garde_donnees.py" --index

@@ -18,6 +18,7 @@ jeu_essai/sortie/
 *.html
 !pipeline/*_modele.html
 !front/*.html
+!.claude/skills/**/*.html
 
 # Secrets
 .env
@@ -39,3 +40,26 @@ mutants/
 .mutmut-cache
 html/
 
+
+# --- Étape 1 : cadre de travail ---
+# Réglages personnels, copies de travail, imports non contrôlés
+.claude/settings.local.json
+.claude/worktrees/
+CLAUDE.local.md
+.verif/
+import/
+# Caches d'outils
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+# Pièces et images de pièces : jamais dans le dépôt
+*.pdf
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.tif
+*.tiff
+# Réautorisés : réglages partagés de Claude Code, fichiers des skills
+!.claude/settings.json
+!.claude/skills/**/*.json
