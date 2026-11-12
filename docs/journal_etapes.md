@@ -142,3 +142,14 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Tests** : 439 réussis, 2 sautés (début d'étape : 263 réussis, 2 sautés).
 - **Coût en contexte** : avant, 0 caractère de description de skill du projet ; après, 1 499 caractères (environ
   375 jetons) par séance, `deroule-etape` non compté (lancé par Lounès seulement).
+
+## 12/11/2026 — fusion de l'étape 1
+
+- Premier essai de fusion (`git switch main`) : le bac à sable a laissé git retirer `outils/garde/` mais pas
+  `.claude/` ; les crochets, fermés en cas d'échec, ont tout bloqué, et le crochet de fin de tour bouclait (il lisait
+  `stop_hook_active` après l'importation de la garde). Lounès a remis la branche (`git reset --hard`).
+- Défaut corrigé, test d'abord : `stop_hook_active` lu avant toute importation.
+- Fusion par un commit à deux parents créé sans toucher aux fichiers (`git commit-tree`, puis `update-ref`) :
+  équivalent de `git merge --no-ff`, `main` n'ayant rien en propre.
+- Sur `main` : 440 réussis, 2 sautés ; garde `--tout` : les 8 constats connus, réservés à l'étape A.
+- **Prochaine action** : étape A, quand Lounès aura déposé les fichiers dans `import/` (préalables du plan).
