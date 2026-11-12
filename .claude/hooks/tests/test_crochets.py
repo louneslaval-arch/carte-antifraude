@@ -189,6 +189,19 @@ def test_garde_arbre_bloque_si_la_garde_echoue(tmp_path):
     assert 'garde' in r.stderr
 
 
+def test_garde_arbre_introuvable_ne_bloque_pas_deux_fois(tmp_path):
+    # garde absente et deuxième tentative de fin de tour : ne pas boucler, le crochet git reste la barrière
+    copie = tmp_path / 'crochets'
+    copie.mkdir()
+    for nom in ('garde_arbre.py', '_commun.py'):
+        (copie / nom).write_text(open(os.path.join(CROCHETS, nom), encoding='utf-8').read(), encoding='utf-8')
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp_path))
+    r = subprocess.run([sys.executable, str(copie / 'garde_arbre.py')],
+                       input=json.dumps({'hook_event_name': 'Stop', 'stop_hook_active': True}),
+                       capture_output=True, text=True, cwd=str(tmp_path), env=env, timeout=60)
+    assert r.returncode == 0, r.stderr
+
+
 # --- rappel_session.py ---
 
 def test_rappel_de_seance():

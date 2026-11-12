@@ -4,9 +4,19 @@ import os
 import subprocess
 import sys
 
+import json  # noqa: E402
+
+# Lu avant toute importation de la garde : si la garde est introuvable, bloquer une seule fois, jamais en boucle.
+try:
+    _ENTREE = json.loads(sys.stdin.read() or '{}')
+except ValueError:
+    _ENTREE = {}
+if _ENTREE.get('stop_hook_active'):
+    sys.exit(0)
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
-    from _commun import RACINE, bloquer, lire_entree  # noqa: E402
+    from _commun import RACINE, bloquer  # noqa: E402
 except Exception as e:  # garde introuvable : bloquer plutôt que laisser conclure en silence
     print(f'La garde des données n\'a pas pu se charger ({type(e).__name__}) : vérifier avant de conclure.',
           file=sys.stderr)
@@ -14,9 +24,6 @@ except Exception as e:  # garde introuvable : bloquer plutôt que laisser conclu
 
 
 def main():
-    entree = lire_entree()
-    if entree.get('stop_hook_active'):
-        sys.exit(0)
     python = os.path.join(RACINE, '.venv', 'bin', 'python')
     garde = os.path.join(RACINE, 'outils', 'garde', 'garde_donnees.py')
     try:
