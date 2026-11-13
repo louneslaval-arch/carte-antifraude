@@ -285,3 +285,12 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   13 h 04) sont une version partielle ; la version corrigée du même jour (`wetransfer_annonces-legales-corrigees_…`,
   205 Mo et 105 Mo, 14 h 46) porte les **mêmes noms de fichier**. Hypothèse du nettoyage de la liste noire écartée
   sur le jeu d'essai (mêmes correspondances avec et sans nettoyage). Essai à refaire sur la version corrigée.
+- **Troisième essai réel (13/11), sur les annonces corrigées** : chemins de retour 300 (référence 301), réseaux
+  17 523 (16 300), plus grand réseau touchant la liste noire 25 nœuds (17), inscrits reliés du bilan 329 (122).
+  Deux causes trouvées dans le code et la notice, sans lire aucune donnée :
+  1. le chiffre 122 de la notice compte les **personnes inscrites au départ des chaînes** (`chaines_dessin.py`,
+     « départs parcourus ») et non la ligne « Inscrits reliés au registre » du bilan de construction (personnes et
+     sociétés, probables comprises) : mauvais compteur dans `essai_reel_a.sh`, corrigé ;
+  2. `chaines_dessin.py` lit les exclusions manuelles (vrais noms) **à côté du script**, donc dans `pipeline/` :
+     l'essai a tourné sans elles. `essai_reel_a.sh` exécute désormais une copie du kit placée dans le dossier des
+     données, avec les exclusions à côté si elles y sont ; ce fichier n'entre jamais dans le dépôt.

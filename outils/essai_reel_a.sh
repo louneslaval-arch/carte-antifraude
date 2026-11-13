@@ -6,12 +6,16 @@
 #
 # N'affiche que des comptages. Toute la sortie des scripts du kit (bilans, erreurs) va dans des fichiers du dossier
 # courant ; en cas d'échec, seul le numéro de l'étape est affiché.
+#
+# Le kit est exécuté depuis une copie placée dans le dossier courant (kit_execution_<date>/) : `chaines_dessin.py`
+# lit le fichier des exclusions manuelles à côté de lui-même, et ce fichier de vrais noms ne doit jamais entrer dans
+# le dépôt. S'il se trouve dans le dossier courant, il est copié à côté de la copie du kit.
 set -u
 
 DEPOT="$(cd "$(dirname "$0")/.." && pwd)"
 PY="$DEPOT/.venv/bin/python"
-P="$DEPOT/pipeline"
 DATE="$(date +%Y-%m-%d)"
+EXCLUSIONS=exclusions_carte.json
 
 # Fichiers d'entrée (dans le dossier courant) : à adapter si les noms changent.
 LISTE_NOIRE="${LISTE_NOIRE:-Liste_noir_03_08_2026.xlsx}"
@@ -34,6 +38,13 @@ if [ ! -d "$EXPORT/1_donnees_prod" ] && [ ! -d "$EXPORT/2_donnees_preprod" ]; th
     EXPORT="$(dirname "$INTERIEUR")"
 fi
 
+# Copie du kit hors du dépôt, avec les exclusions manuelles si elles sont là.
+P="kit_execution_$DATE"
+rm -rf "$P" && mkdir "$P" || { echo "copie du kit impossible"; exit 6; }
+cp "$DEPOT"/pipeline/*.py "$DEPOT"/pipeline/*.sql "$DEPOT"/pipeline/*_modele.html "$P"/ 2>/dev/null
+[ -f "$DEPOT/pipeline/maroc_regions.json" ] && cp "$DEPOT/pipeline/maroc_regions.json" "$P"/
+if [ -f "$EXCLUSIONS" ]; then cp "$EXCLUSIONS" "$P"/; AVEC_EXCLUSIONS=oui; else AVEC_EXCLUSIONS=non; fi
+
 BASE="bl_rc_$DATE.sqlite"
 etape() {  # etape <numéro> <fichier de sortie> <commande…>
     n="$1"; sortie="$2"; shift 2
@@ -48,11 +59,15 @@ etape 4 "essai_A_${DATE}_chaines.txt"       "$PY" "$P/chaines_dessin.py" --base 
 etape 5 "essai_A_${DATE}_globale.txt"       "$PY" "$P/carte_globale.py" --base "$BASE" --html "Carte_globale_$DATE.html" --json "globale_$DATE.json"
 cp "$BASE" bl_rc_reference_2026-11-11.sqlite
 
+C="essai_A_${DATE}_chaines.txt"
 echo
 echo "Chiffres à rapporter (rien d'autre) :"
-printf '1. inscrits reliés : %s (attendu 122)\n' \
-    "$(grep 'Inscrits reliés au registre' "essai_A_${DATE}_construction.txt" | head -1 | grep -oE '[0-9]+[[:space:]]*$' | tr -d '[:space:]')"
-"$PY" "$DEPOT/outils/comptages_a.py" --globale "globale_$DATE.json" | sed 's/^réseaux/2. réseaux/; s/^plus grand/3. plus grand/' \
-    | sed 's/$/ (attendu : 16 300 réseaux ; 17 nœuds)/'
+printf '0. exclusions manuelles employées : %s\n' "$AVEC_EXCLUSIONS"
+printf '1. personnes inscrites reliées (départs des chaînes) : %s (attendu 122)\n' \
+    "$(grep -oE 'départs parcourus : [0-9]+ personnes inscrites' "$C" | head -1 | grep -oE '[0-9]+')"
+printf '   pour information, inscrits reliés du bilan de construction : %s\n' \
+    "$(grep 'Inscrits reliés au registre' "essai_A_${DATE}_construction.txt" | head -1 | grep -oE '[0-9][0-9 ]*$' | tr -d '[:space:]')"
+"$PY" "$DEPOT/outils/comptages_a.py" --globale "globale_$DATE.json" \
+    | sed 's/^réseaux : \(.*\)$/2. réseaux : \1 (attendu 16 300)/; s/^plus grand réseau touchant la liste noire : \(.*\)$/3. plus grand réseau touchant la liste noire : \1 (attendu 17)/'
 printf '4. chemins de retour : %s (attendu 301)\n' \
-    "$(grep -oE 'dont [0-9]+ reliés à la liste noire' "essai_A_${DATE}_chaines.txt" | head -1 | grep -oE '[0-9]+')"
+    "$(grep -oE 'dont [0-9]+ reliés à la liste noire' "$C" | head -1 | grep -oE '[0-9]+')"
