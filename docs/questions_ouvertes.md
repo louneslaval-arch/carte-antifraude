@@ -25,6 +25,8 @@
 | 21 | Description de `jeu-essai-v2` (imposée par l'annexe H.2) : elle se déclenche aussi pour une liste noire fictive de charge et pour une question sur le format de `DossierDetail` (2 écarts sur 15 à l'essai de déclenchement) | retirer `DossierDetail` de la description et ajouter « pas pour une question sur le format réel de la v2, ni pour des données de charge » | Lounès | F |
 | 22 | Tests de mutation : le bac à sable interdit les pseudo-terminaux dont mutmut a besoin ; le sous-agent `testeur-mutation` ne peut donc pas tourner | soit Lounès lance mutmut dans la copie de travail et donne les résultats au sous-agent, soit le bac à sable autorise les pseudo-terminaux (affaiblit le cadre : à éviter) | Lounès | B (première étape avec mutation) |
 | 23 | Constats de `gardien-donnees` hors de l'étape 1 : identifiant d'inscrit gardé dans le stockage du navigateur (`pipeline/carte_chaines_modele.html:194`) ; statistiques par ville et par règle servies à tous les rôles sans masque sous 5 (`api/app/routes/stats.py`) ; message 409 qui recopie un chemin du serveur ; lien externe sans `noreferrer` | à corriger à l'étape où ces fichiers sont repris (A pour la page, J pour l'API) | Lounès | A, J |
+| 24 | `AnalysisStatus` : 5 valeurs dans schema.prisma, 3 dans engine-core_types.ts (`docs/correspondance_v2.md`) | le miroir suit schema.prisma (la base de Kamal) ; le générateur fictif emploie les 5 valeurs pour le dossier et les 3 pour une analyse | Kamal | C, D |
+| 25 | Énumérations présentes seulement dans les types (`DossierStatus`, `Verdict`, `PieceType`…) et stockées en texte libre chez Kamal | les contrôler dans nos modèles d'échange, pas dans le miroir (qui reproduit la base telle quelle) | Lounès | C, D |
 
 ### À obtenir
 

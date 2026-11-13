@@ -42,9 +42,9 @@ Fichiers produits :
 L'export ne porte quasiment pas de CIN : 412 sur 465 000 personnes citées. On procède donc ainsi :
 
 1. **Inscrit ↔ registre** : nom + un élément qui confirme (la société est elle-même inscrite, ou même ville, ou employeur déclaré). Statut « probable », à valider par un analyste.
-2. **Dans une même société** : même nom (ordre des mots indifférent), ou même nom écrit en latin et en arabe (mêmes consonnes, mêmes voyelles longues, mêmes coupures entre les mots), ou deux graphies arabes à une lettre sœur près (اصيل / اسيل).
+2. **Dans une même société** : même nom (ordre des mots indifférent), ou même nom écrit en latin et en arabe (mêmes consonnes, mêmes voyelles longues, mêmes coupures entre les mots), ou deux graphies arabes à une lettre sœur près ([arabe] / [arabe]).
 3. **D'une société à l'autre** (le passage de PP n°2) : même CIN, ou même nom + même ville du siège quand ce nom figure dans 5 sociétés au plus. Un nom plus courant ne relie jamais deux sociétés.
-4. L'inscrit ne revient pas en bout de chaîne sous une autre graphie de son nom (« جاموس » / « دجاموس »).
+4. L'inscrit ne revient pas en bout de chaîne sous une autre graphie de son nom (« [arabe] » / « [arabe] »).
 
 **Fiabilité** d'une chaîne = poids du rapprochement inscrit ↔ registre × passages d'une société à l'autre (1 pour un même CIN, 0,8 × n^-0,5 pour un même nom + même ville, n = nombre de sociétés qui portent ce nom). **Force** = fiabilité × poids des rôles (gérant 0,7 ; associé 0,3 à 0,7 selon les parts ; liquidateur et ancien gérant 0,5 ; cédant 0,3) × rareté de la taille de la société. La page masque les liens faibles avec un curseur.
 
@@ -74,7 +74,7 @@ Vue `v_qualite_rc`. Chaque correction protège contre un faux lien :
 - **Dénomination** : en-têtes (« AVIS DE CONSTITUTION »), forme juridique seule, nom générique, adresse, nom porté par trois RC différents (fiduciaire) → pas utilisés comme identité. L'en-tête « VILLE MAROC » collé devant le nom est retiré.
 - **Sous un même RC + tribunal**, des noms incompatibles séparent la société en deux (`rc_conflit`), sauf changement de dénomination publié (l'ancien et le nouveau nom restent ensemble) ou nom complété d'un quartier (« … AGDAL RABAT »). Une annonce sans nom lisible sous un RC partagé n'est rattachée à aucune des deux.
 - **Personnes citées** : phrases juridiques, adresses, nombres écrits en lettres, champs vides → écartés et motivés (`rc_rejet`). Une annonce lue dans un bloc mélangé compte pour moitié (fiabilité 0,5).
-- **Passage arabe ↔ latin** : le squelette consonantique propose ; les voyelles longues, les coupures entre les mots, la fin des mots (SAIDA ≠ سعيد, MABROUKI ≠ مبروك, NADIA ≠ ندى) et l'alif initial (HAMID ≠ احمد) décident. Sur 80 paires de test : 17 faux rejetés sur 17, 60 vrais gardés sur 63.
+- **Passage arabe ↔ latin** : le squelette consonantique propose ; les voyelles longues, les coupures entre les mots, la fin des mots (SAIDA ≠ [arabe], MABROUKI ≠ [arabe], NADIA ≠ [arabe]) et l'alif initial (HAMID ≠ [arabe]) décident. Sur 80 paires de test : 17 faux rejetés sur 17, 60 vrais gardés sur 63.
 
 ## 4. Les règles et les niveaux
 
@@ -124,8 +124,8 @@ SELECT * FROM v_controle_employeur WHERE rc_num = '123456' AND tribunal_code = '
 -- File des homonymies à lever
 SELECT * FROM v_homonymies_a_traiter;
 -- Fiche d'un inscrit et ses liens
-SELECT * FROM v_bl_fiche WHERE cle_entite = 'P:AB123456';
-SELECT * FROM v_correspondance WHERE cle_entite = 'P:AB123456';
+SELECT * FROM v_bl_fiche WHERE cle_entite = 'P:ZZ123456';
+SELECT * FROM v_correspondance WHERE cle_entite = 'P:ZZ123456';
 -- Qualité de l'export
 SELECT * FROM v_qualite_rc;
 ```
@@ -133,7 +133,7 @@ SELECT * FROM v_qualite_rc;
 ## 7. Limites et ce qui les lèverait
 
 1. **CIN absent de l'export (le verrou principal).** 412 CIN sur 465 000 personnes, aucun commun avec les 4 206 de la liste noire. Les annonces de constitution citent souvent « titulaire de la CIN n° … » : extraire ce champ (et la date de naissance) ferait passer les rapprochements de « probable » à « certain ».
-2. **Écriture.** 94 % des personnes du registre sont en arabe, la liste noire est en latin. Les noms qui ne s'écrivent pas pareil (NAJAT / نجاة, LAZRAK / الأزرق) sont manqués plutôt que confondus.
+2. **Écriture.** 94 % des personnes du registre sont en arabe, la liste noire est en latin. Les noms qui ne s'écrivent pas pareil (NAJAT / [arabe], LAZRAK / [arabe]) sont manqués plutôt que confondus.
 3. **Tribunal manquant côté EQDOM** : 207 sociétés inscrites sur 1 433 ont un tribunal. Un RC n'est unique que dans son tribunal.
 4. **Période** : l'export couvre surtout les annonces de 2022 à 2026. Une société sans annonce récente n'apparaît pas.
 5. **Nom du déposant** : certaines annonces portent le nom du cabinet ou du domiciliataire à la place de celui de la société ; la chaîne le signale (« nom du déposant de l'annonce ? »), le RC reste juste.
