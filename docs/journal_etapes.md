@@ -279,3 +279,9 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   `1_donnees_prod` était un niveau plus bas, aucun lot n'a été chargé, et `charger_antifraude.py` du kit plante quand
   aucun lot n'est trouvé (défaut du kit, noté, non corrigé : le kit s'importe sans modification). `essai_reel_a.sh`
   cherche désormais les sous-dossiers un niveau plus bas.
+- **Deuxième essai réel (13/11)** : 25 inscrits reliés, 1 910 réseaux, plus grand réseau touchant la liste noire
+  19 nœuds, 32 chemins de retour (référence : 122, 16 300, 17, 301). Bilan : 22 788 annonces, 21 126 sociétés,
+  0 correspondance certaine. Cause établie sans lire aucune donnée : les annonces employées (11 Mo et 7 Mo, 26/10 à
+  13 h 04) sont une version partielle ; la version corrigée du même jour (`wetransfer_annonces-legales-corrigees_…`,
+  205 Mo et 105 Mo, 14 h 46) porte les **mêmes noms de fichier**. Hypothèse du nettoyage de la liste noire écartée
+  sur le jeu d'essai (mêmes correspondances avec et sans nettoyage). Essai à refaire sur la version corrigée.
