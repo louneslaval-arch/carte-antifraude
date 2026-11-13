@@ -329,3 +329,43 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   répartition des clés testée sur la CIN amont seulement ; jeton du serveur fictif sans expiration.
 - **Questions ouvertes ajoutées** : n°26 à 33 (contradictions du lot de Kamal, adaptations de S13, S14, S24, T12,
   conventions provisoires du serveur fictif).
+
+## 13/11/2026 — étape D, c0 : versions brutes, miroir de la v2, collecteur (branche `etape-d-c0`)
+
+- **D.2 miroir** : `outils/v2/generer_miroir.py` → `schema/010_miroir_v2.sql` (SQLite) et
+  `schema/postgresql/010_miroir_v2.sql` ; 13 tables aux noms de Kamal, clés, unicités, clés étrangères, index,
+  énumérations contrôlées ; test « chaque modèle et chaque champ, et rien d'autre » ; dérive vérifiée.
+- **D.1 versions brutes** : `schema/001_c0_brut.sql`, `pipeline/couches/c0_brut.py` (`recevoir`, `projeter`,
+  `traiter`, `construire_tout`) ; place déclarée de chaque champ de `DossierDetail` (`PLACES`) ; flux = lot.
+- **D.3 temps réel** : `schema/002_flux.sql` (`flux_source`, `flux_curseur`, `flux_travail`).
+- **D.4 collecteur** : `flux/collecteur.py` (scrutation, liste triée ou non, reprises à intervalle croissant, champ
+  inconnu toléré et compté), `flux/file.py` (états de `.claude/rules/flux.md`), `flux/notification.py` et route
+  `POST /api/flux/v2` (inactive sans `CARTE_FLUX_V2_SECRET` et `CARTE_FLUX_BASE`).
+- **Invariants** de c0 ajoutés à `invariants.yaml` ; `verifier_tout.sh` vérifie aussi la dérive du miroir.
+- **Tests** : 724 réussis, 2 sautés (avant l'étape : 645). Plusieurs morceaux (miroir, collecteur, route) ont été
+  écrits tests et code dans la même passe, sans voir les tests rouges d'abord ; l'alignement de la file sur la règle
+  du temps réel et les corrections des relectures ont suivi « test rouge, puis code ».
+- **Choix provisoires** : identifiants en texte (uuid) pour un SQL portable ; valeurs dérivées dans le miroir pour ce
+  que l'API n'expose pas (`docs/correspondance_v2.md`) ; `Synthese` et `ConstatLibre` en version brute seulement ;
+  table `User` créée vide ; miroir PostgreSQL généré, jamais exécuté (question n°18) ; `pipeline/migrer.py` et la
+  couche c0 emploient `sqlite3` directement (portage à l'étape L) ; la route de notification est la seule écriture de
+  l'API hors de son journal (une ligne dans la file).
+- **Relectures de l'étape D** (trois sous-agents) et suites données, tests d'abord :
+  - *perte possible* (relecteur et vérificateur, reproduite) : le tri de la liste était jugé sur la première page
+    seule, puis plus aucune relecture complète → relecture complète au moins toutes les 5 minutes, tri jugé sur toutes
+    les pages, lecture rapide abandonnée au moindre doute ;
+  - *dossier pris pour écarté* : la liste avec archives est lue avant celle des actifs ; l'état « écarté » n'est
+    décidé que sur une lecture complète ; une notification, qui l'ignore, ne l'écrase plus ;
+  - *flux ≠ lot* : une version plus récente refusée par le miroir retire le dossier du miroir dans les deux cas ; le
+    travail est bloqué (`miroir_refuse`), visible ; invariant « référence brute absente du miroir » ;
+  - toute forme inattendue d'un dossier est un refus du miroir, sans arrêt du collecteur ni transaction ouverte ;
+  - route de notification : signature vérifiée avant toute ouverture de la base, corps borné à la réception,
+    réponses aux conventions de Kamal (`{"error": code}`) ; horodatage ISO avec ou sans millisecondes ;
+  - collecteur : `https` exigé hors de cette machine, pas d'identifiants dans l'adresse, ni mandataire ni netrc
+    (`trust_env=False`), référence encodée dans l'adresse, exception d'origine jamais chaînée ;
+  - test de couverture des routes (`roles.HORS_ROLES`) ; test « flux = lot » dans un ordre tiré au hasard.
+- **Non corrigé, noté** : portabilité PostgreSQL (question n°37) ; horodatage de la notification non signé (n°31) ;
+  état `en_cours` de la file jamais posé (le traiteur, étape I) ; `main()` du collecteur non testé ; invariant
+  « chaque ref de la liste a une version » impossible en SQL seul (la liste est hors de la base) ; `testeur-mutation`
+  non lancé (n°22). Questions ajoutées : n°34 à 37.
+- **Tests après corrections** : 754 réussis, 2 sautés ; `verifier_tout.sh` vert.

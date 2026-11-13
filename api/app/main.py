@@ -11,7 +11,7 @@ from .config import Reglages
 from .debit import Debit
 from .erreurs import attraper_tout, validation
 from .graphe import charger
-from .routes import admin, auth, carte, chaines, stats
+from .routes import admin, auth, carte, chaines, flux, stats
 
 VERSION = '0.3.0'
 
@@ -59,6 +59,6 @@ def creer_app(reglages: Reglages) -> FastAPI:
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type'])
 
     app.include_router(auth.routeur)
-    for module in (carte, chaines, stats, admin):
+    for module in (carte, chaines, stats, admin, flux):
         app.include_router(module.routeur)
     return app

@@ -12,6 +12,14 @@ class Role(str, Enum):
 
 TOUS = frozenset(Role)
 
+# Routes sans rôle, et pourquoi : toute autre route exige une session (un test le vérifie).
+HORS_ROLES = {
+    '/api/sante': 'état du service, sans donnée',
+    '/api/auth/connexion': 'ouvre la session',
+    '/api/auth/deconnexion': 'ferme la session',
+    '/api/flux/v2': 'appelée par la v2 : protégée par la signature de la notification, pas par un rôle',
+}
+
 DROITS = {
     'carte.geometrie': TOUS,
     'carte.noms': frozenset({Role.ANALYSTE, Role.AGENCE}),

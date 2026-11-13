@@ -8,7 +8,7 @@
 | A | remise à niveau, import contrôlé du kit et de la structure de Kamal | 1–2 j | fait (13/11) ; référence réelle provisoire (121, 17 523, 25, 300), à confirmer avec les exclusions |
 | B | socle des couches, lecture de la structure de Kamal, carte de correspondance | 3–4 j | partielle (13/11) : attend comparer_bases.py (kit du 11/11), ruff et mypy installés |
 | C | générateur et serveur v2 fictifs, au format exact des types de Kamal | 2–3 j | fait (13/11) |
-| D | c0 : versions brutes, miroir de la v2, collecteur | 2–3 j | à faire |
+| D | c0 : versions brutes, miroir de la v2, collecteur | 2–3 j | fait (13/11) ; PostgreSQL non vérifié |
 | E | c1 pièces et faits | 4–5 j | à faire |
 | F | c2 identités | 5–7 j | à faire |
 | G | c3 dossier, revenus, comptes, véhicules | 4–5 j | à faire |
