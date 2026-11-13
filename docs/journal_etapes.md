@@ -294,3 +294,13 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   2. `chaines_dessin.py` lit les exclusions manuelles (vrais noms) **à côté du script**, donc dans `pipeline/` :
      l'essai a tourné sans elles. `essai_reel_a.sh` exécute désormais une copie du kit placée dans le dossier des
      données, avec les exclusions à côté si elles y sont ; ce fichier n'entre jamais dans le dépôt.
+- **Quatrième essai réel (13/11, compteur corrigé, sans exclusions manuelles)** : personnes inscrites reliées
+  **121** (référence 122) ; chemins de retour **300** (301) ; réseaux **17 523** (16 300) ; plus grand réseau
+  touchant la liste noire **25** nœuds (17). Écarts restants, hypothèses non vérifiées : exclusions manuelles absentes
+  (fichier introuvable sur le Mac) ; nœuds venus des dossiers de l'antifraude (étape 3, nouveauté du kit du 11/11),
+  sans doute absents de la référence. `essai_reel_a.sh` a une option `SANS_ANTIFRAUDE=1` et une ligne 5 (nœuds des
+  dossiers) pour trancher plus tard.
+- **Décision (consigne du 13/11)** : on poursuit la construction. Référence **provisoire** de ce dépôt = les chiffres
+  du 13/11 ci-dessus, avec ces conditions (annonces corrigées du 26/10, liste noire du 03/08, export antifraude du
+  10/11, sans exclusions) ; copie `bl_rc_reference_2026-11-11.sqlite` chez Lounès. À confirmer avec la référence
+  d'origine dès que les exclusions sont retrouvées.

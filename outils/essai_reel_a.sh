@@ -54,7 +54,11 @@ etape() {  # etape <numéro> <fichier de sortie> <commande…>
 
 etape 1 "essai_A_${DATE}_nettoyage.txt"     "$PY" "$P/nettoyer_liste_noire.py" --entree "$LISTE_NOIRE" --sortie Liste_noire_nettoyee.xlsx
 etape 2 "essai_A_${DATE}_construction.txt"  "$PY" "$P/construire_base.py" --liste-noire Liste_noire_nettoyee.xlsx --rc-kamal "$ANNONCES" --rc-kamal-personnes "$PERSONNES" --base "$BASE"
-etape 3 "essai_A_${DATE}_antifraude.txt"    "$PY" "$P/charger_antifraude.py" --base "$BASE" --export "$EXPORT"
+if [ "${SANS_ANTIFRAUDE:-0}" = 1 ]; then
+    echo "étape 3… sautée (SANS_ANTIFRAUDE=1 : carte sans les dossiers de l'antifraude)"
+else
+    etape 3 "essai_A_${DATE}_antifraude.txt"    "$PY" "$P/charger_antifraude.py" --base "$BASE" --export "$EXPORT"
+fi
 etape 4 "essai_A_${DATE}_chaines.txt"       "$PY" "$P/chaines_dessin.py" --base "$BASE" --excel "Chaines_$DATE.xlsx" --html "Carte_reseaux_$DATE.html" --json "carte_$DATE.json"
 etape 5 "essai_A_${DATE}_globale.txt"       "$PY" "$P/carte_globale.py" --base "$BASE" --html "Carte_globale_$DATE.html" --json "globale_$DATE.json"
 cp "$BASE" bl_rc_reference_2026-11-11.sqlite
@@ -71,3 +75,6 @@ printf '   pour information, inscrits reliés du bilan de construction : %s\n' \
     | sed 's/^réseaux : \(.*\)$/2. réseaux : \1 (attendu 16 300)/; s/^plus grand réseau touchant la liste noire : \(.*\)$/3. plus grand réseau touchant la liste noire : \1 (attendu 17)/'
 printf '4. chemins de retour : %s (attendu 301)\n' \
     "$(grep -oE 'dont [0-9]+ reliés à la liste noire' "$C" | head -1 | grep -oE '[0-9]+')"
+printf '5. pour information, nœuds de la carte globale (dossiers seuls / communs / registre seul) : %s\n' \
+    "$(grep -oE '[0-9]+ nœuds venus des dossiers seuls, [0-9]+ communs au registre et aux dossiers, [0-9]+ du registre seul' \
+        "essai_A_${DATE}_globale.txt" | head -1 | grep -oE '[0-9]+' | tr '\n' '/' | sed 's#/$##')"
