@@ -304,3 +304,28 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   du 13/11 ci-dessus, avec ces conditions (annonces corrigées du 26/10, liste noire du 03/08, export antifraude du
   10/11, sans exclusions) ; copie `bl_rc_reference_2026-11-11.sqlite` chez Lounès. À confirmer avec la référence
   d'origine dès que les exclusions sont retrouvées.
+
+## 13/11/2026 — étape C, générateur et serveur v2 fictifs (branche `etape-c-v2-fictive`)
+
+- **C.1** `outils/v2/generer_modeles.py` → `pipeline/modeles_v2.py` : modèles pydantic stricts générés depuis
+  `web_types.ts` et `engine-core_types.ts`, comparés champ par champ, test de dérive.
+- **C.2** `jeu_essai/v2/generer_dossiers.py` : registre et liste noire fictifs de `jeu_essai/generer.py` enrichis des
+  structures des scénarios ; dossiers au format `DossierDetail` ; clés de `fields` tirées de l'inventaire de Kamal ;
+  14 types de pièces (PV d'assemblée construit d'après le README : absent de l'inventaire) ; pièges T01 à T15 ;
+  scénarios S01 à S24 avec vérité attendue ; chronologie (relecture, rejeu, correction, retrait de pièce) ; graine
+  fixe. 1 000 dossiers sur 61 043 sociétés en 30 s, tous valides, garde verte.
+- **C.3** `jeu_essai/v2/serveur_v2.py` : routes, paramètres et erreurs de la v2 ; horloge réglable ; notification
+  signée, envoyée une fois par événement, vers cette machine seulement.
+- **Tests** : 645 réussis, 2 sautés (avant l'étape : 513). `verifier_tout.sh` vert, avec le contrôle du volume.
+  Tests et code du serveur écrits dans la même passe (tests non vus rouges avant le code) ; les corrections issues des
+  relectures ont suivi « test rouge, puis code ».
+- **Relectures** : `gardien-donnees` (notification limitée à cette machine par analyse de l'hôte, n° de pension et
+  plaques marqués fictifs, erreurs sans valeur) ; `verificateur-spec` (déclencheurs de `schema.prisma`, S17 où seule
+  la CIN était mal lue, S23 dont le niveau monte, T05 et T06 complétés, événements de chronologie, cohérence du mode de
+  paiement et du RIB du bulletin) ; `relecteur` (employeur propre à chaque scénario et logement unique : plus aucun
+  lien fortuit ; test qui vérifie chaque lien de la vérité dans le monde fictif ; modèles stricts ; dates de filtre).
+  `testeur-mutation` non lancé (question n°22).
+- **Non corrigé, noté** : seuils et poids en dur dans la vérité (`c6_version_parametres` n'existe pas avant l'étape I) ;
+  répartition des clés testée sur la CIN amont seulement ; jeton du serveur fictif sans expiration.
+- **Questions ouvertes ajoutées** : n°26 à 33 (contradictions du lot de Kamal, adaptations de S13, S14, S24, T12,
+  conventions provisoires du serveur fictif).

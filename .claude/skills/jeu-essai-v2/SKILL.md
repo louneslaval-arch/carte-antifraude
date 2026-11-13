@@ -54,18 +54,23 @@ de 0,08, affichage à partir de 0,05 ; barème de `.claude/rules/score.md`). Un 
 
 ## 4. `verite_v2.json`
 
-Produit par `jeu_essai/v2/generer_dossiers.py` (étape F du plan), une entrée par dossier fictif :
+Produit par `jeu_essai/v2/generer_dossiers.py` (étape C du plan), une entrée par dossier fictif :
 
-- `ref` (en « ZZ ») et les numéros de scénario et de piège qu'il porte ;
-- mentions attendues (personnes et sociétés citées, par pièce) ;
-- identités attendues après rapprochement ;
-- liens attendus (nature, extrémités, poids de départ) ;
-- niveau (critique, majeure, mineure, gris « hors alerte », aucun) et force attendus, avec le chemin ;
-- incohérences attendues (par exemple « double financement »).
+- `ref` (en « ZZ »), `scenarios` et `pieges` qu'il porte ;
+- `mentions` attendues (personnes et sociétés citées, par pièce) et `identites` du dossier ;
+- `liens` attendus (`nature`, `a`, `b`, `poids` de départ) et `chemin` (natures des liens, dans l'ordre) ;
+- `niveau` (critique, majeure, mineure, affiché, hors alerte, ou aucun) et `force` ;
+- `incoherences` (par exemple « double financement ») et `notes` (mention, ordre d'arrivée, événement…) ;
+- `controle` : vrai pour un dossier de scénario, dont la vérité s'affirme dans un test ; faux pour un dossier de
+  remplissage ou de piège, dont on n'affirme rien.
 
-Les noms des champs se fixent à l'étape F avec le générateur, puis ne changent plus sans migration du générateur et
-des tests qui le lisent. Avant l'étape F, il n'y a ni générateur v2 ni `verite_v2.json` : un exemple de dossier ne
-s'écrit pas à la main pour en tenir lieu.
+Le générateur écrit aussi `dossiers.json`, `liste.json`, `chronologie.json` (arrivées, relectures, rejeu, correction,
+retrait de pièce) ; `jeu_essai/v2/serveur_v2.py` les sert comme la v2. Un exemple de dossier ne s'écrit jamais à la
+main : il se tire du générateur. Les noms de ces champs ne changent plus sans reprendre les tests qui les lisent.
+
+Trois garde-fous du générateur à conserver : un employeur propre à chaque dossier de scénario et un logement par
+personne (aucun lien fortuit) ; les déclencheurs d'analyse de `schema.prisma` (INTAKE, REANALYSE, REPLAY), pas ceux
+du README de Kamal ; un test vérifie que chaque lien de la vérité existe dans le registre et la liste noire fictifs.
 
 Un scénario dont l'attendu contredit les règles de score (par exemple un employeur reconnu par son seul nom, que
 `.claude/rules/score.md` plafonne à « mineure ») ne se corrige pas en silence : préciser dans le générateur la clé qui

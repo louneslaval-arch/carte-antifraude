@@ -27,6 +27,14 @@
 | 23 | Constats de `gardien-donnees` hors de l'étape 1 : identifiant d'inscrit gardé dans le stockage du navigateur (`pipeline/carte_chaines_modele.html:194`) ; statistiques par ville et par règle servies à tous les rôles sans masque sous 5 (`api/app/routes/stats.py`) ; message 409 qui recopie un chemin du serveur ; lien externe sans `noreferrer` | à corriger à l'étape où ces fichiers sont repris (A pour la page, J pour l'API) | Lounès | A, J |
 | 24 | `AnalysisStatus` : 5 valeurs dans schema.prisma, 3 dans engine-core_types.ts (`docs/correspondance_v2.md`) | le miroir suit schema.prisma (la base de Kamal) ; le générateur fictif emploie les 5 valeurs pour le dossier et les 3 pour une analyse | Kamal | C, D |
 | 25 | Énumérations présentes seulement dans les types (`DossierStatus`, `Verdict`, `PieceType`…) et stockées en texte libre chez Kamal | les contrôler dans nos modèles d'échange, pas dans le miroir (qui reproduit la base telle quelle) | Lounès | C, D |
+| 26 | Déclencheurs d'analyse : le README de Kamal (§ 6) dit `INITIAL`, `REPLAY`, `REANALYSIS` ; `schema.prisma` dit `INTAKE`, `REANALYSE`, `REPLAY` | suivre `schema.prisma` (ce que sa base stocke) dans le générateur, le serveur fictif et le miroir | Kamal | D |
+| 27 | `actif` : cité dans le détail d'un dossier au README de Kamal (§ 3), absent de `web_types.ts` ; nos modèles d'échange, générés depuis ses types, refusent un champ inconnu | les modèles restent stricts ; le collecteur (étape D) stocke le brut tel quel et tolère un champ nouveau en le signalant par un comptage | Kamal | D |
+| 28 | Foyer (S13, S14) : aucun champ « conjoint » dans la structure de Kamal | foyer par « même nom de famille et même logement » ; demander à Kamal si la situation familiale ou le conjoint peuvent être transmis | Kamal, Lounès | F, H |
+| 29 | Apporteur (S24) : aucun champ « apporteur » dans la structure de Kamal | scénario porté par le point de vente (`agency.code`) | Kamal | G |
+| 30 | Valeurs gabarits (T12) : la forme de démonstration réelle d'un CIN ne passe pas la garde | le jeu d'essai emploie « N/A » ; un test qui a besoin de la forme réelle la construit par concaténation | Lounès | E |
+| 31 | Notification de la v2 : noms des en-têtes (signature, horodatage) et étendue de la signature (corps seul, selon la spécification ; l'horodatage n'est donc pas signé) non fixés par Kamal | provisoire : `X-Signature`, `X-Horodatage`, HMAC SHA-256 du corps ; proposer à Kamal de signer aussi l'horodatage | Kamal | D, M |
+| 32 | Liste de la v2 : ordre de tri, valeur par défaut et maximum de `limit`, erreur d'un paramètre invalide | provisoire dans le serveur fictif : création décroissante, 50 et 500, 400 `parametre_invalide` | Kamal | D |
+| 33 | Identifiants de pièce côté EQDOM (`upstreamPieceId`) : six sont cités au README ; la table complète est dans le code de Kamal | les autres suivent la forme `eqdom_<type>` ; demander la table | Kamal | E |
 
 ### À obtenir
 

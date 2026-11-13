@@ -117,7 +117,8 @@ def test_filtres_de_la_liste(serveur, jeu):
     assert du_jour and all(d['createdAt'].startswith(jour) for d in du_jour)
 
 
-@pytest.mark.parametrize('parametres', [{'limit': 0}, {'limit': 100000}, {'offset': -1}, {'status': 'INCONNU'}])
+@pytest.mark.parametrize('parametres', [{'limit': 0}, {'limit': 100000}, {'offset': -1}, {'status': 'INCONNU'},
+                                        {'from': '20260901'}, {'to': 'hier'}, {'limit': 'dix'}])
 def test_parametre_invalide_refuse_sans_etre_recopie(serveur, parametres):
     client, _, _ = serveur
     r = client.get('/api/dossiers', params=parametres)
@@ -195,7 +196,7 @@ def test_notification_signee_a_chaque_evenement(jeu):
     corps, entetes = recues[0]
     charge = json.loads(corps)
     assert set(charge) == {'ref', 'updatedAt', 'analysisStatus', 'trigger'}     # aucune donnée personnelle
-    assert charge['ref'] == jeu.chronologie[0]['ref'] and charge['trigger'] == 'INITIAL'
+    assert charge['ref'] == jeu.chronologie[0]['ref'] and charge['trigger'] == 'INTAKE'
     attendue = hmac.new(SECRET.encode(), corps, hashlib.sha256).hexdigest()
     assert entetes[serveur_v2.ENTETE_SIGNATURE] == attendue and entetes[serveur_v2.ENTETE_HORODATAGE]
     appli.state.horloge.regler(cinquieme)                                       # rien de nouveau : rien d'envoyé
@@ -215,7 +216,7 @@ def test_notification_de_relecture(jeu):
     appli.state.horloge.regler(FIN)
     assert len(recues) == len(jeu.chronologie)
     declencheurs = {json.loads(c)['trigger'] for c, _ in recues}
-    assert declencheurs == {'INITIAL', 'REANALYSIS'}
+    assert declencheurs == {'INTAKE', 'REANALYSE', 'REPLAY'}        # valeurs de schema.prisma
 
 
 def test_sans_destinataire_aucune_notification(jeu):
@@ -248,3 +249,12 @@ def test_connexion_mal_formee_refusee_proprement(jeu, corps):
     client = TestClient(serveur_v2.creer_application(jeu, secret=SECRET))
     r = client.post('/api/auth/login', json=corps)
     assert r.status_code == 401 and r.json() == {'error': 'unauthorized'}
+
+
+def test_horodatage_de_la_notification_est_l_heure_d_envoi(jeu):
+    maintenant = datetime.datetime(2026, 11, 13, 12, 0, 0)
+    recues = []
+    appli = serveur_v2.creer_application(jeu, secret=SECRET, notifier=lambda c, e: recues.append(e),
+                                         heure_d_envoi=lambda: maintenant)
+    appli.state.horloge.regler(FIN)
+    assert {e[serveur_v2.ENTETE_HORODATAGE] for e in recues} == {'2026-11-13T12:00:00.000Z'}

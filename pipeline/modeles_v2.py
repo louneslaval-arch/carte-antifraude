@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 class _Modele(BaseModel):
-    model_config = ConfigDict(extra='forbid', populate_by_name=True)
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, strict=True)
 
 
 PersonType = Literal['PP', 'PM']
@@ -143,7 +143,7 @@ class LatestAnalysis(_Modele):
 
 
 class BusinessData(_Modele):
-    model_config = ConfigDict(extra='allow', populate_by_name=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True, strict=True)
     known_client: Optional[bool] = None
     in_production: Optional[bool] = None
 

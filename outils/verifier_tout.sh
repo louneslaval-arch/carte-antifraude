@@ -32,6 +32,21 @@ CARTE_BASE_ESSAI="$BASE" $PY construire.py --jeu-essai
 $PY verifier.py --base "$BASE"
 rm -f "$BASE"
 
+etape "1 000 dossiers v2 fictifs sur le grand registre, tous valides"
+V2="${TMPDIR:-/tmp}/verifier_tout_v2_$$"
+$PY jeu_essai/v2/generer_dossiers.py --sortie "$V2"
+$PY - "$V2" <<'PYTHON'
+import json, sys
+sys.path.insert(0, '.')
+from pipeline import modeles_v2
+dossiers = json.load(open(sys.argv[1] + '/dossiers.json', encoding='utf-8'))
+for d in dossiers:
+    modeles_v2.DossierDetail.model_validate(d)
+assert len(dossiers) == 1000
+print(f'dossiers valides : {len(dossiers)}')
+PYTHON
+rm -rf "$V2"
+
 etape "carte de correspondance et modèles d'échange à jour"
 if [ -f reference/v2/schema/schema.prisma ]; then
     $PY outils/v2/carte_correspondance.py --verifier --structure reference/v2

@@ -191,7 +191,9 @@ def construire_monde(n_societes, graine):
     sc['i12'] = S([(P(), 'gerant', None)]); g.inscrire_pm(sc['i12'], 'nom')
     sc['v15'] = P(); g.inscrire_pp(sc['v15'], motif='VICTIME USURPATION IDENTITE')
     sc['g20'] = P(); sc['e20'] = S([(sc['g20'], 'gerant', None)]); g.inscrire_pp(sc['g20'])
-    sc['g23'] = P(); sc['e23'] = S([(sc['g23'], 'gerant', None)]); g.inscrire_pp(sc['g23'])
+    sc['g23'], sc['x23'] = P(), P()                    # S23 : d'abord 3 liens (mineure), puis un même RIB (majeure)
+    sc['e23'] = S([(sc['g23'], 'gerant', None)])
+    sc['b23'] = S([(sc['g23'], 'gerant', None), (sc['x23'], 'gerant', None)]); g.inscrire_pp(sc['x23'])
     g.annonces_registre()
     return g, sc
 
@@ -209,7 +211,8 @@ class Fabrique:
         self.g, self.sc, self.inventaire, self.enums = monde, scenes, inventaire, enumerations
         self.r = random.Random(graine * 7919 + 1)
         self.horloge = datetime.datetime(2026, 9, 1, 8, 0, 0)
-        self.n_ref = self.n_id = self.n_rib = self.n_employeur = 0
+        self.n_ref = self.n_id = self.n_rib = self.n_employeur = self.n_adresse = 0
+        self.employeur_propre = False      # vrai pour les scénarios : aucun employeur partagé par hasard
         self.entrees = []          # (instant, ref, détail)
         self.verite, self.meta, self.finals = [], {}, {}
         self.employeurs = [self.employeur_hors_registre() for _ in range(25)]
@@ -263,14 +266,16 @@ class Fabrique:
     # -- identités --
     def individu(self, nom=None, adresse=None):
         ville = self.r.choice(VILLES_UTILES)[1].upper()
+        self.n_adresse += 1                # un logement par personne : aucun foyer fortuit
         return dict(prenom=self.r.choice(PRENOMS)[0], nom=nom or self.r.choice(self.g.familles)[0], cin=self.cin(),
                     naissance=self.date_txt(1955, 2000), ville=ville,
-                    adresse=adresse or f'{self.r.randrange(1, 99)} RUE EXEMPLE {ville}')
+                    adresse=adresse or f'{self.n_adresse} RUE EXEMPLE {ville}')
 
     def du_registre(self, p):
         ville = p['ville'][1].upper()
         return dict(prenom=p['prenom'][0], nom=p['nom'][0], cin=p['cin'], ville=ville,
-                    naissance=p['naissance'].strftime('%d/%m/%Y'), adresse=f'{1 + p["id"] % 90} RUE EXEMPLE {ville}')
+                    naissance=p['naissance'].strftime('%d/%m/%Y'),
+                    adresse=f'{1_000_000 + p["id"]} RUE EXEMPLE {ville}')
 
     def employeur_hors_registre(self):
         self.n_employeur += 1
@@ -434,7 +439,7 @@ class Fabrique:
         salaire = self.montant()
         nom_client = societe['nom'] if pm else self.nom_complet(demandeur)
         if employeur is None and csp in ('SALARIE_PRIVE', 'FONCTIONNAIRE', 'EMPLOYE_COMMUNE', 'MILITAIRE'):
-            employeur = self.r.choice(self.employeurs)
+            employeur = self.employeur_hors_registre() if self.employeur_propre else self.r.choice(self.employeurs)
         types = ['CIN']
         if pm:
             types += ['REGISTRE_COMMERCE', 'STATUTS'] + (['PV_ASSEMBLEE_GENERALE'] if self.r.random() < 0.3 else [])
@@ -463,7 +468,8 @@ class Fabrique:
                                      nom_complet=self.nom_complet(demandeur), cin=demandeur['cin']))
             elif type_ in ('ATTESTATION_TRAVAIL_SALAIRE', 'BULLETIN_DE_PAIE', 'ATTESTATION_CNSS'):
                 sem = self.sem_emploi(demandeur, employeur, salaire)
-                forcer |= {'employeur', 'nom', 'prenom', 'numero_cin', 'raison_sociale', 'numero_affiliation'}
+                sem['rib'] = rib
+                forcer |= {'employeur', 'nom', 'prenom', 'numero_cin', 'numero_affiliation'}
                 mentions.append(dict(piece=type_, role='employeur', raison_sociale=employeur['nom'],
                                      ice=employeur.get('ice')))
             elif type_ == 'ATTESTATION_PENSION':
@@ -475,7 +481,8 @@ class Fabrique:
                 forcer |= {'nom', 'prenom', 'numero_cin'}
             elif type_ == 'CARTE_PROFESSIONNELLE':
                 sem = dict(nom=demandeur['nom'], prenom=demandeur['prenom'], numero_cin=demandeur['cin'],
-                           nom_complet=self.nom_complet(demandeur), profession='PROFESSION FICTIVE')
+                           nom_complet=self.nom_complet(demandeur), profession='PROFESSION FICTIVE',
+                           cin=demandeur['cin'])
                 forcer |= {'nom', 'prenom', 'numero_cin'}
             elif type_ == 'RELEVE_BANCAIRE':
                 sem = self.sem_releve(nom_client, rib, source == 'REANALYSE', mois, employeur and employeur['nom'])
@@ -489,7 +496,8 @@ class Fabrique:
             elif type_ == 'DOMICILIATION':
                 sem = dict(nom=demandeur['nom'], prenom=demandeur['prenom'], numero_cin=demandeur['cin'],
                            adresse=demandeur['adresse'], adresse_complete=demandeur['adresse'], ville=demandeur['ville'],
-                           titulaire=self.nom_complet(demandeur), raison_sociale='REGIE EXEMPLE')
+                           titulaire=self.nom_complet(demandeur), raison_sociale='REGIE EXEMPLE',
+                           cin=demandeur['cin'])
                 forcer |= {'adresse', 'nom', 'prenom'}
             elif type_ in ('REGISTRE_COMMERCE', 'STATUTS'):
                 sem = self.sem_societe(societe)
@@ -537,7 +545,7 @@ class Fabrique:
             pieces.append(p)
 
         fini = statut == 'COMPLETE'
-        analyse = dict(id=self.uid(), matrixVersion='V1.0', engineVersion='2.8.0', trigger='INITIAL', status=statut,
+        analyse = dict(id=self.uid(), matrixVersion='V1.0', engineVersion='2.8.0', trigger='INTAKE', status=statut,
                        verdict='CONFORME' if fini else None, provisional=False, startedAt=self.iso(t),
                        endedAt=self.iso(t + datetime.timedelta(minutes=2)) if fini else None, error=None)
         reanalyses = [dict(controlId='IDT-13', pieceId=p['upstreamPieceId'], requestedFields=sorted(p['fields'])[:3],
@@ -568,6 +576,7 @@ class Fabrique:
                 agency=agence or dict(code=None, city=None), sent_at=self.iso(t)),
             pieces=pieces, analyses=[analyse] if fini else [], reanalyses=reanalyses, synthese=None,
             latestAnalysis=dict(analyse, controls=self.controles(t)) if fini else None)
+        detail['businessData']['payment_mode'] = detail['paymentMode']
         self.entrees.append((t, ref, detail))
         self.finals[ref] = detail
         self.meta[ref] = dict(actif=actif)
@@ -578,12 +587,18 @@ class Fabrique:
         self._contexte = dict(ref=ref, identites=identites, mentions=mentions)
         return detail
 
-    def nouvelle_version(self, ref, modifier, heures=2):
-        """Version suivante d'un dossier (relecture, pièce ajoutée) : copie modifiée, datée plus tard."""
+    def nouvelle_version(self, ref, modifier, heures=2, declencheur='REANALYSE'):
+        """Version suivante d'un dossier (relecture, rejeu, correction, retrait de pièce) : copie modifiée, datée
+        plus tard, avec une nouvelle analyse au déclencheur donné (valeurs d'`AnalysisTrigger` de schema.prisma)."""
         detail = json.loads(json.dumps(self.finals[ref]))
         t = self.instant() + datetime.timedelta(hours=heures)
         modifier(detail)
         detail['updatedAt'] = self.iso(t)
+        if detail['latestAnalysis']:
+            analyse = dict(detail['analyses'][-1], id=self.uid(), trigger=declencheur, startedAt=self.iso(t),
+                           endedAt=self.iso(t + datetime.timedelta(minutes=2)))
+            detail['analyses'].append(analyse)
+            detail['latestAnalysis'] = dict(analyse, controls=self.controles(t))
         self.entrees.append((t, ref, detail))
         self.finals[ref] = detail
         return detail
@@ -599,6 +614,7 @@ class Fabrique:
     # -- scénarios S01 à S24 --
     def scenarios(self):
         sc, R = self.sc, self.du_registre
+        self.employeur_propre = True
         E = self.employeur_du_registre
 
         def lien(nature, a, b, poids):
@@ -682,25 +698,20 @@ class Fabrique:
                    ordre='inscrit ensuite', attendu='nouvellement relié')
         self.dossier(R(sc['x16b']), rib=rib); self.noter(['S16'], force=1.0)
 
-        lu_de_travers = dict(self.individu(), cin=sc['x17']['cin'])        # S17 : relecture qui change le CIN
-        d = self.dossier(lu_de_travers)
-        contexte, vrai_cin = self._contexte, self.cin()
+        vrai, lu = self.individu(), sc['x17']['cin']                       # S17 : la CIN seule était mal lue
+        d = self.dossier(vrai, sem_en_plus={'CIN': {'cin': lu, 'id_document_recto': lu, 'mrz_document_number': lu}})
 
         def relire(detail):
             p = next(p for p in detail['pieces'] if p['type'] == 'CIN')
             p['source'] = 'REANALYSE'
             for cle in ('cin', 'id_document_recto', 'mrz_document_number'):
                 if cle in p['fields']:
-                    p['fields'][cle] = vrai_cin
-            detail['businessData']['civil']['cin'] = vrai_cin
+                    p['fields'][cle] = vrai['cin']
             detail['reanalyses'].append(dict(controlId='IDT-13', pieceId=p['upstreamPieceId'], requestedFields=['cin'],
-                                             result=dict(avant={'cin': sc['x17']['cin']}, apres={'cin': vrai_cin}),
+                                             result=dict(avant={'cin': lu}, apres={'cin': vrai['cin']}),
                                              status='DONE', createdAt=detail['createdAt'],
                                              completedAt=detail['createdAt']))
         self.nouvelle_version(d['ref'], relire)
-        contexte['identites'][0]['cin'] = vrai_cin
-        contexte['mentions'][0]['cin'] = vrai_cin
-        self._contexte = contexte
         self.noter(['S17'], niveau=None, niveau_avant_relecture='critique',
                    attendu='anciennes arêtes retirées ; état égal au lot')
 
@@ -726,21 +737,22 @@ class Fabrique:
         self.noter(['S22'], attendu='repris, marqué')
 
         rib = self.rib()                                                   # S23 : levée, puis chemin d'une autre nature
-        self.dossier(R(sc['g23']), rib=rib); self.noter(['S23'], force=1.0)
+        self.dossier(R(sc['x23']), rib=rib); self.noter(['S23'], force=1.0)
         d = self.dossier(self.individu(), employeur=E(sc['e23']))
-        contexte = self._contexte
 
         def meme_rib(detail):
             for p in detail['pieces']:
-                if p['type'] in ('RELEVE_BANCAIRE', 'ATTESTATION_RIB'):
+                if p['type'] in ('RELEVE_BANCAIRE', 'ATTESTATION_RIB', 'BULLETIN_DE_PAIE'):
                     for cle in ('rib', 'numero_compte'):
                         if cle in p['fields']:
                             p['fields'][cle] = rib
-        self.nouvelle_version(d['ref'], meme_rib, heures=48)
-        self._contexte = contexte
+        self.nouvelle_version(d['ref'], meme_rib, heures=48, declencheur='INTAKE')
         self.noter(['S23'], [], [lien('gérant', sc['e23']['ice'], sc['g23']['cin'], 0.7),
-                                 lien('même RIB', rib, sc['g23']['cin'], 0.9)], ['même RIB'], 0.9,
-                   apres_levee='rouvre', premier_chemin='gérant (0,7), levé par l\'analyste')
+                                 lien('gérant', sc['g23']['cin'], sc['b23']['ice'], 0.7),
+                                 lien('gérant', sc['b23']['ice'], sc['x23']['cin'], 0.7),
+                                 lien('même RIB', rib, sc['x23']['cin'], 0.9)], ['même RIB'], 0.9,
+                   apres_levee='rouvre', niveau_du_premier_chemin='mineure',
+                   premier_chemin='3 liens de gérance (0,7³ = 0,343, plafonné à mineure), levé par l\'analyste')
 
         agence = dict(code='AG99', city='CASABLANCA')                      # S24 : même point de vente, hors score
         self.dossier(R(sc['x24']), agence=agence); self.noter(['S24'], force=1.0)
@@ -749,6 +761,7 @@ class Fabrique:
 
     # -- pièges T01 à T15, sur des dossiers sans lien avec la liste noire --
     def pieges(self):
+        self.employeur_propre = False
         def note(*t):
             self.noter([], t, controle=False)
 
@@ -766,17 +779,19 @@ class Fabrique:
         note('T04', 'T10')
         inventees = {'BULLETIN_DE_PAIE': {'remeration.salaire_net'},
                      'ATTESTATION_TRAVAIL_SALAIRE': {'revelation.salaire_brut'},
-                     'ATTESTATION_RIB': {'filiation_complete', 'date_expiration'},
-                     'DOMICILIATION': {'filiation_complete', 'date_expiration'},
-                     'CARTE_PROFESSIONNELLE': {'filiation_complete', 'date_expiration'}}
+                     'ATTESTATION_RIB': {'filiation_complete', 'date_expiration', 'cin'},
+                     'DOMICILIATION': {'filiation_complete', 'date_expiration', 'cin'},
+                     'CARTE_PROFESSIONNELLE': {'filiation_complete', 'date_expiration', 'cin'}}
         self.dossier(self.individu(), relu=tuple(inventees), forcer_en_plus=inventees, rib_piece=True,
                      domiciliation=True, pieces_en_plus=('CARTE_PROFESSIONNELLE',)); note('T05', 'T10')
         self.dossier(self.individu(), relu=('BULLETIN_DE_PAIE',), sem_en_plus={
             'ATTESTATION_TRAVAIL_SALAIRE': {'salaire_net': self.montant(forme='dh'),
                                             'salaire_net_mensuel': self.montant(forme='texte')},
-            'BULLETIN_DE_PAIE': {'salaire_net': self.montant(forme='nombre')}},
+            'BULLETIN_DE_PAIE': {'salaire_net': self.montant(forme='nombre')},
+            'RELEVE_BANCAIRE': {'total_mouvements_debit': self.montant(forme='texte')}},
             forcer_en_plus={'ATTESTATION_TRAVAIL_SALAIRE': {'salaire_net', 'salaire_net_mensuel'},
-                            'BULLETIN_DE_PAIE': {'salaire_net'}}); note('T06', 'T10')
+                            'BULLETIN_DE_PAIE': {'salaire_net'},
+                            'RELEVE_BANCAIRE': {'total_mouvements_debit'}}); note('T06', 'T10')
         self.dossier(self.individu(), sem_en_plus={'ATTESTATION_TRAVAIL_SALAIRE': {
             'date_attestation': '12/03', 'date_embauche': '01/09/2019'}},
             forcer_en_plus={'ATTESTATION_TRAVAIL_SALAIRE': {'date_attestation', 'date_embauche'}}); note('T07')
@@ -793,8 +808,8 @@ class Fabrique:
         self.dossier(self.individu(), declare=dict(employer='VAB', monthly_income=None, pension_organism=None))
         note('T11')
         self.dossier(self.individu(), csp='RETRAITE_INDETERMINE'); note('T11')
-        gabarit = dict(self.individu(), nom='DOE', prenom='JOHN')          # T12 : valeurs gabarits
-        self.dossier(gabarit, sem_en_plus={'CIN': {'cin': 'N/A', 'id_document_recto': 'N/A'}})
+        gabarit = dict(self.individu(), nom='DOE', prenom='JOHN', cin='N/A')     # T12 : valeurs gabarits
+        self.dossier(gabarit)
         self._contexte['identites'][0]['cin'] = None
         note('T12')
         self.dossier(self.individu(), rib_piece=True, domiciliation=True,
@@ -802,6 +817,20 @@ class Fabrique:
         self.dossier(self.individu(), statut='EN_COURS'); note('T14')
         self.dossier(self.individu(), actif=False); note('T14')
         self.dossier(self.individu(), agence=None); note('T15')
+
+        # chronologie : rejeu (mêmes pièces, nouvelle analyse), correction d'une valeur, retrait d'une pièce
+        d = self.dossier(self.individu())
+        self.nouvelle_version(d['ref'], lambda detail: None, declencheur='REPLAY')
+        self.noter(controle=False, evenement='rejeu')
+        d = self.dossier(self.individu())
+
+        def corriger(detail):
+            detail['pieces'][0]['fields']['adresse'] = '1 RUE CORRIGEE EXEMPLE'
+        self.nouvelle_version(d['ref'], corriger, declencheur='INTAKE')
+        self.noter(controle=False, evenement='correction')
+        d = self.dossier(self.individu(), rib_piece=True)
+        self.nouvelle_version(d['ref'], lambda detail: detail['pieces'].pop(), declencheur='INTAKE')
+        self.noter(controle=False, evenement='retrait de pièce')
 
     def remplissage(self, n):
         csps = self.enums['csp']

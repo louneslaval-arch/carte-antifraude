@@ -8,7 +8,7 @@ Source : `web_types.ts` (interfaces échangées entre le back et le front de la 
 - union de chaînes → Literal[...] ; union de chaînes ouverte par `| string` → str ;
 - `T[]` → list[T] ; `Record<string, V>` → dict[str, V] ; objet en ligne → modèle imbriqué `Parent_champ` ;
 - `extends` → héritage ; signature d'index `[k: string]: V` → clés supplémentaires admises dans ce modèle seul ; nom de champ réservé par Python ou pydantic → nom suffixé de `_`, nom JSON gardé en alias.
-Tout autre type est refusé. Les modèles refusent un champ inconnu (`extra='forbid'`) : ils décrivent exactement les
+Tout autre type est refusé. Les modèles sont stricts (un nombre en texte n'est pas un nombre) et refusent un champ inconnu (`extra='forbid'`) : ils décrivent exactement les
 types de Kamal ; le collecteur (étape D) décidera s'il tolère des champs nouveaux.
 
 Usage : generer_modeles.py --ecrire | --verifier  [--types DOSSIER]
@@ -85,7 +85,7 @@ class _Traducteur:
         lignes = []
         index = [c for c in champs if c.nom == '[index]']
         if index:  # signature d'index `[k: string]: V` : clés libres admises en plus des champs nommés
-            lignes.append("    model_config = ConfigDict(extra='allow', populate_by_name=True)")
+            lignes.append("    model_config = ConfigDict(extra='allow', populate_by_name=True, strict=True)")
         for c in champs:
             if c.nom == '[index]':
                 continue
@@ -137,7 +137,7 @@ def generer(texte_web, texte_moteur):
         '',
         '',
         'class _Modele(BaseModel):',
-        "    model_config = ConfigDict(extra='forbid', populate_by_name=True)",
+        "    model_config = ConfigDict(extra='forbid', populate_by_name=True, strict=True)",
         '',
         '',
     ]

@@ -90,6 +90,10 @@ def test_dossier_bien_forme_accepte_et_restitue_a_l_identique(module):
     {'pieces': [{'type': 'CIN'}]},  # champ obligatoire manquant dans un objet contenu
     {'champ_inconnu': 1},           # champ absent des types
     {'compteurs': {'statut': {'OUVERT': 'un'}}},
+    {'total': '3'},                 # un nombre en texte n'est pas un nombre
+    {'total': True},
+    {'actif': 1},
+    {'actif': 'true'},
 ])
 def test_dossier_mal_forme_refuse(module, modif):
     with pytest.raises(pydantic.ValidationError):

@@ -12,7 +12,8 @@ Erreurs : {"error": "unauthorized" | "dossier_inconnu" | …}, jamais une valeur
 
 Chronologie : chaque dossier arrive à son instant, une relecture remplace sa version au sien ; l'horloge se règle
 (`application.state.horloge`). À chaque événement franchi, une notification signée peut partir vers
-`POST /api/flux/v2` : corps {ref, updatedAt, analysisStatus, trigger}, HMAC SHA-256 du corps, horodatage.
+`POST /api/flux/v2` : corps {ref, updatedAt, analysisStatus, trigger}, HMAC SHA-256 du corps, horodatage ;
+`trigger` prend les valeurs d'`AnalysisTrigger` de schema.prisma (INTAKE, REANALYSE, REPLAY).
 
 Provisoire, faute de précision chez Kamal (questions ouvertes) : tri de la liste (création décroissante), valeur par
 défaut et maximum de `limit` (50, 500), noms des en-têtes de la notification, code 400 `parametre_invalide`.
@@ -26,6 +27,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import sys
 
@@ -63,8 +65,11 @@ class Horloge:
         self.regler(self.maintenant + datetime.timedelta(**duree))
 
 
-def creer_application(jeu, secret, notifier=None, comptes=None):
-    """`notifier(corps: bytes, entetes: dict)` reçoit chaque notification ; None : aucune notification."""
+def creer_application(jeu, secret, notifier=None, comptes=None, heure_d_envoi=None):
+    """`notifier(corps: bytes, entetes: dict)` reçoit chaque notification ; None : aucune notification.
+    L'horodatage d'une notification est l'heure réelle d'envoi (`heure_d_envoi`), pas l'instant fictif du dossier :
+    le destinataire la refuse à plus de 5 minutes."""
+    heure_d_envoi = heure_d_envoi or (lambda: datetime.datetime.now(datetime.timezone.utc))
     comptes = comptes or COMPTES
     appli = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     evenements = [(datetime.datetime.strptime(e['instant'], FORMAT), e) for e in jeu.chronologie]
@@ -84,10 +89,11 @@ def creer_application(jeu, secret, notifier=None, comptes=None):
             for instant, e in evenements[etat['publies']:franchis]:
                 d = e['dossier']
                 corps = json.dumps(dict(ref=d['ref'], updatedAt=d['updatedAt'], analysisStatus=d['analysisStatus'],
-                                        trigger='INITIAL' if e['version'] == 1 else 'REANALYSIS'),
+                                        trigger=(d['latestAnalysis'] or {}).get('trigger') or 'INTAKE'),
                                    separators=(',', ':')).encode()
                 notifier(corps, {ENTETE_SIGNATURE: hmac.new(secret.encode(), corps, hashlib.sha256).hexdigest(),
-                                 ENTETE_HORODATAGE: instant.strftime(FORMAT), 'Content-Type': 'application/json'})
+                                 ENTETE_HORODATAGE: heure_d_envoi().strftime(FORMAT),
+                                 'Content-Type': 'application/json'})
         etat['publies'] = max(etat['publies'], franchis)
 
     appli.state.horloge = Horloge(publier)
@@ -135,6 +141,8 @@ def creer_application(jeu, secret, notifier=None, comptes=None):
                     raise ValueError
             for cle in ('from', 'to'):
                 if q.get(cle) is not None:
+                    if not re.fullmatch(r'\d{4}-\d{2}-\d{2}', q[cle]):
+                        raise ValueError
                     datetime.date.fromisoformat(q[cle])
         except ValueError:
             return _erreur('parametre_invalide', 400)

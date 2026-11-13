@@ -476,3 +476,135 @@ def test_erreur_de_generation_sans_valeur_dans_la_console(monkeypatch, capsys, t
     assert gd.main(['--sortie', str(tmp_path)]) == 2
     sortie = capsys.readouterr()
     assert 'ZZ900001' not in sortie.out + sortie.err
+
+
+# ---- manques relevés par la vérification de l'étape ----------------------------------------------------------------
+
+def declencheurs_de_kamal():
+    import lire_prisma
+    with open(os.path.join(STRUCTURE, 'schema', 'schema.prisma'), encoding='utf-8') as f:
+        return {v.nom for v in lire_prisma.lire(f.read()).enums['AnalysisTrigger'].valeurs}
+
+
+def test_declencheurs_d_analyse_de_la_base_de_kamal(jeu):
+    permis = declencheurs_de_kamal()
+    vus = {a['trigger'] for e in jeu.chronologie for a in e['dossier']['analyses']}
+    vus |= {e['dossier']['latestAnalysis']['trigger'] for e in jeu.chronologie if e['dossier']['latestAnalysis']}
+    assert vus <= permis and {'INTAKE', 'REANALYSE', 'REPLAY'} <= vus
+
+
+def test_S17_seule_la_cin_etait_mal_lue(jeu):
+    v = verite(jeu, 'S17')[0]
+    avant, apres = [e['dossier'] for e in jeu.chronologie if e['ref'] == v['ref']]
+    inscrit = champ(avant, 'CIN', 'cin')
+    autres = json.dumps([p for p in avant['pieces'] if p['type'] != 'CIN'] + [avant['businessData']])
+    assert inscrit in cins_inscrits(jeu) and inscrit not in autres
+    assert inscrit not in json.dumps([p['fields'] for p in apres['pieces']])
+    assert len(apres['analyses']) == 2 and apres['latestAnalysis']['trigger'] == 'REANALYSE'
+
+
+def test_S23_le_niveau_monte_avec_le_nouveau_chemin(jeu):
+    v = next(v for v in verite(jeu, 'S23') if 'apres_levee' in v['notes'])
+    assert v['notes']['niveau_du_premier_chemin'] == 'mineure' and v['niveau'] == 'majeure'
+
+
+def test_T05_cin_hors_de_la_piece_cin_et_T06_agregat_en_texte(jeu):
+    cles = {(p['type'], c) for ref in refs(jeu, 'T05') for p in dossier(jeu, ref)['pieces'] for c in p['fields']}
+    assert ('DOMICILIATION', 'cin') in cles and ('CARTE_PROFESSIONNELLE', 'cin') in cles
+    agregats = [p['fields'].get(c) for ref in refs(jeu, 'T06') for p in pieces(dossier(jeu, ref), 'RELEVE_BANCAIRE')
+                for c in ('total_mouvements_credit', 'total_mouvements_debit')]
+    assert any(isinstance(a, dict) for a in agregats) and any(isinstance(a, str) for a in agregats)
+
+
+def test_chronologie_avec_rejeu_correction_et_retrait_de_piece(jeu):
+    evenements = {v['notes'].get('evenement'): v['ref'] for v in jeu.verite if v['notes'].get('evenement')}
+    assert set(evenements) == {'rejeu', 'correction', 'retrait de pièce'}
+    for nom, ref in evenements.items():
+        avant, apres = [e['dossier'] for e in jeu.chronologie if e['ref'] == ref]
+        if nom == 'rejeu':
+            assert apres['latestAnalysis']['trigger'] == 'REPLAY' and apres['pieces'] == avant['pieces']
+        elif nom == 'correction':
+            assert apres['pieces'] != avant['pieces'] and len(apres['pieces']) == len(avant['pieces'])
+        else:
+            assert len(apres['pieces']) == len(avant['pieces']) - 1
+
+
+def test_coherence_interne_des_dossiers(jeu):
+    for d in jeu.dossiers:
+        assert d['paymentMode'] == d['businessData']['payment_mode']
+        rib = champ(d, 'BULLETIN_DE_PAIE', 'rib')
+        assert rib is None or rib.startswith('999')
+
+
+def test_raison_sociale_rare_sur_les_attestations_comme_dans_l_inventaire(jeu):
+    attestations = [p for d in jeu.dossiers for p in pieces(d, 'ATTESTATION_TRAVAIL_SALAIRE') if p['source'] == 'AMONT']
+    assert sum(1 for p in attestations if 'raison_sociale' in p['fields']) / len(attestations) < 0.1
+
+
+# ---- la vérité est réalisée par les données, pas seulement déclarée -------------------------------------------------
+
+ROLES = {'gérant': 'gerant', 'liquidateur': 'liquidateur', 'associé': 'associe'}
+
+
+def test_chaque_lien_de_la_verite_existe_dans_le_monde_fictif(jeu):
+    par_ice = {s.get('ice'): s for s in jeu.monde.societes if s.get('ice')}
+    par_cin = {p['cin']: p for p in jeu.monde.personnes if p['cin']}
+    inscrits_cin = cins_inscrits(jeu)
+    inscrits_pm = {l['ice'] for l in jeu.monde.bl if l['ice']} | {
+        s['ice'] for s in jeu.monde.societes if s.get('ice') and any(l['regist_com'] == s['rc'] for l in jeu.monde.bl)}
+    verifies = 0
+    for v in jeu.verite:
+        if not v['controle'] or not v['liens']:
+            continue
+        for l in v['liens']:
+            if l['nature'] in ROLES and l['b'] != 'nom et ville':
+                ice, cin = (l['a'], l['b']) if l['a'] in par_ice else (l['b'], l['a'])
+                roles = {r for pid, r, _ in par_ice[ice]['personnes'] if pid == par_cin[cin]['id']}
+                assert ROLES[l['nature']] in roles, f"{v['scenarios']} : {l['nature']} absent du registre"
+                verifies += 1
+            elif l['nature'] == 'même RIB':
+                porteurs = {champ(d, 'CIN', 'cin') for d in jeu.dossiers if champ(d, 'RELEVE_BANCAIRE', 'rib') == l['a']}
+                assert l['b'] in porteurs and champ(dossier(jeu, v['ref']), 'RELEVE_BANCAIRE', 'rib') == l['a']
+                verifies += 1
+        bout = v['liens'][-1]['b']
+        if bout != 'nom et ville':
+            assert bout in inscrits_cin or bout in inscrits_pm, f"{v['scenarios']} : le bout du chemin n'est pas inscrit"
+    assert verifies > 220
+
+
+def test_S11_et_S12_l_homonyme_est_bien_en_liste_noire(jeu):
+    v11 = verite(jeu, 'S11')[0]
+    ice = v11['liens'][0]['a']
+    societe = next(s for s in jeu.monde.societes if s.get('ice') == ice)
+    gerant = jeu.monde.personnes[societe['personnes'][0][0]]
+    assert gerant['cin'] is None
+    assert any(l['nom'] == gerant['nom'][0] and l['prenom'] == gerant['prenom'][0] and not l['cin'] for l in jeu.monde.bl)
+    employeur = champ(dossier(jeu, verite(jeu, 'S12')[0]['ref']), 'ATTESTATION_TRAVAIL_SALAIRE', 'employeur')
+    assert any(l['nom_ras'] == employeur['raison_sociale'] and not l['regist_com'] and not l['ice'] for l in jeu.monde.bl)
+
+
+def test_aucun_lien_fortuit_autour_des_scenarios(jeu):
+    """Un dossier contrôlé ne partage ni employeur ni logement avec un autre, sauf si son scénario le veut."""
+    employeurs, logements = collections.Counter(), collections.Counter()
+    for d in jeu.dossiers:
+        e = champ(d, 'ATTESTATION_TRAVAIL_SALAIRE', 'employeur')
+        if e:
+            employeurs[e['raison_sociale']] += 1
+        logements[d['businessData']['civil']['address']] += 1
+    for v in jeu.verite:
+        if not v['controle']:
+            continue
+        d = dossier(jeu, v['ref'])
+        e = champ(d, 'ATTESTATION_TRAVAIL_SALAIRE', 'employeur')
+        if e and 'S20' not in v['scenarios']:
+            assert employeurs[e['raison_sociale']] == 1, v['scenarios']
+        if not {'S13', 'S14'} & set(v['scenarios']):
+            assert logements[d['businessData']['civil']['address']] == 1, v['scenarios']
+    for s in ('S13', 'S14'):
+        assert {logements[dossier(jeu, v['ref'])['businessData']['civil']['address']] for v in verite(jeu, s)} == {2}
+
+
+def test_T12_aucun_cin_valide_dans_le_dossier_gabarit(jeu):
+    for ref in refs(jeu, 'T12'):
+        assert 'ZZ' not in json.dumps([p['fields'] for p in dossier(jeu, ref)['pieces']]
+                                      + [dossier(jeu, ref)['businessData']['civil']])
