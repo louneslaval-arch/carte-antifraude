@@ -155,7 +155,10 @@ def generer(texte_web, texte_moteur):
         sortie += corps
         noms.append(nom)
     sortie += [f'{n}.model_rebuild()' for n in noms]
-    return '\n'.join(sortie) + '\n'
+    code = '\n'.join(sortie) + '\n'
+    if 'Field(' not in code.split('class _Modele', 1)[1]:
+        code = code.replace('from pydantic import BaseModel, ConfigDict, Field', 'from pydantic import BaseModel, ConfigDict')
+    return code
 
 
 def _sources(dossier):

@@ -13,7 +13,7 @@ $PY outils/garde/garde_donnees.py --tout
 
 etape "ruff (E9, F)"
 if [ ! -x .venv/bin/ruff ]; then echo "ruff absent : .venv/bin/python -m pip install -r requirements-dev.txt"; exit 1; fi
-.venv/bin/ruff check --select E9,F --exclude import,.verif,mutants,jeu_essai/sortie .
+.venv/bin/ruff check --select E9,F .
 
 etape "mypy (normalisation, lecteurs de structure)"
 if [ ! -x .venv/bin/mypy ]; then echo "mypy absent : .venv/bin/python -m pip install -r requirements-dev.txt"; exit 1; fi
