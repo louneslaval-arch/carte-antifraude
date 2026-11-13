@@ -421,7 +421,7 @@ class Fabrique:
     def controles(self, t):
         modele = (('IDT-01', 'IDENTITE', 'Cohérence de la CIN'), ('EMP-01', 'EMPLOI_REVENUS', 'Employeur déclaré'),
                   ('BNQ-01', 'BANCAIRE', 'Titulaire du compte'), ('BLG-02', 'BLACKLIST_GEO', 'Employeur en liste'))
-        return [dict(id=self.uid(), controlId=cid, applicable=True, applicabilityReason=None, outcome='CONFORME',
+        return [dict(id=self.uid(), controlId=cid, applicable=True, applicabilityReason='Applicable à cette catégorie.', outcome='CONFORME',
                      criticality=None, escalade=None, explanation='Contrôle fictif.', details=None, missing=[],
                      source='MOTEUR', computedAt=self.iso(t), label=libelle, family=famille, numeroMetier=cid,
                      previousOutcome=None) for cid, famille, libelle in modele]
