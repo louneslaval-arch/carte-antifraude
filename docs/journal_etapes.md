@@ -369,3 +369,40 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   « chaque ref de la liste a une version » impossible en SQL seul (la liste est hors de la base) ; `testeur-mutation`
   non lancé (n°22). Questions ajoutées : n°34 à 37.
 - **Tests après corrections** : 754 réussis, 2 sautés ; `verifier_tout.sh` vert.
+
+## 13/11/2026 — étape E, c1 : pièces et faits (branche `etape-e-c1`)
+- **Normalisation** : `pipeline/normalisation/valeurs.py` (`montant`, `date_iso`, `texte_norm`, `cin_norm`,
+  `rib_norm`, `aplatir`) et `cles.py` (clé canonique, statut d'une clé, référence des clés), fonctions pures reprises
+  d'`extraire_json_v2.py` ; tests par propriétés (jamais d'exception, stabilité).
+- **Couche** : `schema/020_c1.sql` et `pipeline/couches/c1_faits.py` (`traiter(ref)` et `construire_tout()` par la
+  même fonction) lisent le miroir : `c1_piece`, `c1_fait` et la vue `c1_fait_retenu`, `c1_releve_mois`,
+  `c1_releve_operation`, `c1_mention_personne` (vue `c1_societe_personne` au périmètre de Kamal),
+  `c1_mention_societe`, `c1_identifiant_brut`, `ref_cle_canonique`, vue `c1_cle_inconnue`.
+- **Référence des clés** : traductions du README § 4 plus toutes les clés de l'inventaire de Kamal par type de pièce
+  (`pipeline/normalisation/vocabulaire_v2.py`, généré par `outils/v2/vocabulaire_cles.py`, dérive vérifiée).
+- **Invariants** de c1 (9) dans `invariants.yaml`, chacun montré rouge par un test.
+- **Essai réel** : `outils/comptages_e.py` et `outils/essai_reel_e.sh` (comptages seulement ; garde-fou des données
+  réelles posé par Lounès dans sa commande ; sans lui, seuls les dossiers en « ZZ » sont lus). Attendu sur les deux
+  dossiers de l'échantillon : 182 valeurs, 160 retenues, 252 opérations lues, 2 reconstituées, 9 mentions de
+  personnes (rôles du 11/11). **Pas encore rapporté.**
+- **Écarts voulus avec l'extracteur du 11/11** : une date impossible rend rien (le texte reste dans
+  `date_operation_brute`) ; un texte qui n'a pas la forme d'un montant rend rien (« 50% », « 500 parts ») ; chiffres
+  d'une autre écriture lus ; date suivie d'autres chiffres refusée ; date de ligne à cheval sur la fin d'année datée
+  de l'année voisine ; `cin` écarté sur attestation de RIB, domiciliation et carte professionnelle ; nom gabarit
+  reconnu dans les deux ordres (`statut` de la mention) ; rôles `titulaire_compte` (aussi par `raison_sociale`) et
+  `titulaire_quittance` ; banque d'une attestation de RIB ; `acheteur.nom_complet` et `vendeur.raison_sociale` lus ;
+  identifiants reçus en nombre gardés ; entier démesuré d'un relevé ignoré ; colonne `pdf` abandonnée.
+- **Relectures** (trois sous-agents), corrigées tests d'abord : référence des clés trop pauvre et test de
+  l'inventaire sans effet ; deux invariants de la spécification manquants ; T05 (`cin`) ; opération « lue » à date
+  illisible ; fin d'année ; titulaire porté par `raison_sociale` ; listes d'objets perdues en silence (comptées) ;
+  référence vide au fil de l'eau ; identifiants numériques perdus ; valeur retenue non déterministe ; tests qui ne
+  prouvaient pas leur nom (retraitement, flux version par version, invariants rouges, relectures mal formées) ;
+  script d'essai (trace possible, échec muet du shell, argument recopié, garde-fou absent).
+- **Hors de la couche, signalé** : `tests/test_collecteur.py` construit les couches avant de vérifier les
+  invariants ; `outils/verifier_tout.sh` passe `--explicit-package-bases` à mypy et vérifie la dérive du vocabulaire.
+- **Non corrigé, noté** (questions n°38 à 48) : rôles « assuré » et « vendeur » ; T02 dans le générateur ; mois en
+  double ; formes écrites en dur ; transaction de `traiter` (étape I) ; portabilité PostgreSQL (n°37 : marqueurs `?`,
+  comparaison de `version` à un horodatage) ; `profil_json.py` toujours introuvable ; `testeur-mutation` non lancé
+  (n°22). Tests et code des deux premiers enregistrements écrits dans la même passe ; les corrections ont suivi
+  « test rouge, puis code ».
+- **Tests** : 945 réussis, 2 sautés (avant l'étape : 754) ; `verifier_tout.sh` vert.
