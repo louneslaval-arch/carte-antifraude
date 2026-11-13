@@ -192,6 +192,8 @@ REGLES = [
      'cin (ligne société)', 'CIN cité dans le texte', '—', '1,0'),
     ('R01v', 'CIN saisi avec une lettre finale parasite = même CIN sans cette lettre', 'identite', 'probable',
      'cin sans la lettre finale', 'CIN cité dans le texte', '—', '0,8'),
+    ('R01n', 'Même CIN, mais le nom cité ne correspond pas : CIN peut-être rattaché à la mauvaise personne '
+     'de l\'annonce', 'identite', 'probable', 'cin (personne)', 'CIN cité dans le texte', 'nom à vérifier', '0,7'),
     ('R02', 'Même numéro RC, même tribunal et raison sociale compatible', 'identite', 'certain',
      'regist_com (ou RC saisi dans cin) + regist_tribune', 'rc + tribunal', 'similarité des noms ≥ 0,6', '1,0'),
     ('R02n', 'Même numéro RC et même tribunal, mais raison sociale différente ou annonce douteuse', 'identite',
@@ -657,7 +659,10 @@ def lire_table(chemin):
             return list(csv.DictReader(f, dialect=dialecte))
     if ext in ('.xlsx', '.xlsm', '.xls'):
         import pandas as pd
-        return pd.read_excel(chemin, dtype=str).to_dict('records')
+        feuilles = pd.ExcelFile(chemin).sheet_names
+        # liste noire nettoyée (nettoyer_liste_noire.py) : la feuille des inscriptions, sinon la première feuille
+        feuille = next((f for f in feuilles if _cle_col(f) == 'inscriptionsnettoyees'), feuilles[0])
+        return pd.read_excel(chemin, sheet_name=feuille, dtype=str).to_dict('records')
     if ext == '.parquet':
         import pandas as pd
         return pd.read_parquet(chemin).astype(object).to_dict('records')
@@ -853,6 +858,8 @@ COLONNES_BL = ['num_seq', 'cin', 'regist_com', 'ice', 'regist_tribune', 'cli_phy
                'date_naiss', 'adresse', 'ville', 'lib_emp', 'interm', 'part', 'motif', 'motif2', 'type_liste',
                'type_fraude', 'orig_liste', 'orig_agence', 'mt_exposition', 'note', 'dat_sais', 'user_sais',
                'user_maj', 'nom', 'prenom']
+# colonnes ajoutées par nettoyer_liste_noire.py dans la liste nettoyée (lues si présentes, ignorées sinon)
+COLONNES_BL_NETTOYEES = ['identifiant_fiscal', 'ville_code_eqdom', 'id_entite']
 
 
 def norme_type_liste(s):
@@ -874,120 +881,150 @@ def norme_type_fraude(s):
             'FRAUDE SUBIE': 'Fraude subie'}.get(t, s)
 
 
-def charger_liste_noire(con, chemin):
-    lignes = lire_table(chemin)
-    anomalies, inscriptions = [], []
-    annee_min, annee_max = 1920, 2008
+def lire_ligne_bl(brute):
+    """Une ligne brute du fichier (dict colonne → valeur) → (dict COLONNES_BL réparé, num_seq, anomalies de corruption)."""
+    r = {c: None for c in COLONNES_BL + COLONNES_BL_NETTOYEES}
+    for k, v in brute.items():
+        ck = _cle_col(k)
+        for c in COLONNES_BL + COLONNES_BL_NETTOYEES:
+            if _cle_col(c) == ck:
+                r[c] = repare(v)
+    n = int(float(r['num_seq']))
+    anomalies = []
+    for c in COLONNES_BL:
+        if r[c] and CORROMPU_RE.search(r[c]):
+            anomalies.append((n, c, r[c][:60], 'valeur corrompue (séquence de terminal)', 'vidée'))
+            r[c] = None
+    return r, n, anomalies
 
-    for brute in lignes:
-        r = {c: None for c in COLONNES_BL}
-        for k, v in brute.items():
-            ck = _cle_col(k)
-            for c in COLONNES_BL:
-                if _cle_col(c) == ck:
-                    r[c] = repare(v)
-        n = int(float(r['num_seq']))
-        for c in COLONNES_BL:
-            if r[c] and CORROMPU_RE.search(r[c]):
-                anomalies.append((n, c, r[c][:60], 'valeur corrompue (séquence de terminal)', 'vidée'))
-                r[c] = None
 
-        cin_norm, cin_statut = normalise_cin(r['cin'])
-        rc_num, indice_trib, rc_statut = normalise_rc(r['regist_com'])
-        if_num = rc_num if rc_statut == 'identifiant_fiscal' else None
-        if rc_statut == 'identifiant_fiscal':
-            rc_num = None
-            anomalies.append((n, 'regist_com', r['regist_com'], 'identifiant fiscal saisi comme RC', 'rangé en IF'))
-        if rc_statut == 'masque':
-            anomalies.append((n, 'regist_com', r['regist_com'], 'RC masqué (XXXXXX)', 'ignoré'))
-        if cin_statut == 'identifiant_fiscal':
-            if_num = if_num or cin_norm
-        if cin_statut == 'rc_dans_cin':
-            rc_cin = str(int(re.sub(r'\D', '', cin_norm)))
-            if rc_num and rc_num != rc_cin:
-                anomalies.append((n, 'cin', r['cin'], f'RC différent de regist_com ({rc_num})', 'regist_com retenu'))
-            rc_num = rc_num or rc_cin
-        if cin_statut in ('masque', 'non_standard', 'chiffres_seuls', 'lettre_finale'):
-            anomalies.append((n, 'cin', r['cin'], {'masque': 'CIN masqué (XXXXXX)',
-                                                   'non_standard': 'CIN au format non standard',
-                                                   'chiffres_seuls': 'CIN sans lettres',
-                                                   'lettre_finale': 'CIN avec une lettre finale parasite'}[cin_statut],
-                              'variante sans la lettre pour R01v' if cin_statut == 'lettre_finale' else 'ignoré'))
+def normaliser_inscription(r, n, annee_min=1920, annee_max=2008):
+    """Normalise une inscription de la liste noire (dict COLONNES_BL) : identifiants, type d'entité, tribunal, ville,
+    dates, libellés. Renvoie (inscription, anomalies). Même logique pour la base et pour nettoyer_liste_noire.py."""
+    anomalies = []
+    cin_norm, cin_statut = normalise_cin(r['cin'])
+    rc_num, indice_trib, rc_statut = normalise_rc(r['regist_com'])
+    if_num = rc_num if rc_statut == 'identifiant_fiscal' else None
+    if rc_statut == 'identifiant_fiscal':
+        rc_num = None
+        anomalies.append((n, 'regist_com', r['regist_com'], 'identifiant fiscal saisi comme RC', 'rangé en IF'))
+    if rc_statut == 'masque':
+        anomalies.append((n, 'regist_com', r['regist_com'], 'RC masqué (XXXXXX)', 'ignoré'))
+    if cin_statut == 'identifiant_fiscal':
+        if_num = if_num or cin_norm
+    if not if_num and r.get('identifiant_fiscal'):               # liste nettoyée : IF déjà rangé dans sa colonne
+        if_num = re.sub(r'\D', '', r['identifiant_fiscal']) or None
+    if cin_statut == 'rc_dans_cin':
+        rc_cin = str(int(re.sub(r'\D', '', cin_norm)))
+        if rc_num and rc_num != rc_cin:
+            anomalies.append((n, 'cin', r['cin'], f'RC différent de regist_com ({rc_num})', 'regist_com retenu'))
+        rc_num = rc_num or rc_cin
+    if cin_statut in ('masque', 'non_standard', 'chiffres_seuls', 'lettre_finale'):
+        anomalies.append((n, 'cin', r['cin'], {'masque': 'CIN masqué (XXXXXX)',
+                                               'non_standard': 'CIN au format non standard',
+                                               'chiffres_seuls': 'CIN sans lettres',
+                                               'lettre_finale': 'CIN avec une lettre finale parasite'}[cin_statut],
+                          'variante sans la lettre pour R01v' if cin_statut == 'lettre_finale' else 'ignoré'))
 
-        ice = re.sub(r'\D', '', r['ice'] or '')
-        ice_norm = ice if len(ice) == 15 else None
-        if r['ice'] and not ice_norm:
-            if latin_maj(r['ice']).startswith('IF'):
-                if_num = if_num or re.sub(r'\D', '', r['ice'])
-                anomalies.append((n, 'ice', r['ice'], 'identifiant fiscal saisi comme ICE', 'rangé en IF'))
+    ice = re.sub(r'\D', '', r['ice'] or '')
+    ice_norm = ice if len(ice) == 15 else None
+    if r['ice'] and not ice_norm:
+        if latin_maj(r['ice']).startswith('IF'):
+            if_num = if_num or re.sub(r'\D', '', r['ice'])
+            anomalies.append((n, 'ice', r['ice'], 'identifiant fiscal saisi comme ICE', 'rangé en IF'))
 
-        trib, trib_statut = tribunal_code(r['regist_tribune'])
-        if trib_statut in ('type_client_saisi_dans_tribunal', 'valeur_erronee', 'ambigu', 'inconnu'):
-            anomalies.append((n, 'regist_tribune', r['regist_tribune'],
-                              {'type_client_saisi_dans_tribunal': 'PP ou PM saisi dans la colonne tribunal',
-                               'valeur_erronee': 'valeur sans rapport avec un tribunal',
-                               'ambigu': 'code tribunal ambigu', 'inconnu': 'code tribunal inconnu'}[trib_statut],
-                              'tribunal vide'))
-        if not trib and indice_trib:
-            trib, trib_statut = indice_trib, 'deduit_du_rc'
+    trib, trib_statut = tribunal_code(r['regist_tribune'])
+    if trib_statut in ('type_client_saisi_dans_tribunal', 'valeur_erronee', 'ambigu', 'inconnu'):
+        anomalies.append((n, 'regist_tribune', r['regist_tribune'],
+                          {'type_client_saisi_dans_tribunal': 'PP ou PM saisi dans la colonne tribunal',
+                           'valeur_erronee': 'valeur sans rapport avec un tribunal',
+                           'ambigu': 'code tribunal ambigu', 'inconnu': 'code tribunal inconnu'}[trib_statut],
+                          'tribunal vide'))
+    if not trib and indice_trib:
+        trib, trib_statut = indice_trib, 'deduit_du_rc'
 
-        # type d'entité : PP / PM, corrigé si les données le contredisent
-        declare = (r['cli_phy_mor'] or '').upper()
-        if declare not in ('PP', 'PM'):
-            declare = latin_maj(r['regist_tribune']) if latin_maj(r['regist_tribune']) in ('PP', 'PM') else None
-        nom_texte = r['nom_ras'] or r['nom'] or ''
-        marque = bool(set(latin_maj(nom_texte).split()) & MARQUES_SOCIETE)
-        if declare == 'PM':
-            t = 'PM'
-        elif cin_statut in ('rc_dans_cin', 'identifiant_fiscal') and not r['prenom']:
-            t = 'PM'
-        elif r['nom_ras'] and not r['prenom']:
-            t = 'PM'
-        elif not r['prenom'] and marque:
-            t = 'PM'
-        elif declare == 'PP' or cin_statut in ('valide', 'lettre_finale') or r['prenom']:
-            t = 'PP'
-        elif rc_num:
-            t = 'PM'
+    # type d'entité : PP / PM, corrigé si les données le contredisent
+    declare = (r['cli_phy_mor'] or '').upper()
+    if declare not in ('PP', 'PM'):
+        declare = latin_maj(r['regist_tribune']) if latin_maj(r['regist_tribune']) in ('PP', 'PM') else None
+    nom_texte = r['nom_ras'] or r['nom'] or ''
+    marque = bool(set(latin_maj(nom_texte).split()) & MARQUES_SOCIETE)
+    if declare == 'PM':
+        t = 'PM'
+    elif cin_statut in ('rc_dans_cin', 'identifiant_fiscal') and not r['prenom']:
+        t = 'PM'
+    elif r['nom_ras'] and not r['prenom']:
+        t = 'PM'
+    elif not r['prenom'] and marque:
+        t = 'PM'
+    elif declare == 'PP' or cin_statut in ('valide', 'lettre_finale') or r['prenom']:
+        t = 'PP'
+    elif rc_num:
+        t = 'PM'
+    else:
+        t = 'PP'
+    if declare and declare != t:
+        anomalies.append((n, 'cli_phy_mor', r['cli_phy_mor'] or r['regist_tribune'],
+                          f'déclaré {declare}, données de {"société" if t == "PM" else "personne"}',
+                          f'classé {t}'))
+
+    if t == 'PM':
+        nom_affiche = r['nom_ras'] or r['nom'] or r['prenom']
+    else:
+        nom_affiche = ' '.join(x for x in (r['nom'], r['prenom']) if x) or r['nom_ras']
+
+    dn = date_iso(r['date_naiss'])
+    dn_valide = dn if (t == 'PP' and dn and annee_min <= int(dn[:4]) <= annee_max) else None
+    if dn and not dn_valide and t == 'PP':
+        anomalies.append((n, 'date_naiss', dn, 'date de naissance hors bornes (saisie ou valeur par défaut)',
+                          'ignorée'))
+
+    ville, ville_origine = None, None
+    if r['ville']:
+        if r['ville'].isdigit():
+            if r['ville'] in VILLE_CODES_EQDOM:
+                ville, ville_origine = VILLE_CODES_EQDOM[r['ville']][0], 'code_deduit'
         else:
-            t = 'PP'
-        if declare and declare != t:
-            anomalies.append((n, 'cli_phy_mor', r['cli_phy_mor'] or r['regist_tribune'],
-                              f'déclaré {declare}, données de {"société" if t == "PM" else "personne"}',
-                              f'classé {t}'))
+            ville, ville_origine = villes_dans(r['ville']), 'texte'
+    if not ville and r['adresse']:
+        ville = villes_dans(r['adresse'])
+        ville_origine = 'adresse' if ville else None
 
-        if t == 'PM':
-            nom_affiche = r['nom_ras'] or r['nom'] or r['prenom']
-        else:
-            nom_affiche = ' '.join(x for x in (r['nom'], r['prenom']) if x) or r['nom_ras']
+    return dict(
+        r, num_seq=n, mt_exposition=nombre(r['mt_exposition']), date_naiss=dn or r['date_naiss'],
+        dat_sais=date_iso(r['dat_sais']) or r['dat_sais'], type_entite=t, cin_norm=cin_norm,
+        cin_statut=cin_statut, rc_num=rc_num, rc_statut=rc_statut, if_num=if_num, ice_norm=ice_norm,
+        tribunal_code=trib, tribunal_statut=trib_statut, ville_code=ville, ville_origine=ville_origine,
+        date_naiss_valide=dn_valide, nom_affiche=nom_affiche, type_liste_norm=norme_type_liste(r['type_liste']),
+        type_fraude_norm=norme_type_fraude(r['type_fraude']), statut_inscription='actif',
+        date_reference=DATE_REFERENCE_LISTE, rs=cle_rs(nom_texte) if t == 'PM' else None), anomalies
 
-        dn = date_iso(r['date_naiss'])
-        dn_valide = dn if (t == 'PP' and dn and annee_min <= int(dn[:4]) <= annee_max) else None
-        if dn and not dn_valide and t == 'PP':
-            anomalies.append((n, 'date_naiss', dn, 'date de naissance hors bornes (saisie ou valeur par défaut)',
-                              'ignorée'))
 
-        ville, ville_origine = None, None
-        if r['ville']:
-            if r['ville'].isdigit():
-                if r['ville'] in VILLE_CODES_EQDOM:
-                    ville, ville_origine = VILLE_CODES_EQDOM[r['ville']][0], 'code_deduit'
-            else:
-                ville, ville_origine = villes_dans(r['ville']), 'texte'
-        if not ville and r['adresse']:
-            ville = villes_dans(r['adresse'])
-            ville_origine = 'adresse' if ville else None
+COLONNES_DOUBLON = [c for c in COLONNES_BL if c not in ('num_seq', 'user_sais', 'user_maj')]
 
-        inscriptions.append(dict(
-            r, num_seq=n, mt_exposition=nombre(r['mt_exposition']), date_naiss=dn or r['date_naiss'],
-            dat_sais=date_iso(r['dat_sais']) or r['dat_sais'], type_entite=t, cin_norm=cin_norm,
-            cin_statut=cin_statut, rc_num=rc_num, rc_statut=rc_statut, if_num=if_num, ice_norm=ice_norm,
-            tribunal_code=trib, tribunal_statut=trib_statut, ville_code=ville, ville_origine=ville_origine,
-            date_naiss_valide=dn_valide, nom_affiche=nom_affiche, type_liste_norm=norme_type_liste(r['type_liste']),
-            type_fraude_norm=norme_type_fraude(r['type_fraude']), statut_inscription='actif',
-            date_reference=DATE_REFERENCE_LISTE, rs=cle_rs(nom_texte) if t == 'PM' else None))
 
-    # ---- regroupement en entités ----
+def ecarter_doublons(inscriptions):
+    """Lignes strictement identiques (mêmes valeurs sur toutes les colonnes hors n° de séquence et utilisateur) :
+    on garde la première (n° de séquence le plus petit), les autres sont écartées. Une ligne sans aucun identifiant
+    ni nom n'est jamais considérée comme doublon."""
+    vues, gardees, anomalies = {}, [], []
+    for i in sorted(inscriptions, key=lambda x: x['num_seq']):
+        if not any(i.get(c) for c in ('cin', 'regist_com', 'nom', 'prenom', 'nom_ras', 'ice')):
+            gardees.append(i)
+            continue
+        cle = tuple(' '.join(latin_maj(i.get(c) or '').split()) for c in COLONNES_DOUBLON)
+        if cle in vues:                                 # l'anomalie est portée par la ligne gardée (clé étrangère)
+            anomalies.append((vues[cle], 'num_seq', str(i['num_seq']), f"doublon exact : ligne n° {i['num_seq']} écartée", 'écartée'))
+            continue
+        vues[cle] = i['num_seq']
+        gardees.append(i)
+    return gardees, anomalies
+
+
+def regrouper_inscriptions(inscriptions):
+    """Clé d'entité de chaque inscription (i['cle']) : CIN pour une personne, RC + tribunal pour une société, sinon
+    RC + raison sociale, IF, ou la ligne seule. Un RC sans tribunal rejoint la société du même RC et du même nom
+    dont le tribunal est connu. Renvoie {clé: [inscriptions]}."""
     def cle_entite(i):
         if i['type_entite'] == 'PP':
             if i['cin_statut'] in ('valide', 'lettre_finale'):
@@ -1014,9 +1051,26 @@ def charger_liste_noire(con, chemin):
             if len(cands) == 1:
                 i['cle'] = next(iter(cands))
 
+
     groupes = defaultdict(list)
     for i in inscriptions:
         groupes[i['cle']].append(i)
+    return groupes
+
+
+def charger_liste_noire(con, chemin):
+    lignes = lire_table(chemin)
+    anomalies, inscriptions = [], []
+    for brute in lignes:
+        r, n, anos = lire_ligne_bl(brute)
+        anomalies += anos
+        i, anos = normaliser_inscription(r, n)
+        anomalies += anos
+        inscriptions.append(i)
+    inscriptions, anos = ecarter_doublons(inscriptions)
+    gardees = {i['num_seq'] for i in inscriptions}
+    anomalies = [a for a in anomalies if a[0] in gardees] + anos     # les anomalies d'un doublon écarté sont celles de la ligne gardée
+    groupes = regrouper_inscriptions(inscriptions)
 
     def distincts(valeurs, sep=' ; '):
         vus = []
@@ -1167,7 +1221,7 @@ STOP_NOMS = _norm_set('''أنيطت مهمة لمدة ولمدة غير محدو
 بيانات بند حول وعند عند الاقتضاء الإقتضاء الحدود المفروضة قاضيا منتدبا مسيروحيد أعطي اعطي حق بدون مقابل وتلزم تلزم
 بإمضاء بامضاء الصلاحيات الصالحيات الضرورية لإنجاز النجاز الإجراءات الاجراءات الأخيرة الاخيرة الناتجة بسومة شهرية قدرها
 أرضا ارضا قيمت قدمت يعتبران المسيران لتسيير توكيله وإنهاء وانهاء والموافقة وتكلفه وتكلف بالقيام بكل عملية تهدف
-الأعضاء الاعضاء الآتية الاتية التالية التالي الآتي الاتي
+الأعضاء الاعضاء الآتية الاتية التالية التالي الآتي الاتي مواطن مواطنة بريطاني فرنسي اسباني الصرف الصحي التكييف الخ
 PRENOM PRENOMS NOM NOMS ANONYME NEANT GERANT GERANTE ASSOCIE ASSOCIEE UNIQUE SORTANT QUALITE SOCIETE''')
 # à partir de ces mots, la suite n'est plus le nom (rôle, pièce d'identité, adresse, nationalité, parts)
 COUPE_NOMS = _norm_set('''بطاقة البطاقة للبطاقة لبطاقة حامل الحامل صاحب صاحبة جميع مجموعه مجموع عدد رقم المزداد المزدادة
@@ -1192,6 +1246,12 @@ GENERIQUES_RS = {'SERVICES', 'SERVICE', 'CONSTRUCTION', 'CONSULTING', 'MODIFICAT
 ENTETES_RS = {latin_maj(x) for x in ['الاعالنات القانونية والادارية', 'الإعلانات القانونية والإدارية', 'الاعالن',
                                       'الإعلان', 'FLASH ECONOMIE', 'ANNONCES LEGALES', 'ANNONCE LEGALE', 'موثق', 'JAL',
                                       'AUJOURD HUI LE MAROC', 'LE MATIN', 'MODIFICATION', 'CONSTITUTION']}
+# en-têtes du Bulletin officiel lus comme une dénomination : « المحكمة التجارية بالرباط », « استدراك خطإ وقع
+# بالجريدة », « المقر الاجتماعي : … », « إعلان … » (les ligatures cassées du PDF donnent « املحكمة », « اإلعالن »)
+ENTETE_AR_RE = re.compile('|'.join(['محكمة', 'املحكمة', 'استدراك', 'إستدراك', 'تصحيح', 'الجريدة', 'جريدة', 'املقر',
+                                   'المقر', 'اإلعالن', 'الإعلان', 'إعالن', 'اعالن', 'اعلان', 'إعلان', 'كتابة الضبط',
+                                   'السجل التجاري', 'رقم السجل', 'مكتب التوثيق', 'ديوان الأستاذ', 'ديوان االستاذ',
+                                   'مؤرخ', 'بتاريخ']))
 MOTS_ADRESSE = {'RUE', 'AV', 'AVENUE', 'BD', 'BOULEVARD', 'ETG', 'ETAGE', 'IMM', 'IMMEUBLE', 'N', 'BUREAU', 'APPT',
                 'LOT', 'RES', 'RESIDENCE', 'QUARTIER', 'HAY'}
 CIN_TEXTE_RE = re.compile(r'(?:\bCIN\b|\bCNIE\b|CARTE NATIONALE|بطاقة|البطاقة|للبطاقة|لبطاقة)'
@@ -1221,8 +1281,10 @@ def statut_denomination(d):
     if not d:
         return 'absente'
     t = nettoyer_denomination(d)
-    if not t or t in ENTETES_RS or re.match(r'(AVIS|ANNONCE|EXTRAIT|RECTIFICATIF)\b', t):
+    if not t or t in ENTETES_RS or re.match(r'(AVIS|ANNONCE|EXTRAIT|RECTIFICATIF)\b', t) or ENTETE_AR_RE.search(t):
         return 'entete'
+    if re.search(r'\bRC\s*\d{3,}', t) or re.search(r'\b(APPT|ETG|ETAGE|RDC)\b', t):
+        return 'adresse'                                # « APPART 0121 RUE SEBOU RDC RABAT RC 57899 »
     mots = mots_societe(t)
     if not mots:
         return 'forme_seule'
@@ -1344,19 +1406,83 @@ def cins_dans_texte(texte):
     return trouves
 
 
-def lire_export_kamal(chemin):
-    """Annonces de l'export de Kamal, normalisées au format commun."""
+ROLES_KAMAL = {'GERANT': 'gerant', 'CO GERANT': 'gerant', 'COGERANT': 'gerant', 'ASSOCIE': 'associe',
+               'CEDANT': 'cedant', 'CESSIONNAIRE': 'cessionnaire', 'LIQUIDATEUR': 'liquidateur',
+               'ADMINISTRATEUR': 'administrateur', 'PRESIDENT': 'administrateur', 'REPRESENTANT': 'representant'}
+SORTIES_KAMAL = {'gerant': 'gerant_sortant', 'associe': 'associe_sortant', 'administrateur': 'gerant_sortant'}
+CHAMP_PAR_ROLE = {'gerant': 'dirigeants', 'administrateur': 'dirigeants', 'gerant_sortant': 'dirigeants_sortants',
+                  'associe': 'associes', 'associe_sortant': 'associes_sortants', 'cedant': 'cedants',
+                  'cessionnaire': 'cessionnaires', 'liquidateur': 'liquidateurs', 'representant': 'representants',
+                  'inconnu': 'texte'}
+
+
+def entrees_personnes_kamal(lignes):
+    """Lignes du fichier « personnes » de Kamal (26/10/2026) pour une annonce → entrées au format commun :
+    une entrée par rôle (« Associé, Gérant » en donne deux), CIN, parts et pourcentage repris tels quels."""
+    sortie = []
+    for p in lignes:
+        roles = [ROLES_KAMAL.get(latin_maj(x), 'inconnu') for x in (p.get('roles') or '').split(',') if x.strip()]
+        roles = list(dict.fromkeys(roles)) or ['inconnu']
+        if p.get('mouvement') == 'sortie':
+            roles = [SORTIES_KAMAL.get(r, r) for r in roles]
+        parts = re.sub(r'\D', '', p.get('parts') or '') or None
+        try:
+            pct = float((p.get('pourcentage') or '').replace(',', '.')) if p.get('pourcentage') else None
+        except ValueError:
+            pct = None
+        cin = (p.get('cin') or '').strip() or None
+        nom = p.get('nom') or ''
+        for role in roles:
+            champ = CHAMP_PAR_ROLE.get(role, 'texte')
+            e = analyser_entree(nom, 'personnes', role)
+            e.update(champ=champ, role=role, role_texte=p.get('roles') or None, cin=cin,
+                     texte_brut=(nom + (' — ' + p['roles'] if p.get('roles') else '')
+                                 + (f" ({parts or '?'} parts, {pct:g} %)" if pct is not None else ''))[:300])
+            if parts:
+                e['parts'] = parts
+            if pct is not None:
+                e['pct'] = pct
+            if p.get('personne_morale') == 'oui' and e['type'] != 'PM' and not e['rejet']:
+                rs = cle_rs(nom)
+                if rs:
+                    e.update(type='PM', nom=' '.join(latin_maj(nom).split()), rs=rs, sq=squelette_rs(nom), mots=None)
+                else:
+                    e['rejet'] = 'societe_illisible'
+            sortie.append(e)
+    return sortie
+
+
+def lire_export_kamal(chemin, chemin_personnes=None):
+    """Annonces de l'export de Kamal, normalisées au format commun. Avec le fichier « personnes » (export du
+    26/10/2026), les personnes citées, leurs rôles, leurs parts et leurs CIN viennent de ce fichier ; sans lui, elles
+    sont lues dans les colonnes de texte de l'annonce."""
     csv.field_size_limit(10 ** 9)
+    par_annonce = {}
+    if chemin_personnes:
+        with open(chemin_personnes, encoding='utf-8-sig', newline='') as f:
+            for p in csv.DictReader(f, delimiter=';'):
+                par_annonce.setdefault(p.get('identifiant_source'), []).append(
+                    {k: (v.strip() if isinstance(v, str) else v) for k, v in p.items()})
+        print(f'    fichier personnes : {sum(len(v) for v in par_annonce.values())} lignes, '
+              f'{len(par_annonce)} annonces', flush=True)
     with open(chemin, encoding='utf-8-sig', newline='') as f:
         for r in csv.DictReader(f, delimiter=';'):
             r = {k: (v.strip() if isinstance(v, str) else v) for k, v in r.items()}
             source = SOURCES_KAMAL.get(latin_maj(r.get('source')), latin_maj(r.get('source')).lower())
-            personnes = []
-            for champ, role_defaut in CHAMPS_PERSONNES:
-                for brut in (r.get(champ) or '').split(' | '):
-                    if brut.strip():
-                        personnes.append(analyser_entree(brut, champ, role_defaut))
+            lignes_p = par_annonce.get(r.get('identifiant_source'))
             cins = []
+            if lignes_p:
+                personnes = entrees_personnes_kamal(lignes_p)
+            else:
+                personnes = []
+                for champ, role_defaut in CHAMPS_PERSONNES:
+                    for brut in (r.get(champ) or '').split(' | '):
+                        if brut.strip():
+                            personnes.append(analyser_entree(brut, champ, role_defaut))
+                for c in (r.get('cin') or '').split('|'):          # CIN cités, sans personne rattachée
+                    c = c.strip()
+                    if c:
+                        cins.append((c, None))
             for c in ('objet', 'siege', 'titre', 'denomination') + tuple(ch for ch, _ in CHAMPS_PERSONNES):
                 if r.get(c) and re.search(r'CIN|CNIE|بطاقة|NATIONALE', r[c], re.I):
                     cins += cins_dans_texte(r[c])
@@ -1680,6 +1806,13 @@ def assembler_rc(con, annonces_iter):
                 rejets.append((a['annonce_id'], e['champ'], e['texte_brut'], e['rejet']))
                 continue
             valides.append(e)
+        # page du Bulletin officiel lue comme une seule annonce (en-tête du tribunal, dizaines de personnes sans
+        # rapport) : aucune de ces personnes ne peut être rattachée à une société
+        nb_pp = sum(1 for e in valides if e['type'] == 'PP')
+        if nb_pp >= 30 or (a['denomination_statut'] != 'valide' and nb_pp >= 8):
+            for e in valides:
+                rejets.append((a['annonce_id'], e['champ'], e['texte_brut'], 'page_fusionnee'))
+            valides, a['cins'] = [], []
         # CIN cités dans le texte : rattachés au nom qui les précède, sinon à la seule personne sans CIN ;
         # un même nom suivi de deux CIN différents est ambigu : aucun des deux n'est rattaché à ce nom
         noms_cin = defaultdict(set)
@@ -2147,6 +2280,22 @@ def filtrer_par_squelette(con):
         if emp not in noms_pm[eid]:
             noms_pm[eid].append(emp)
     a_retirer, notes = [], []
+    # liens par CIN : le nom cité doit correspondre à l'inscrit ; sinon le CIN est peut-être rattaché à la mauvaise
+    # personne de l'annonce (extraction) → R01n, probable
+    retrogrades = []
+    for cid, eid, oid in con.execute("""SELECT c.id, c.bl_entite_id, c.rc_objet_id FROM correspondance c
+            WHERE c.regle = 'R01' AND c.rc_objet = 'rc_personne'""").fetchall():
+        nom_rc = con.execute('SELECT nom_complet FROM rc_personne WHERE personne_id = ?', (oid,)).fetchone()[0]
+        variantes = noms_pp.get(eid) or []
+        if not variantes or not nom_rc:
+            continue
+        if noms_compatibles(variantes, nom_rc):
+            notes.append((f' ; nom au registre : {nom_rc}', cid))
+            continue
+        # même nom de famille au moins (CIN d'un parent cité dans la même annonce) : on garde, mais probable
+        retrogrades.append((f'CIN cité dans l\'annonce, mais nom différent : « {nom_rc} » / « {variantes[0]} »', cid))
+    con.executemany("""UPDATE correspondance SET regle = 'R01n', niveau = 'probable', poids_regle = 0.7,
+                        confirmation = ? WHERE id = ?""", retrogrades)
     lignes = con.execute("""SELECT c.id, c.bl_entite_id, c.rc_objet, c.cle_type,
             CASE c.rc_objet WHEN 'rc_personne' THEN (SELECT nom_complet FROM rc_personne WHERE personne_id = c.rc_objet_id)
                             ELSE (SELECT denomination FROM rc_societe WHERE societe_id = c.rc_objet_id) END,
@@ -2172,6 +2321,8 @@ def filtrer_par_squelette(con):
             a_retirer.append((cid,))
     con.executemany('DELETE FROM correspondance WHERE id = ?', a_retirer)
     con.executemany("UPDATE correspondance SET confirmation = coalesce(confirmation, '') || ? WHERE id = ?", notes)
+    if retrogrades:
+        print(f'  liens par CIN dont le nom ne correspond pas : {len(retrogrades)} passés en probable (R01n)', flush=True)
     return len(a_retirer), len(notes)
 
 
@@ -2202,7 +2353,8 @@ def bilan(con):
 def main():
     ap = argparse.ArgumentParser(description='Base SQLite liste noire × registre du commerce')
     ap.add_argument('--liste-noire', help='Excel ou CSV de la liste noire EQDOM')
-    ap.add_argument('--rc-kamal', help='Export des annonces légales de Kamal (CSV point-virgule, 37 colonnes)')
+    ap.add_argument('--rc-kamal', help='Export des annonces légales de Kamal (CSV point-virgule)')
+    ap.add_argument('--rc-kamal-personnes', help='Fichier « personnes » de Kamal (une ligne par personne citée, avec CIN)')
     ap.add_argument('--rc-annonces', help='Modèle générique : annonces (CSV, Excel, Parquet ou JSON à plat)')
     ap.add_argument('--rc-personnes', help='Modèle générique : personnes citées')
     ap.add_argument('--rc-json', help='Modèle générique : JSON / JSONL d\'annonces avec personnes imbriquées')
@@ -2213,8 +2365,12 @@ def main():
 
     if args.regles_seulement:
         con = sqlite3.connect(args.base)
+        con.execute('DELETE FROM ref_regle')                 # règles et poids à jour
+        con.executemany('INSERT INTO ref_regle VALUES (?,?,?,?,?,?,?,?)', REGLES)
         appliquer_regles(con)
         con.commit()
+        import translitteration as tl
+        tl.appliquer(con)
         bilan(con)
         return
     if not args.liste_noire:
@@ -2232,7 +2388,7 @@ def main():
 
     annonces = None
     if args.rc_kamal:
-        annonces = lire_export_kamal(args.rc_kamal)
+        annonces = lire_export_kamal(args.rc_kamal, args.rc_kamal_personnes)
     elif args.rc_annonces or args.rc_json:
         brutes = lire_table(args.rc_annonces or args.rc_json)
         personnes = lire_table(args.rc_personnes) if args.rc_personnes else []
@@ -2249,6 +2405,9 @@ def main():
     con.execute("INSERT INTO parametre VALUES ('construction', NULL, ?, 'Date de construction de la base')",
                 (datetime.now().strftime('%Y-%m-%d %H:%M'),))
     con.commit()
+    # écriture latine des noms arabes (rc_personne.nom_latin, rc_societe.denomination_latin, ref_translitteration)
+    import translitteration as tl
+    tl.appliquer(con)
     bilan(con)
     con.execute('VACUUM')
     con.close()

@@ -53,7 +53,7 @@ CIN_RE = re.compile(r'[A-Z]{1,2}\s?\d{3,}', re.I)
 CHIFFRES_RE = re.compile(r'\d{4,}')                    # RC, numéros de dépôt, CIN sans lettre
 ARABE_RE = re.compile('[؀-ۿ]')
 # Libellés de rôle permis : le vocabulaire exact du kit, part détenue éventuelle (« associé (33.3 %) »)
-ROLE_RE = pc.ROLE_PERMIS_RE
+ROLE_RE = re.compile('^(' + pc.ROLE_PERMIS_RE.pattern[1:-1] + ')(, (' + pc.ROLE_PERMIS_RE.pattern[1:-1] + '))*$')
 
 
 def test_couche1_sans_cin_ni_rc_ni_arabe(jeu):
@@ -206,7 +206,7 @@ def test_publication_du_kit_conforme_a_la_reference(jeu):
 
 # ---- filtre des libellés de rôle ---------------------------------------------------------------------------------
 @pytest.mark.parametrize('libelle', ['gérant', 'associé', 'associé (33.3 %)', 'associé (50 %)', 'ancien gérant',
-                                     'associée de', 'cédant', 'cité', 'liquidateur', 'cessionnaire (10 %)'])
+                                     'associée de', 'ancien associé', 'cité', 'liquidateur', 'associé (10 %)'])
 def test_libelle_de_role_connu_passe_en_couche1(libelle):
     assert pc.role_couche1(libelle) == libelle
 
@@ -335,7 +335,7 @@ def entree_main():
                            url='https://exemple.invalid/annonce/1', bl='', diss=1),
                 'I3': dict(t='PP', nom='C', bl='inscrit')},          # sans « d »
         aretes=[dict(a='R', b='S7', lib='gérant', pont='', fiab=1.0, force=0.4, style='rap'),
-                dict(a='S7', b='I3', lib='associé', pont='', fiab=0.5, force=0.2, style='inconnu')])
+                dict(a='S7', b='I3', lib='associé', pont='', fiab=0.5, force=0.2, style='ancien')])
 
 
 def test_carte_couche1_drapeaux_profondeur_et_style():
@@ -343,7 +343,7 @@ def test_carte_couche1_drapeaux_profondeur_et_style():
     c = pc.carte_couche1(entree_main(), ind, certain=True)
     assert c == dict(type='PP', compte={'1': 1, '2': 1, '3': 0, '4': 0}, alerte=True, certain=True,
                      noeuds=[[10, 0, 0, 0], [11, 1, 0, 1], [12, 0, 1, 0]],
-                     aretes=[[10, 11, 'gérant', 1, 1.0, 0.4], [11, 12, 'associé', 0, 0.5, 0.2]],
+                     aretes=[[10, 11, 'gérant', 1, 1.0, 0.4], [11, 12, 'associé', 4, 0.5, 0.2]],
                      chaines=[[2, 0.5, 0.2, 1], [1, 1.0, 0.4, 0]])
 
 
@@ -387,11 +387,6 @@ def test_les_champs_de_la_liste_noire_priment_sur_la_carte():
     assert lignes[0][4:7] == ('999', 'CASABLANCA', 'RABAT')
 
 
-def test_style_inconnu_vaut_role_simple():
-    assert pc.style_de(dict(style='inconnu')) == 0
-    assert [pc.style_de(dict(style=s)) for s in ('', 'rap', 'pont')] == [0, 1, 2]
-
-
 def test_fusion_des_noeuds_fiche_ville_et_liste_noire():
     class Idx:
         def types(self):
@@ -429,3 +424,40 @@ def test_statistiques_sans_identite(jeu):
         st = json.load(f)
     for s in chaines_de(st):
         assert not CIN_RE.search(s) and not CHIFFRES_RE.search(s) and not ARABE_RE.search(s), s
+
+
+# ---- styles d'arête du kit du 11/11 (rôles datés, rapprochement certain) -----------------------------------------
+@pytest.mark.parametrize('style', ['', 'rap', 'pont', 'certain', 'ancien', 'ancien rap', 'ancien certain',
+                                   'ancien pont'])
+def test_style_du_kit_garde_son_sens(style):
+    assert pc.STYLES[pc.style_de({'style': style})] == style
+
+
+def test_numeros_des_styles_existants_inchanges():
+    assert pc.STYLES[:3] == ['', 'rap', 'pont']
+
+
+def test_style_inconnu_refuse_au_lieu_d_etre_perdu():
+    with pytest.raises(ValueError):
+        pc.style_de({'style': 'inconnu'})
+
+
+# ---- rôles datés du kit du 11/11 : la couche 1 garde le rôle et la part, jamais la date ------------------------
+@pytest.mark.parametrize('libelle, couche1', [
+    ('gérant (06/2025)', 'gérant'),
+    ('associé (02/2025)', 'associé'),
+    ('ancien associé (cédé 02/2025)', 'ancien associé'),
+    ('ancien gérant (remplacé 05/2024)', 'ancien gérant'),
+    ('ancien gérant (autre gérant nommé 01/2024)', 'ancien gérant'),
+    ('gérant (01/2025), associé (05/2024)', 'gérant, associé'),
+    ('associé 50 % (01/2023)', 'associé (50 %)'),
+    ('associé (33.3 %) (01/2023)', 'associé (33.3 %)'),
+    ('gérant (06/2025) · annonce mélangée', 'gérant'),
+])
+def test_role_date_garde_le_role_sans_la_date(libelle, couche1):
+    assert pc.role_couche1(libelle) == couche1
+
+
+@pytest.mark.parametrize('libelle', ['gérant (06/2025), ZZ900001', 'gérant (rue des Roses)', 'gérant (06/2025) X'])
+def test_role_date_avec_un_reste_inattendu_ne_passe_pas(libelle):
+    assert pc.role_couche1(libelle) == ''

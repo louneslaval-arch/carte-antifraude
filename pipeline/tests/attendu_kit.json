@@ -1,1015 +1,26 @@
 {
- "aretes": [
-  [
-   "E:3",
-   "S:1",
-   1,
-   0.28
-  ],
-  [
-   "E:5",
-   "S:1",
-   1,
-   0.12374
-  ],
-  [
-   "E:5",
-   "S:3",
-   1,
-   0.14
-  ],
-  [
-   "E:6",
-   "S:3",
-   1,
-   0.1
-  ],
-  [
-   "E:6",
-   "S:4",
-   1,
-   0.35355
-  ],
-  [
-   "E:8",
-   "S:2",
-   1,
-   0.56
-  ],
-  [
-   "E:9",
-   "S:1",
-   1,
-   0.25
-  ],
-  [
-   "E:9",
-   "S:4",
-   1,
-   0.49497
-  ],
-  [
-   "I:1",
-   "S:1",
-   0,
-   0.35
-  ],
-  [
-   "I:2",
-   "S:1",
-   0,
-   0.25
-  ],
-  [
-   "I:2",
-   "S:4",
-   0,
-   0.175
-  ],
-  [
-   "I:3",
-   "S:1",
-   0,
-   0.25
-  ],
-  [
-   "I:3",
-   "S:3",
-   2,
-   0.07
-  ],
-  [
-   "I:5",
-   "S:2",
-   0,
-   0.63
-  ],
-  [
-   "I:6",
-   "S:3",
-   0,
-   0.0495
-  ],
-  [
-   "I:9",
-   "S:4",
-   0,
-   0.175
-  ]
- ],
  "format": 1,
- "inscrits": [
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "I:2",
-     "S:4",
-     "gérant",
-     2,
-     1.0,
-     0.12374
-    ],
-    [
-     "I:3",
-     "S:3",
-     "gérant",
-     2,
-     0.5657,
-     0.07
-    ],
-    [
-     "S:1",
-     "I:1",
-     "gérant",
-     0,
-     1.0,
-     0.35
-    ],
-    [
-     "S:1",
-     "I:2",
-     "associé",
-     0,
-     1.0,
-     0.25
-    ],
-    [
-     "S:1",
-     "I:3",
-     "cessionnaire",
-     0,
-     1.0,
-     0.25
-    ],
-    [
-     "S:3",
-     "I:6",
-     "associé",
-     0,
-     0.5657,
-     0.02475
-    ],
-    [
-     "S:4",
-     "I:9",
-     "associé",
-     0,
-     1.0,
-     0.04375
-    ]
-   ],
-   "certain": true,
-   "chaines": [
-    [
-     1,
-     1.0,
-     0.35,
-     1
-    ],
-    [
-     1,
-     1.0,
-     0.25,
-     1
-    ],
-    [
-     1,
-     1.0,
-     0.25,
-     1
-    ],
-    [
-     2,
-     1.0,
-     0.12374,
-     1
-    ],
-    [
-     2,
-     0.5657,
-     0.07,
-     1
-    ],
-    [
-     3,
-     1.0,
-     0.04375,
-     1
-    ],
-    [
-     3,
-     0.5657,
-     0.02475,
-     1
-    ]
-   ],
-   "compte": {
-    "1": 3,
-    "2": 2,
-    "3": 2,
-    "4": 0
-   },
-   "i": "E:1",
-   "noeuds": [
-    [
-     "I:1",
-     1,
-     1,
-     0
-    ],
-    [
-     "I:2",
-     1,
-     1,
-     0
-    ],
-    [
-     "I:3",
-     1,
-     1,
-     0
-    ],
-    [
-     "I:6",
-     3,
-     1,
-     0
-    ],
-    [
-     "I:9",
-     3,
-     1,
-     0
-    ],
-    [
-     "S:1",
-     0,
-     1,
-     0
-    ],
-    [
-     "S:3",
-     2,
-     0,
-     0
-    ],
-    [
-     "S:4",
-     2,
-     0,
-     0
-    ]
-   ],
-   "type": "PM"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "S:2",
-     "I:5",
-     "gérant",
-     0,
-     0.9,
-     0.63
-    ]
-   ],
-   "certain": false,
-   "chaines": [
-    [
-     1,
-     0.9,
-     0.63,
-     1
-    ]
-   ],
-   "compte": {
-    "1": 1,
-    "2": 0,
-    "3": 0,
-    "4": 0
-   },
-   "i": "E:2",
-   "noeuds": [
-    [
-     "I:5",
-     1,
-     1,
-     0
-    ],
-    [
-     "S:2",
-     0,
-     1,
-     0
-    ]
-   ],
-   "type": "PM"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "E:3",
-     "S:1",
-     "gérant",
-     1,
-     0.8,
-     0.28
-    ],
-    [
-     "I:2",
-     "S:4",
-     "gérant",
-     2,
-     0.8,
-     0.03465
-    ],
-    [
-     "I:3",
-     "S:3",
-     "gérant",
-     2,
-     0.4525,
-     0.0196
-    ],
-    [
-     "S:1",
-     "I:2",
-     "associé",
-     0,
-     0.8,
-     0.07
-    ],
-    [
-     "S:1",
-     "I:3",
-     "cessionnaire",
-     0,
-     0.8,
-     0.07
-    ],
-    [
-     "S:3",
-     "I:6",
-     "associé",
-     0,
-     0.4525,
-     0.00693
-    ],
-    [
-     "S:4",
-     "I:9",
-     "associé",
-     0,
-     0.8,
-     0.01225
-    ]
-   ],
-   "certain": false,
-   "chaines": [
-    [
-     1,
-     0.8,
-     0.28,
-     1
-    ],
-    [
-     2,
-     0.8,
-     0.07,
-     1
-    ],
-    [
-     2,
-     0.8,
-     0.07,
-     1
-    ],
-    [
-     3,
-     0.8,
-     0.03465,
-     1
-    ],
-    [
-     3,
-     0.4525,
-     0.0196,
-     1
-    ],
-    [
-     4,
-     0.8,
-     0.01225,
-     1
-    ],
-    [
-     4,
-     0.4525,
-     0.00693,
-     1
-    ]
-   ],
-   "compte": {
-    "1": 1,
-    "2": 2,
-    "3": 2,
-    "4": 2
-   },
-   "i": "E:3",
-   "noeuds": [
-    [
-     "E:3",
-     0,
-     0,
-     0
-    ],
-    [
-     "I:2",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:3",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:6",
-     4,
-     1,
-     0
-    ],
-    [
-     "I:9",
-     4,
-     1,
-     0
-    ],
-    [
-     "S:1",
-     1,
-     1,
-     0
-    ],
-    [
-     "S:3",
-     3,
-     0,
-     0
-    ],
-    [
-     "S:4",
-     3,
-     0,
-     0
-    ]
-   ],
-   "type": "PP"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "E:6",
-     "S:3",
-     "associé",
-     1,
-     0.2828,
-     0.1
-    ],
-    [
-     "E:6",
-     "S:4",
-     "associé",
-     1,
-     1.0,
-     0.35355
-    ],
-    [
-     "I:2",
-     "S:1",
-     "associé",
-     2,
-     1.0,
-     0.04375
-    ],
-    [
-     "I:3",
-     "S:1",
-     "cessionnaire",
-     2,
-     0.16,
-     0.007
-    ],
-    [
-     "S:1",
-     "I:1",
-     "gérant",
-     0,
-     1.0,
-     0.01531
-    ],
-    [
-     "S:3",
-     "I:3",
-     "gérant",
-     0,
-     0.2828,
-     0.0495
-    ],
-    [
-     "S:4",
-     "I:2",
-     "gérant",
-     0,
-     1.0,
-     0.175
-    ]
-   ],
-   "certain": true,
-   "chaines": [
-    [
-     2,
-     1.0,
-     0.175,
-     1
-    ],
-    [
-     2,
-     0.2828,
-     0.0495,
-     1
-    ],
-    [
-     3,
-     1.0,
-     0.04375,
-     1
-    ],
-    [
-     3,
-     0.16,
-     0.007,
-     1
-    ],
-    [
-     4,
-     1.0,
-     0.01531,
-     1
-    ],
-    [
-     1,
-     1.0,
-     0.35355,
-     0
-    ],
-    [
-     1,
-     0.2828,
-     0.1,
-     0
-    ]
-   ],
-   "compte": {
-    "1": 2,
-    "2": 2,
-    "3": 1,
-    "4": 1
-   },
-   "i": "E:6",
-   "noeuds": [
-    [
-     "E:6",
-     0,
-     0,
-     0
-    ],
-    [
-     "I:1",
-     4,
-     1,
-     0
-    ],
-    [
-     "I:2",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:3",
-     2,
-     1,
-     0
-    ],
-    [
-     "S:1",
-     3,
-     1,
-     0
-    ],
-    [
-     "S:3",
-     1,
-     0,
-     0
-    ],
-    [
-     "S:4",
-     1,
-     0,
-     0
-    ]
-   ],
-   "type": "PP"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "E:5",
-     "S:1",
-     "cessionnaire",
-     1,
-     0.495,
-     0.12374
-    ],
-    [
-     "E:5",
-     "S:3",
-     "gérant",
-     1,
-     0.2828,
-     0.14
-    ],
-    [
-     "I:2",
-     "S:4",
-     "gérant",
-     2,
-     0.495,
-     0.01531
-    ],
-    [
-     "S:1",
-     "I:1",
-     "gérant",
-     0,
-     0.495,
-     0.04331
-    ],
-    [
-     "S:1",
-     "I:2",
-     "associé",
-     0,
-     0.495,
-     0.03094
-    ],
-    [
-     "S:3",
-     "I:6",
-     "associé",
-     0,
-     0.2828,
-     0.0495
-    ],
-    [
-     "S:4",
-     "I:9",
-     "associé",
-     0,
-     0.495,
-     0.00541
-    ]
-   ],
-   "certain": true,
-   "chaines": [
-    [
-     1,
-     0.495,
-     0.12374,
-     1
-    ],
-    [
-     2,
-     0.2828,
-     0.0495,
-     1
-    ],
-    [
-     2,
-     0.495,
-     0.04331,
-     1
-    ],
-    [
-     2,
-     0.495,
-     0.03094,
-     1
-    ],
-    [
-     3,
-     0.495,
-     0.01531,
-     1
-    ],
-    [
-     4,
-     0.495,
-     0.00541,
-     1
-    ],
-    [
-     1,
-     0.2828,
-     0.14,
-     0
-    ]
-   ],
-   "compte": {
-    "1": 2,
-    "2": 3,
-    "3": 1,
-    "4": 1
-   },
-   "i": "E:5",
-   "noeuds": [
-    [
-     "E:5",
-     0,
-     0,
-     0
-    ],
-    [
-     "I:1",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:2",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:6",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:9",
-     4,
-     1,
-     0
-    ],
-    [
-     "S:1",
-     1,
-     1,
-     0
-    ],
-    [
-     "S:3",
-     1,
-     0,
-     0
-    ],
-    [
-     "S:4",
-     3,
-     0,
-     0
-    ]
-   ],
-   "type": "PP"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "E:9",
-     "S:1",
-     "associé",
-     1,
-     1.0,
-     0.25
-    ],
-    [
-     "E:9",
-     "S:4",
-     "gérant",
-     1,
-     1.0,
-     0.49497
-    ],
-    [
-     "I:3",
-     "S:3",
-     "gérant",
-     2,
-     0.5657,
-     0.0175
-    ],
-    [
-     "S:1",
-     "I:1",
-     "gérant",
-     0,
-     1.0,
-     0.0875
-    ],
-    [
-     "S:1",
-     "I:3",
-     "cessionnaire",
-     0,
-     1.0,
-     0.0625
-    ],
-    [
-     "S:3",
-     "I:6",
-     "associé",
-     0,
-     0.5657,
-     0.00619
-    ],
-    [
-     "S:4",
-     "I:9",
-     "associé",
-     0,
-     1.0,
-     0.175
-    ]
-   ],
-   "certain": true,
-   "chaines": [
-    [
-     1,
-     1.0,
-     0.25,
-     1
-    ],
-    [
-     2,
-     1.0,
-     0.175,
-     1
-    ],
-    [
-     2,
-     1.0,
-     0.0875,
-     1
-    ],
-    [
-     2,
-     1.0,
-     0.0625,
-     1
-    ],
-    [
-     3,
-     0.5657,
-     0.0175,
-     1
-    ],
-    [
-     4,
-     0.5657,
-     0.00619,
-     1
-    ],
-    [
-     1,
-     1.0,
-     0.49497,
-     0
-    ]
-   ],
-   "compte": {
-    "1": 2,
-    "2": 3,
-    "3": 1,
-    "4": 1
-   },
-   "i": "E:9",
-   "noeuds": [
-    [
-     "E:9",
-     0,
-     0,
-     0
-    ],
-    [
-     "I:1",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:3",
-     2,
-     1,
-     0
-    ],
-    [
-     "I:6",
-     4,
-     1,
-     0
-    ],
-    [
-     "I:9",
-     2,
-     1,
-     0
-    ],
-    [
-     "S:1",
-     1,
-     1,
-     0
-    ],
-    [
-     "S:3",
-     3,
-     0,
-     0
-    ],
-    [
-     "S:4",
-     1,
-     0,
-     0
-    ]
-   ],
-   "type": "PP"
-  },
-  {
-   "alerte": true,
-   "aretes": [
-    [
-     "E:8",
-     "S:2",
-     "gérant",
-     1,
-     0.8,
-     0.56
-    ]
-   ],
-   "certain": false,
-   "chaines": [
-    [
-     1,
-     0.8,
-     0.56,
-     1
-    ]
-   ],
-   "compte": {
-    "1": 1,
-    "2": 0,
-    "3": 0,
-    "4": 0
-   },
-   "i": "E:8",
-   "noeuds": [
-    [
-     "E:8",
-     0,
-     0,
-     0
-    ],
-    [
-     "S:2",
-     1,
-     1,
-     0
-    ]
-   ],
-   "type": "PP"
-  }
+ "types": [
+  "societe",
+  "personne",
+  "inscrit_personne",
+  "inscrit_societe"
  ],
- "manifeste": {
-  "fictif": true,
-  "format": 1,
-  "inscrits_personnes": 7,
-  "inscrits_societes": 2,
-  "noeuds": 17
- },
- "nb_reseaux_bl": 2,
+ "styles": [
+  "",
+  "rap",
+  "pont",
+  "certain",
+  "ancien",
+  "ancien rap",
+  "ancien certain",
+  "ancien pont"
+ ],
+ "villes": [
+  "CASABLANCA",
+  "RABAT",
+  "TANGER"
+ ],
  "noeuds": [
   [
    "E:1",
@@ -1078,7 +89,7 @@
    "I:3",
    1,
    1,
-   2,
+   1,
    -1
   ],
   [
@@ -1090,6 +101,13 @@
   ],
   [
    "I:6",
+   1,
+   1,
+   1,
+   -1
+  ],
+  [
+   "I:7",
    1,
    1,
    1,
@@ -1142,6 +160,7 @@
    "I:2",
    "I:3",
    "I:6",
+   "I:7",
    "I:9",
    "S:1",
    "S:3",
@@ -1154,33 +173,900 @@
    "S:2"
   ]
  ],
+ "aretes": [
+  [
+   "E:3",
+   "S:1",
+   1,
+   0.28
+  ],
+  [
+   "E:5",
+   "S:1",
+   1,
+   0.12374
+  ],
+  [
+   "E:5",
+   "S:3",
+   1,
+   0.14
+  ],
+  [
+   "E:6",
+   "S:3",
+   1,
+   0.1
+  ],
+  [
+   "E:6",
+   "S:4",
+   3,
+   0.35355
+  ],
+  [
+   "E:8",
+   "S:2",
+   1,
+   0.56
+  ],
+  [
+   "E:9",
+   "S:1",
+   6,
+   0.15
+  ],
+  [
+   "E:9",
+   "S:4",
+   3,
+   0.49497
+  ],
+  [
+   "I:1",
+   "S:1",
+   0,
+   0.35
+  ],
+  [
+   "I:2",
+   "S:1",
+   4,
+   0.15
+  ],
+  [
+   "I:2",
+   "S:4",
+   0,
+   0.175
+  ],
+  [
+   "I:3",
+   "S:1",
+   0,
+   0.25
+  ],
+  [
+   "I:5",
+   "S:2",
+   0,
+   0.63
+  ],
+  [
+   "I:6",
+   "S:3",
+   0,
+   0.0495
+  ],
+  [
+   "I:7",
+   "S:3",
+   0,
+   0.0495
+  ],
+  [
+   "I:9",
+   "S:4",
+   0,
+   0.175
+  ]
+ ],
+ "inscrits": [
+  {
+   "i": "E:1",
+   "type": "PM",
+   "compte": {
+    "1": 3,
+    "2": 1,
+    "3": 1,
+    "4": 0
+   },
+   "alerte": true,
+   "certain": true,
+   "noeuds": [
+    [
+     "I:1",
+     1,
+     1,
+     0
+    ],
+    [
+     "I:2",
+     1,
+     1,
+     0
+    ],
+    [
+     "I:3",
+     1,
+     1,
+     0
+    ],
+    [
+     "I:9",
+     3,
+     1,
+     0
+    ],
+    [
+     "S:1",
+     0,
+     1,
+     0
+    ],
+    [
+     "S:4",
+     2,
+     0,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "I:2",
+     "S:4",
+     "gérant",
+     2,
+     1.0,
+     0.07425
+    ],
+    [
+     "S:1",
+     "I:1",
+     "gérant, associé",
+     0,
+     1.0,
+     0.35
+    ],
+    [
+     "S:1",
+     "I:2",
+     "ancien associé",
+     4,
+     1.0,
+     0.15
+    ],
+    [
+     "S:1",
+     "I:3",
+     "associé",
+     0,
+     1.0,
+     0.25
+    ],
+    [
+     "S:4",
+     "I:9",
+     "associé",
+     0,
+     1.0,
+     0.02625
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     1.0,
+     0.35,
+     1
+    ],
+    [
+     1,
+     1.0,
+     0.25,
+     1
+    ],
+    [
+     1,
+     1.0,
+     0.15,
+     1
+    ],
+    [
+     2,
+     1.0,
+     0.07425,
+     1
+    ],
+    [
+     3,
+     1.0,
+     0.02625,
+     1
+    ]
+   ]
+  },
+  {
+   "i": "E:2",
+   "type": "PM",
+   "compte": {
+    "1": 1,
+    "2": 0,
+    "3": 0,
+    "4": 0
+   },
+   "alerte": true,
+   "certain": false,
+   "noeuds": [
+    [
+     "I:5",
+     1,
+     1,
+     0
+    ],
+    [
+     "S:2",
+     0,
+     1,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "S:2",
+     "I:5",
+     "gérant",
+     0,
+     0.9,
+     0.63
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     0.9,
+     0.63,
+     1
+    ]
+   ]
+  },
+  {
+   "i": "E:6",
+   "type": "PP",
+   "compte": {
+    "1": 2,
+    "2": 2,
+    "3": 1,
+    "4": 2
+   },
+   "alerte": true,
+   "certain": true,
+   "noeuds": [
+    [
+     "E:6",
+     0,
+     0,
+     0
+    ],
+    [
+     "I:1",
+     4,
+     1,
+     0
+    ],
+    [
+     "I:2",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:3",
+     4,
+     1,
+     0
+    ],
+    [
+     "I:7",
+     2,
+     1,
+     0
+    ],
+    [
+     "S:1",
+     3,
+     1,
+     0
+    ],
+    [
+     "S:3",
+     1,
+     0,
+     0
+    ],
+    [
+     "S:4",
+     1,
+     0,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "E:6",
+     "S:3",
+     "associé",
+     1,
+     0.2828,
+     0.1
+    ],
+    [
+     "E:6",
+     "S:4",
+     "associé",
+     3,
+     1.0,
+     0.35355
+    ],
+    [
+     "I:2",
+     "S:1",
+     "ancien associé",
+     7,
+     1.0,
+     0.02625
+    ],
+    [
+     "S:1",
+     "I:1",
+     "gérant, associé",
+     0,
+     1.0,
+     0.00919
+    ],
+    [
+     "S:1",
+     "I:3",
+     "associé",
+     0,
+     1.0,
+     0.00656
+    ],
+    [
+     "S:3",
+     "I:7",
+     "gérant",
+     0,
+     0.2828,
+     0.0495
+    ],
+    [
+     "S:4",
+     "I:2",
+     "gérant",
+     0,
+     1.0,
+     0.175
+    ]
+   ],
+   "chaines": [
+    [
+     2,
+     1.0,
+     0.175,
+     1
+    ],
+    [
+     2,
+     0.2828,
+     0.0495,
+     1
+    ],
+    [
+     3,
+     1.0,
+     0.02625,
+     1
+    ],
+    [
+     4,
+     1.0,
+     0.00919,
+     1
+    ],
+    [
+     4,
+     1.0,
+     0.00656,
+     1
+    ],
+    [
+     1,
+     1.0,
+     0.35355,
+     0
+    ],
+    [
+     1,
+     0.2828,
+     0.1,
+     0
+    ]
+   ]
+  },
+  {
+   "i": "E:5",
+   "type": "PP",
+   "compte": {
+    "1": 2,
+    "2": 3,
+    "3": 1,
+    "4": 1
+   },
+   "alerte": true,
+   "certain": true,
+   "noeuds": [
+    [
+     "E:5",
+     0,
+     0,
+     0
+    ],
+    [
+     "I:1",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:2",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:6",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:9",
+     4,
+     1,
+     0
+    ],
+    [
+     "S:1",
+     1,
+     1,
+     0
+    ],
+    [
+     "S:3",
+     1,
+     0,
+     0
+    ],
+    [
+     "S:4",
+     3,
+     0,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "E:5",
+     "S:1",
+     "associé",
+     1,
+     0.495,
+     0.12374
+    ],
+    [
+     "E:5",
+     "S:3",
+     "gérant",
+     1,
+     0.2828,
+     0.14
+    ],
+    [
+     "I:2",
+     "S:4",
+     "gérant",
+     2,
+     0.495,
+     0.00919
+    ],
+    [
+     "S:1",
+     "I:1",
+     "gérant, associé",
+     0,
+     0.495,
+     0.04331
+    ],
+    [
+     "S:1",
+     "I:2",
+     "ancien associé",
+     4,
+     0.495,
+     0.01856
+    ],
+    [
+     "S:3",
+     "I:6",
+     "associé",
+     0,
+     0.2828,
+     0.0495
+    ],
+    [
+     "S:4",
+     "I:9",
+     "associé",
+     0,
+     0.495,
+     0.00325
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     0.495,
+     0.12374,
+     1
+    ],
+    [
+     2,
+     0.2828,
+     0.0495,
+     1
+    ],
+    [
+     2,
+     0.495,
+     0.04331,
+     1
+    ],
+    [
+     2,
+     0.495,
+     0.01856,
+     1
+    ],
+    [
+     3,
+     0.495,
+     0.00919,
+     1
+    ],
+    [
+     4,
+     0.495,
+     0.00325,
+     1
+    ],
+    [
+     1,
+     0.2828,
+     0.14,
+     0
+    ]
+   ]
+  },
+  {
+   "i": "E:3",
+   "type": "PP",
+   "compte": {
+    "1": 1,
+    "2": 2,
+    "3": 1,
+    "4": 1
+   },
+   "alerte": true,
+   "certain": false,
+   "noeuds": [
+    [
+     "E:3",
+     0,
+     0,
+     0
+    ],
+    [
+     "I:2",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:3",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:9",
+     4,
+     1,
+     0
+    ],
+    [
+     "S:1",
+     1,
+     1,
+     0
+    ],
+    [
+     "S:4",
+     3,
+     0,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "E:3",
+     "S:1",
+     "gérant, associé",
+     1,
+     0.8,
+     0.28
+    ],
+    [
+     "I:2",
+     "S:4",
+     "gérant",
+     2,
+     0.8,
+     0.02079
+    ],
+    [
+     "S:1",
+     "I:2",
+     "ancien associé",
+     4,
+     0.8,
+     0.042
+    ],
+    [
+     "S:1",
+     "I:3",
+     "associé",
+     0,
+     0.8,
+     0.07
+    ],
+    [
+     "S:4",
+     "I:9",
+     "associé",
+     0,
+     0.8,
+     0.00735
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     0.8,
+     0.28,
+     1
+    ],
+    [
+     2,
+     0.8,
+     0.07,
+     1
+    ],
+    [
+     2,
+     0.8,
+     0.042,
+     1
+    ],
+    [
+     3,
+     0.8,
+     0.02079,
+     1
+    ],
+    [
+     4,
+     0.8,
+     0.00735,
+     1
+    ]
+   ]
+  },
+  {
+   "i": "E:9",
+   "type": "PP",
+   "compte": {
+    "1": 2,
+    "2": 3,
+    "3": 0,
+    "4": 0
+   },
+   "alerte": true,
+   "certain": true,
+   "noeuds": [
+    [
+     "E:9",
+     0,
+     0,
+     0
+    ],
+    [
+     "I:1",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:3",
+     2,
+     1,
+     0
+    ],
+    [
+     "I:9",
+     2,
+     1,
+     0
+    ],
+    [
+     "S:1",
+     1,
+     1,
+     0
+    ],
+    [
+     "S:4",
+     1,
+     0,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "E:9",
+     "S:1",
+     "ancien associé",
+     6,
+     1.0,
+     0.15
+    ],
+    [
+     "E:9",
+     "S:4",
+     "gérant",
+     3,
+     1.0,
+     0.49497
+    ],
+    [
+     "S:1",
+     "I:1",
+     "gérant, associé",
+     0,
+     1.0,
+     0.0525
+    ],
+    [
+     "S:1",
+     "I:3",
+     "associé",
+     0,
+     1.0,
+     0.0375
+    ],
+    [
+     "S:4",
+     "I:9",
+     "associé",
+     0,
+     1.0,
+     0.175
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     1.0,
+     0.15,
+     1
+    ],
+    [
+     2,
+     1.0,
+     0.175,
+     1
+    ],
+    [
+     2,
+     1.0,
+     0.0525,
+     1
+    ],
+    [
+     2,
+     1.0,
+     0.0375,
+     1
+    ],
+    [
+     1,
+     1.0,
+     0.49497,
+     0
+    ]
+   ]
+  },
+  {
+   "i": "E:8",
+   "type": "PP",
+   "compte": {
+    "1": 1,
+    "2": 0,
+    "3": 0,
+    "4": 0
+   },
+   "alerte": true,
+   "certain": false,
+   "noeuds": [
+    [
+     "E:8",
+     0,
+     0,
+     0
+    ],
+    [
+     "S:2",
+     1,
+     1,
+     0
+    ]
+   ],
+   "aretes": [
+    [
+     "E:8",
+     "S:2",
+     "gérant",
+     1,
+     0.8,
+     0.56
+    ]
+   ],
+   "chaines": [
+    [
+     1,
+     0.8,
+     0.56,
+     1
+    ]
+   ]
+  }
+ ],
  "reseaux": [
   4,
-  13
+  14
  ],
- "styles": [
-  "",
-  "rap",
-  "pont"
- ],
+ "nb_reseaux_bl": 2,
  "tables": {
-  "annonce": [
-   "[\"S:1\", \"2024-05-14\", \"Création\", null]",
-   "[\"S:1\", \"2025-01-10\", \"Changement de gérant\", null]",
-   "[\"S:1\", \"2025-02-03\", \"Cession de parts\", null]",
-   "[\"S:2\", \"2024-09-01\", \"Transfert de siège\", null]",
-   "[\"S:3\", \"2023-11-20\", \"Création\", null]",
-   "[\"S:4\", \"2025-06-30\", \"Changement de gérant\", null]"
-  ],
-  "chaine": [
-   "[\"E:1\", {\"alerte\": true, \"aretes\": [{\"a\": \"I:2\", \"b\": \"S:4\", \"fiab\": 1.0, \"force\": 0.12374, \"lib\": \"gérant\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"I:3\", \"b\": \"S:3\", \"fiab\": 0.5657, \"force\": 0.07, \"lib\": \"gérant\", \"pont\": \"même nom + même ville (CASABLANCA), nom présent dans 2 sociétés\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"fiab\": 1.0, \"force\": 0.35, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"fiab\": 1.0, \"force\": 0.25, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"fiab\": 1.0, \"force\": 0.25, \"lib\": \"cessionnaire\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:6\", \"fiab\": 0.5657, \"force\": 0.02475, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"fiab\": 1.0, \"force\": 0.04375, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"MEHDI TAZI (inscrit)\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.35, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –gérant– MEHDI TAZI ⚑\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.25, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.25, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –cessionnaire– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.12374, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 2, \"fiab\": 0.5657, \"force\": 0.07, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF) | KARIM BENALI (inscrit)\", \"distance\": 3, \"fiab\": 1.0, \"force\": 0.04375, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé– KARIM BENALI ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED) | ⁨كريم بنعلي⁩ (inscrit : BENALI KARIM)\", \"distance\": 3, \"fiab\": 0.5657, \"force\": 0.02475, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –associé– ⁨كريم بنعلي⁩ ⚑\"}], \"cin\": null, \"compte\": {\"1\": 3, \"2\": 2, \"3\": 2, \"4\": 0}, \"id\": \"E:1\", \"listes\": \"INDESIRABLE RISQUE\", \"motifs\": null, \"noeuds\": {\"I:1\": {\"bl\": \"inscrit\", \"d\": 1, \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 1, \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 1, \"nom\": \"محمد الادريسي\", \"sous\": \"cessionnaire\", \"t\": \"PP\"}, \"I:6\": {\"bl\": \"inscrit : BENALI KARIM\", \"d\": 3, \"nom\": \"كريم بنعلي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 3, \"nom\": \"KARIM BENALI\", \"sous\": \"associé\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite : EXEMPLE ATLAS NEGOCE\", \"d\": 0, \"dern\": \"2025-02-03\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 2, \"dern\": \"2023-11-20\", \"diss\": 0, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 2, \"dern\": \"2025-06-30\", \"diss\": 0, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EXEMPLE ATLAS NEGOCE\", \"racine\": \"S:1\", \"type\": \"PM\"}]",
-   "[\"E:2\", {\"alerte\": true, \"aretes\": [{\"a\": \"S:2\", \"b\": \"I:5\", \"fiab\": 0.9, \"force\": 0.63, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"SAMIR OUAZZANI (inscrit)\", \"distance\": 1, \"fiab\": 0.9, \"force\": 0.63, \"texte\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L [société inscrite, RC 999002 TANGER] –gérant– SAMIR OUAZZANI ⚑\"}], \"cin\": null, \"compte\": {\"1\": 1, \"2\": 0, \"3\": 0, \"4\": 0}, \"id\": \"E:2\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"noeuds\": {\"I:5\": {\"bl\": \"inscrit\", \"d\": 1, \"nom\": \"SAMIR OUAZZANI\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"S:2\": {\"bl\": \"société inscrite : EXEMPLE ORION LOGISTIQUE SARL\", \"d\": 0, \"dern\": \"2024-09-01\", \"nom\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L\", \"rc\": \"999002\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EXEMPLE ORION LOGISTIQUE SARL\", \"racine\": \"S:2\", \"type\": \"PM\"}]",
-   "[\"E:3\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:3\", \"b\": \"S:1\", \"fiab\": 0.8, \"force\": 0.28, \"lib\": \"gérant\", \"pont\": \"rapprochement R05b (homonymie, poids 0.80) avec « MEHDI TAZI »\", \"style\": \"rap\"}, {\"a\": \"I:2\", \"b\": \"S:4\", \"fiab\": 0.8, \"force\": 0.03465, \"lib\": \"gérant\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"I:3\", \"b\": \"S:3\", \"fiab\": 0.4525, \"force\": 0.0196, \"lib\": \"gérant\", \"pont\": \"même nom + même ville (CASABLANCA), nom présent dans 2 sociétés\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"fiab\": 0.8, \"force\": 0.07, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"fiab\": 0.8, \"force\": 0.07, \"lib\": \"cessionnaire\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:6\", \"fiab\": 0.4525, \"force\": 0.00693, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"fiab\": 0.8, \"force\": 0.01225, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite)\", \"distance\": 1, \"fiab\": 0.8, \"force\": 0.28, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 2, \"fiab\": 0.8, \"force\": 0.07, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 2, \"fiab\": 0.8, \"force\": 0.07, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 3, \"fiab\": 0.8, \"force\": 0.03465, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 3, \"fiab\": 0.4525, \"force\": 0.0196, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF) | KARIM BENALI (inscrit)\", \"distance\": 4, \"fiab\": 0.8, \"force\": 0.01225, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé– KARIM BENALI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED) | ⁨كريم بنعلي⁩ (inscrit : BENALI KARIM)\", \"distance\": 4, \"fiab\": 0.4525, \"force\": 0.00693, \"texte\": \"TAZI MEHDI (inscrit) –gérant– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –associé– ⁨كريم بنعلي⁩ ⚑\"}], \"cin\": null, \"compte\": {\"1\": 1, \"2\": 2, \"3\": 2, \"4\": 2}, \"id\": \"E:3\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"noeuds\": {\"E:3\": {\"bl\": \"\", \"d\": 0, \"nom\": \"TAZI MEHDI\", \"sous\": \"inscrit\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 2, \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"nom\": \"محمد الادريسي\", \"sous\": \"cessionnaire\", \"t\": \"PP\"}, \"I:6\": {\"bl\": \"inscrit : BENALI KARIM\", \"d\": 4, \"nom\": \"كريم بنعلي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 4, \"nom\": \"KARIM BENALI\", \"sous\": \"associé\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2023-11-20\", \"diss\": 0, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2025-06-30\", \"diss\": 0, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"TAZI MEHDI\", \"racine\": \"E:3\", \"type\": \"PP\"}]",
-   "[\"E:5\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:5\", \"b\": \"S:1\", \"fiab\": 0.495, \"force\": 0.12374, \"lib\": \"cessionnaire\", \"pont\": \"rapprochement R05b (homonymie, poids 0.49) avec « محمد الادريسي »\", \"style\": \"rap\"}, {\"a\": \"E:5\", \"b\": \"S:3\", \"fiab\": 0.2828, \"force\": 0.14, \"lib\": \"gérant\", \"pont\": \"rapprochement R07 (homonymie, poids 0.28) avec « محمد الادريسي »\", \"style\": \"rap\"}, {\"a\": \"I:2\", \"b\": \"S:4\", \"fiab\": 0.495, \"force\": 0.01531, \"lib\": \"gérant\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"fiab\": 0.495, \"force\": 0.04331, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"fiab\": 0.495, \"force\": 0.03094, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:6\", \"fiab\": 0.2828, \"force\": 0.0495, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"fiab\": 0.495, \"force\": 0.00541, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite)\", \"distance\": 1, \"fiab\": 0.495, \"force\": 0.12374, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"⁨كريم بنعلي⁩ (inscrit : BENALI KARIM)\", \"distance\": 2, \"fiab\": 0.2828, \"force\": 0.0495, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –associé– ⁨كريم بنعلي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | MEHDI TAZI (inscrit)\", \"distance\": 2, \"fiab\": 0.495, \"force\": 0.04331, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant– MEHDI TAZI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 2, \"fiab\": 0.495, \"force\": 0.03094, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF)\", \"distance\": 3, \"fiab\": 0.495, \"force\": 0.01531, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF) | KARIM BENALI (inscrit)\", \"distance\": 4, \"fiab\": 0.495, \"force\": 0.00541, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé– KARIM BENALI ⚑\"}, {\"bl\": \"\", \"distance\": 1, \"fiab\": 0.2828, \"force\": 0.14, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}], \"cin\": \"ZZ900001\", \"compte\": {\"1\": 2, \"2\": 3, \"3\": 1, \"4\": 1}, \"id\": \"E:5\", \"listes\": \"INDESIRABLE\", \"motifs\": \"Falsification\", \"noeuds\": {\"E:5\": {\"bl\": \"\", \"d\": 0, \"nom\": \"EL IDRISSI MOHAMED\", \"sous\": \"CIN ZZ900001\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 2, \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 2, \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:6\": {\"bl\": \"inscrit : BENALI KARIM\", \"d\": 2, \"nom\": \"كريم بنعلي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 4, \"nom\": \"KARIM BENALI\", \"sous\": \"associé\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2023-11-20\", \"diss\": 0, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2025-06-30\", \"diss\": 0, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EL IDRISSI MOHAMED\", \"racine\": \"E:5\", \"type\": \"PP\"}]",
-   "[\"E:6\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:6\", \"b\": \"S:3\", \"fiab\": 0.2828, \"force\": 0.1, \"lib\": \"associé\", \"pont\": \"rapprochement R07 (homonymie, poids 0.28) avec « كريم بنعلي »\", \"style\": \"rap\"}, {\"a\": \"E:6\", \"b\": \"S:4\", \"fiab\": 1.0, \"force\": 0.35355, \"lib\": \"associé\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « KARIM BENALI »\", \"style\": \"rap\"}, {\"a\": \"I:2\", \"b\": \"S:1\", \"fiab\": 1.0, \"force\": 0.04375, \"lib\": \"associé\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"I:3\", \"b\": \"S:1\", \"fiab\": 0.16, \"force\": 0.007, \"lib\": \"cessionnaire\", \"pont\": \"même nom + même ville (CASABLANCA), nom présent dans 2 sociétés\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"fiab\": 1.0, \"force\": 0.01531, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:3\", \"fiab\": 0.2828, \"force\": 0.0495, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:2\", \"fiab\": 1.0, \"force\": 0.175, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"FASSI YOUSSEF (inscrit)\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.175, \"texte\": \"BENALI KARIM (inscrit) –associé– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant– FASSI YOUSSEF ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 2, \"fiab\": 0.2828, \"force\": 0.0495, \"texte\": \"BENALI KARIM (inscrit) –associé– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –gérant– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"FASSI YOUSSEF (inscrit) | EXEMPLE ATLAS NEGOCE SARL (société inscrite)\", \"distance\": 3, \"fiab\": 1.0, \"force\": 0.04375, \"texte\": \"BENALI KARIM (inscrit) –associé– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant– FASSI YOUSSEF ⚑ –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED) | EXEMPLE ATLAS NEGOCE SARL (société inscrite)\", \"distance\": 3, \"fiab\": 0.16, \"force\": 0.007, \"texte\": \"BENALI KARIM (inscrit) –associé– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –gérant– ⁨محمد الادريسي⁩ ⚑ –cessionnaire– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"FASSI YOUSSEF (inscrit) | EXEMPLE ATLAS NEGOCE SARL (société inscrite) | MEHDI TAZI (inscrit)\", \"distance\": 4, \"fiab\": 1.0, \"force\": 0.01531, \"texte\": \"BENALI KARIM (inscrit) –associé– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant– FASSI YOUSSEF ⚑ –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant– MEHDI TAZI ⚑\"}, {\"bl\": \"\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.35355, \"texte\": \"BENALI KARIM (inscrit) –associé– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"\", \"distance\": 1, \"fiab\": 0.2828, \"force\": 0.1, \"texte\": \"BENALI KARIM (inscrit) –associé– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}], \"cin\": \"ZZ900002\", \"compte\": {\"1\": 2, \"2\": 2, \"3\": 1, \"4\": 1}, \"id\": \"E:6\", \"listes\": \"BLACKLIST\", \"motifs\": null, \"noeuds\": {\"E:6\": {\"bl\": \"\", \"d\": 0, \"nom\": \"BENALI KARIM\", \"sous\": \"CIN ZZ900002\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 4, \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit\", \"d\": 2, \"nom\": \"FASSI YOUSSEF\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"nom\": \"محمد الادريسي\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 3, \"dern\": \"2025-02-03\", \"diss\": 0, \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2023-11-20\", \"diss\": 0, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2025-06-30\", \"diss\": 0, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"BENALI KARIM\", \"racine\": \"E:6\", \"type\": \"PP\"}]",
-   "[\"E:8\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:8\", \"b\": \"S:2\", \"fiab\": 0.8, \"force\": 0.56, \"lib\": \"gérant\", \"pont\": \"rapprochement R01v (homonymie, poids 0.80) avec « SAMIR OUAZZANI »\", \"style\": \"rap\"}], \"chaines\": [{\"bl\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L (société inscrite)\", \"distance\": 1, \"fiab\": 0.8, \"force\": 0.56, \"texte\": \"OUAZZANI SAMIR (inscrit) –gérant– EXEMPLE ORION LOGISTIQUE S.A.R.L [RC 999002] ⚑\"}], \"cin\": \"ZZ900006X\", \"compte\": {\"1\": 1, \"2\": 0, \"3\": 0, \"4\": 0}, \"id\": \"E:8\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"noeuds\": {\"E:8\": {\"bl\": \"\", \"d\": 0, \"nom\": \"OUAZZANI SAMIR\", \"sous\": \"CIN ZZ900006X\", \"t\": \"PP\"}, \"S:2\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2024-09-01\", \"diss\": 0, \"nom\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L\", \"rc\": \"999002\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"OUAZZANI SAMIR\", \"racine\": \"E:8\", \"type\": \"PP\"}]",
-   "[\"E:9\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:9\", \"b\": \"S:1\", \"fiab\": 1.0, \"force\": 0.25, \"lib\": \"associé\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « YOUSSEF FASSI »\", \"style\": \"rap\"}, {\"a\": \"E:9\", \"b\": \"S:4\", \"fiab\": 1.0, \"force\": 0.49497, \"lib\": \"gérant\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « YOUSSEF FASSI » ; puis même CIN ZZ900008\", \"style\": \"rap\"}, {\"a\": \"I:3\", \"b\": \"S:3\", \"fiab\": 0.5657, \"force\": 0.0175, \"lib\": \"gérant\", \"pont\": \"même nom + même ville (CASABLANCA), nom présent dans 2 sociétés\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"fiab\": 1.0, \"force\": 0.0875, \"lib\": \"gérant\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"fiab\": 1.0, \"force\": 0.0625, \"lib\": \"cessionnaire\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:6\", \"fiab\": 0.5657, \"force\": 0.00619, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"fiab\": 1.0, \"force\": 0.175, \"lib\": \"associé\", \"pont\": \"\", \"style\": \"\"}], \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite)\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.25, \"texte\": \"FASSI YOUSSEF (inscrit) –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"KARIM BENALI (inscrit)\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.175, \"texte\": \"FASSI YOUSSEF (inscrit) –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé– KARIM BENALI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | MEHDI TAZI (inscrit)\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.0875, \"texte\": \"FASSI YOUSSEF (inscrit) –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant– MEHDI TAZI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.0625, \"texte\": \"FASSI YOUSSEF (inscrit) –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED)\", \"distance\": 3, \"fiab\": 0.5657, \"force\": 0.0175, \"texte\": \"FASSI YOUSSEF (inscrit) –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED) | ⁨كريم بنعلي⁩ (inscrit : BENALI KARIM)\", \"distance\": 4, \"fiab\": 0.5657, \"force\": 0.00619, \"texte\": \"FASSI YOUSSEF (inscrit) –associé– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –cessionnaire– ⁨محمد الادريسي⁩ ⚑ –gérant– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –associé– ⁨كريم بنعلي⁩ ⚑\"}, {\"bl\": \"\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.49497, \"texte\": \"FASSI YOUSSEF (inscrit) –gérant– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}], \"cin\": \"ZZ900008\", \"compte\": {\"1\": 2, \"2\": 3, \"3\": 1, \"4\": 1}, \"id\": \"E:9\", \"listes\": \"BLACKLIST ; INDESIRABLE\", \"motifs\": null, \"noeuds\": {\"E:9\": {\"bl\": \"\", \"d\": 0, \"nom\": \"FASSI YOUSSEF\", \"sous\": \"CIN ZZ900008\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 2, \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"nom\": \"محمد الادريسي\", \"sous\": \"cessionnaire\", \"t\": \"PP\"}, \"I:6\": {\"bl\": \"inscrit : BENALI KARIM\", \"d\": 4, \"nom\": \"كريم بنعلي\", \"sous\": \"associé\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 2, \"nom\": \"KARIM BENALI\", \"sous\": \"associé\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2023-11-20\", \"diss\": 0, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2025-06-30\", \"diss\": 0, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"FASSI YOUSSEF\", \"racine\": \"E:9\", \"type\": \"PP\"}]"
-  ],
   "identite": [
    "[\"E:1\", \"EXEMPLE ATLAS NEGOCE\", null, null, \"999001\", \"CASABLANCA\", null, null, null, null, \"INDESIRABLE RISQUE\", null, 1]",
    "[\"E:2\", \"EXEMPLE ORION LOGISTIQUE SARL\", null, null, \"999002\", null, null, null, null, null, \"INDESIRABLE\", null, 0]",
@@ -1194,6 +1080,7 @@
    "[\"I:3\", \"محمد الادريسي\", null, null, null, null, null, null, null, null, null, null, 0]",
    "[\"I:5\", \"SAMIR OUAZZANI\", null, null, null, null, null, null, null, null, null, null, 0]",
    "[\"I:6\", \"كريم بنعلي\", null, null, null, null, null, null, null, null, null, null, 0]",
+   "[\"I:7\", \"محمد الادريسي\", null, null, null, null, null, null, null, null, null, null, 0]",
    "[\"I:9\", \"KARIM BENALI\", null, null, null, null, null, null, null, null, null, null, 0]",
    "[\"S:1\", \"EXEMPLE ATLAS NEGOCE SARL\", null, null, \"999001\", \"CASABLANCA\", \"CASABLANCA\", \"2025-02-03\", null, null, null, null, 0]",
    "[\"S:2\", \"EXEMPLE ORION LOGISTIQUE S.A.R.L\", null, null, \"999002\", \"TANGER\", \"TANGER\", \"2024-09-01\", null, null, null, null, 0]",
@@ -1201,22 +1088,30 @@
    "[\"S:4\", \"EXEMPLE NOVA TRANS SARL AU\", null, null, \"999004\", \"TANGER\", \"TANGER\", \"2025-06-30\", null, 0, null, null, 0]"
   ],
   "lien": [
-   "[\"E:3\", \"S:1\", \"gérant\", 1, 0.8, 0.28]",
-   "[\"E:5\", \"S:1\", \"cessionnaire\", 1, 0.495, 0.12374]",
-   "[\"E:5\", \"S:3\", \"gérant\", 1, 0.2828, 0.14]",
-   "[\"E:6\", \"S:3\", \"associé\", 1, 0.2828, 0.1]",
-   "[\"E:6\", \"S:4\", \"associé\", 1, 1.0, 0.35355]",
-   "[\"E:8\", \"S:2\", \"gérant\", 1, 0.8, 0.56]",
-   "[\"E:9\", \"S:1\", \"associé\", 1, 1.0, 0.25]",
-   "[\"E:9\", \"S:4\", \"gérant\", 1, 1.0, 0.49497]",
-   "[\"I:1\", \"S:1\", \"gérant\", 0, 1.0, 0.35]",
-   "[\"I:2\", \"S:1\", \"associé\", 0, 1.0, 0.25]",
-   "[\"I:2\", \"S:4\", \"gérant\", 0, 1.0, 0.175]",
-   "[\"I:3\", \"S:1\", \"cessionnaire\", 0, 1.0, 0.25]",
-   "[\"I:3\", \"S:3\", \"gérant\", 2, 0.5657, 0.07]",
-   "[\"I:5\", \"S:2\", \"gérant\", 0, 0.9, 0.63]",
-   "[\"I:6\", \"S:3\", \"associé\", 0, 0.2828, 0.0495]",
-   "[\"I:9\", \"S:4\", \"associé\", 0, 1.0, 0.175]"
+   "[\"E:3\", \"S:1\", \"gérant (01/2025), associé (05/2024)\", 1, 0.8, 0.28]",
+   "[\"E:5\", \"S:1\", \"associé (02/2025)\", 1, 0.495, 0.12374]",
+   "[\"E:5\", \"S:3\", \"gérant (11/2023)\", 1, 0.2828, 0.14]",
+   "[\"E:6\", \"S:3\", \"associé (11/2023)\", 1, 0.2828, 0.1]",
+   "[\"E:6\", \"S:4\", \"associé (06/2025)\", 3, 1.0, 0.35355]",
+   "[\"E:8\", \"S:2\", \"gérant (09/2024)\", 1, 0.8, 0.56]",
+   "[\"E:9\", \"S:1\", \"ancien associé (cédé 02/2025)\", 6, 1.0, 0.15]",
+   "[\"E:9\", \"S:4\", \"gérant (06/2025)\", 3, 1.0, 0.49497]",
+   "[\"I:1\", \"S:1\", \"gérant (01/2025), associé (05/2024)\", 0, 1.0, 0.35]",
+   "[\"I:2\", \"S:1\", \"ancien associé (cédé 02/2025)\", 4, 1.0, 0.15]",
+   "[\"I:2\", \"S:4\", \"gérant (06/2025)\", 0, 1.0, 0.175]",
+   "[\"I:3\", \"S:1\", \"associé (02/2025)\", 0, 1.0, 0.25]",
+   "[\"I:5\", \"S:2\", \"gérant (09/2024)\", 0, 0.9, 0.63]",
+   "[\"I:6\", \"S:3\", \"associé (11/2023)\", 0, 0.2828, 0.0495]",
+   "[\"I:7\", \"S:3\", \"gérant (11/2023)\", 0, 0.2828, 0.0495]",
+   "[\"I:9\", \"S:4\", \"associé (06/2025)\", 0, 1.0, 0.175]"
+  ],
+  "annonce": [
+   "[\"S:1\", \"2024-05-14\", \"Création\", null]",
+   "[\"S:1\", \"2025-01-10\", \"Changement de gérant\", null]",
+   "[\"S:1\", \"2025-02-03\", \"Cession de parts\", null]",
+   "[\"S:2\", \"2024-09-01\", \"Transfert de siège\", null]",
+   "[\"S:3\", \"2023-11-20\", \"Création\", null]",
+   "[\"S:4\", \"2025-06-30\", \"Changement de gérant\", null]"
   ],
   "recherche": [
    "[\"E:1\", \"nom\", \"EXEMPLE ATLAS NEGOCE\"]",
@@ -1237,6 +1132,7 @@
    "[\"I:3\", \"nom\", \"محمد الادريسي\"]",
    "[\"I:5\", \"nom\", \"SAMIR OUAZZANI\"]",
    "[\"I:6\", \"nom\", \"كريم بنعلي\"]",
+   "[\"I:7\", \"nom\", \"محمد الادريسي\"]",
    "[\"I:9\", \"nom\", \"KARIM BENALI\"]",
    "[\"S:1\", \"nom\", \"EXEMPLE ATLAS NEGOCE SARL\"]",
    "[\"S:1\", \"rc\", \"999001\"]",
@@ -1246,17 +1142,22 @@
    "[\"S:3\", \"rc\", \"999003\"]",
    "[\"S:4\", \"nom\", \"EXEMPLE NOVA TRANS SARL AU\"]",
    "[\"S:4\", \"rc\", \"999004\"]"
+  ],
+  "chaine": [
+   "[\"E:1\", {\"alerte\": true, \"aretes\": [{\"a\": \"I:2\", \"b\": \"S:4\", \"court\": \"gérant\", \"fiab\": 1.0, \"force\": 0.07425, \"lib\": \"gérant (06/2025)\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"court\": \"gérant, associé\", \"fiab\": 1.0, \"force\": 0.35, \"lib\": \"gérant (01/2025), associé (05/2024)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"court\": \"ancien associé\", \"fiab\": 1.0, \"force\": 0.15, \"lib\": \"ancien associé (cédé 02/2025)\", \"pont\": \"\", \"style\": \"ancien\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.25, \"lib\": \"associé (02/2025)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.02625, \"lib\": \"associé (06/2025)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": true, \"chaines\": [{\"bl\": \"MEHDI TAZI (inscrit ; découverte)\", \"cle\": \"S:999001@CASABLANCA|depart|I:MEHDITAZI|gerant\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.35, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –gérant (01/2025), associé (05/2024)– MEHDI TAZI ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED ; découverte)\", \"cle\": \"S:999001@CASABLANCA|depart|I:محمدالادريسي|associe\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.25, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –associé (02/2025)– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte)\", \"cle\": \"S:999001@CASABLANCA|depart|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.15, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte)\", \"cle\": \"S:999001@CASABLANCA|depart|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.07425, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte) | KARIM BENALI (inscrit ; découverte)\", \"cle\": \"S:999001@CASABLANCA|depart|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant|I:KARIMBENALI|associe\", \"distance\": 3, \"fiab\": 1.0, \"force\": 0.02625, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"EXEMPLE ATLAS NEGOCE SARL [société inscrite, RC 999001 CASABLANCA] –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé (06/2025)– KARIM BENALI ⚑\"}], \"cin\": null, \"compte\": {\"1\": 3, \"2\": 1, \"3\": 1, \"4\": 0}, \"doublons\": [], \"id\": \"E:1\", \"listes\": \"INDESIRABLE RISQUE\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"I:1\": {\"bl\": \"inscrit\", \"d\": 1, \"nature\": \"découverte\", \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant (01/2025), associé (05/2024)\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 1, \"lat\": \"YOUSSEF FASSI\", \"nature\": \"découverte\", \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"ancien associé (cédé 02/2025)\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 1, \"lat\": \"MOHAMED EL IDRISSI\", \"nature\": \"découverte\", \"nom\": \"محمد الادريسي\", \"sous\": \"associé (02/2025)\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 3, \"nature\": \"découverte\", \"nom\": \"KARIM BENALI\", \"sous\": \"associé (06/2025)\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite : EXEMPLE ATLAS NEGOCE\", \"d\": 0, \"dern\": \"2025-02-03\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 2, \"dern\": \"2025-06-30\", \"diss\": 0, \"nature\": null, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EXEMPLE ATLAS NEGOCE\", \"nouveau\": null, \"racine\": \"S:1\", \"type\": \"PM\"}]",
+   "[\"E:2\", {\"alerte\": true, \"aretes\": [{\"a\": \"S:2\", \"b\": \"I:5\", \"court\": \"gérant\", \"fiab\": 0.9, \"force\": 0.63, \"lib\": \"gérant (09/2024)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": false, \"chaines\": [{\"bl\": \"SAMIR OUAZZANI (inscrit ; découverte)\", \"cle\": \"S:999002@TANGER|depart|I:SAMIROUAZZANI|gerant\", \"distance\": 1, \"fiab\": 0.9, \"force\": 0.63, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L [société inscrite, RC 999002 TANGER] –gérant (09/2024)– SAMIR OUAZZANI ⚑\"}], \"cin\": null, \"compte\": {\"1\": 1, \"2\": 0, \"3\": 0, \"4\": 0}, \"doublons\": [], \"id\": \"E:2\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"I:5\": {\"bl\": \"inscrit\", \"d\": 1, \"nature\": \"découverte\", \"nom\": \"SAMIR OUAZZANI\", \"sous\": \"gérant (09/2024)\", \"t\": \"PP\"}, \"S:2\": {\"bl\": \"société inscrite : EXEMPLE ORION LOGISTIQUE SARL\", \"d\": 0, \"dern\": \"2024-09-01\", \"nom\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L\", \"rc\": \"999002\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EXEMPLE ORION LOGISTIQUE SARL\", \"nouveau\": null, \"racine\": \"S:2\", \"type\": \"PM\"}]",
+   "[\"E:3\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:3\", \"b\": \"S:1\", \"court\": \"gérant, associé\", \"fiab\": 0.8, \"force\": 0.28, \"lib\": \"gérant (01/2025), associé (05/2024)\", \"pont\": \"rapprochement R05b (homonymie, poids 0.80) avec « MEHDI TAZI »\", \"style\": \"rap\"}, {\"a\": \"I:2\", \"b\": \"S:4\", \"court\": \"gérant\", \"fiab\": 0.8, \"force\": 0.02079, \"lib\": \"gérant (06/2025)\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"court\": \"ancien associé\", \"fiab\": 0.8, \"force\": 0.042, \"lib\": \"ancien associé (cédé 02/2025)\", \"pont\": \"\", \"style\": \"ancien\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"court\": \"associé\", \"fiab\": 0.8, \"force\": 0.07, \"lib\": \"associé (02/2025)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"court\": \"associé\", \"fiab\": 0.8, \"force\": 0.00735, \"lib\": \"associé (06/2025)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": false, \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte)\", \"cle\": \"S:999001@CASABLANCA|gerant\", \"distance\": 1, \"fiab\": 0.8, \"force\": 0.28, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"TAZI MEHDI (inscrit) –gérant (01/2025), associé (05/2024)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED ; découverte)\", \"cle\": \"S:999001@CASABLANCA|gerant|I:محمدالادريسي|associe\", \"distance\": 2, \"fiab\": 0.8, \"force\": 0.07, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"TAZI MEHDI (inscrit) –gérant (01/2025), associé (05/2024)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé (02/2025)– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; même dossier)\", \"cle\": \"S:999001@CASABLANCA|gerant|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant\", \"distance\": 2, \"fiab\": 0.8, \"force\": 0.042, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"TAZI MEHDI (inscrit) –gérant (01/2025), associé (05/2024)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; même dossier)\", \"cle\": \"S:999001@CASABLANCA|gerant|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant\", \"distance\": 3, \"fiab\": 0.8, \"force\": 0.02079, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"TAZI MEHDI (inscrit) –gérant (01/2025), associé (05/2024)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; même dossier) | KARIM BENALI (inscrit ; découverte)\", \"cle\": \"S:999001@CASABLANCA|gerant|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant|I:KARIMBENALI|associe\", \"distance\": 4, \"fiab\": 0.8, \"force\": 0.00735, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"TAZI MEHDI (inscrit) –gérant (01/2025), associé (05/2024)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé (06/2025)– KARIM BENALI ⚑\"}], \"cin\": null, \"compte\": {\"1\": 1, \"2\": 2, \"3\": 1, \"4\": 1}, \"doublons\": [], \"id\": \"E:3\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"E:3\": {\"bl\": \"\", \"d\": 0, \"nom\": \"TAZI MEHDI\", \"sous\": \"inscrit\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 2, \"lat\": \"YOUSSEF FASSI\", \"nature\": \"même dossier\", \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"ancien associé (cédé 02/2025)\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"lat\": \"MOHAMED EL IDRISSI\", \"nature\": \"découverte\", \"nom\": \"محمد الادريسي\", \"sous\": \"associé (02/2025)\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 4, \"nature\": \"découverte\", \"nom\": \"KARIM BENALI\", \"sous\": \"associé (06/2025)\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nature\": \"découverte\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2025-06-30\", \"diss\": 0, \"nature\": null, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"TAZI MEHDI\", \"nouveau\": null, \"racine\": \"E:3\", \"type\": \"PP\"}]",
+   "[\"E:5\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:5\", \"b\": \"S:1\", \"court\": \"associé\", \"fiab\": 0.495, \"force\": 0.12374, \"lib\": \"associé (02/2025)\", \"pont\": \"rapprochement R05b (homonymie, poids 0.49) avec « محمد الادريسي »\", \"style\": \"rap\"}, {\"a\": \"E:5\", \"b\": \"S:3\", \"court\": \"gérant\", \"fiab\": 0.2828, \"force\": 0.14, \"lib\": \"gérant (11/2023)\", \"pont\": \"rapprochement R07 (homonymie, poids 0.28) avec « محمد الادريسي »\", \"style\": \"rap\"}, {\"a\": \"I:2\", \"b\": \"S:4\", \"court\": \"gérant\", \"fiab\": 0.495, \"force\": 0.00919, \"lib\": \"gérant (06/2025)\", \"pont\": \"même CIN ZZ900008\", \"style\": \"pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"court\": \"gérant, associé\", \"fiab\": 0.495, \"force\": 0.04331, \"lib\": \"gérant (01/2025), associé (05/2024)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:2\", \"court\": \"ancien associé\", \"fiab\": 0.495, \"force\": 0.01856, \"lib\": \"ancien associé (cédé 02/2025)\", \"pont\": \"\", \"style\": \"ancien\"}, {\"a\": \"S:3\", \"b\": \"I:6\", \"court\": \"associé\", \"fiab\": 0.2828, \"force\": 0.0495, \"lib\": \"associé (11/2023)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"court\": \"associé\", \"fiab\": 0.495, \"force\": 0.00325, \"lib\": \"associé (06/2025)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": false, \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe\", \"distance\": 1, \"fiab\": 0.495, \"force\": 0.12374, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –associé (02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"⁨كريم بنعلي⁩ (inscrit : BENALI KARIM ; découverte)\", \"cle\": \"S:999003@CASABLANCA|gerant|I:كريمبنعلي|associe\", \"distance\": 2, \"fiab\": 0.2828, \"force\": 0.0495, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –gérant (11/2023)– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –associé (11/2023)– ⁨كريم بنعلي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | MEHDI TAZI (inscrit ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe|I:MEHDITAZI|gerant\", \"distance\": 2, \"fiab\": 0.495, \"force\": 0.04331, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –associé (02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant (01/2025), associé (05/2024)– MEHDI TAZI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant\", \"distance\": 2, \"fiab\": 0.495, \"force\": 0.01856, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –associé (02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant\", \"distance\": 3, \"fiab\": 0.495, \"force\": 0.00919, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –associé (02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨YOUSSEF FASSI / يوسف الفاسي⁩ (inscrit : FASSI YOUSSEF ; découverte) | KARIM BENALI (inscrit ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe|I:YOUSSEFFASSI/يوسفالفاسي|associe_sortant|S:999004@TANGER|gerant|I:KARIMBENALI|associe\", \"distance\": 4, \"fiab\": 0.495, \"force\": 0.00325, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –associé (02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –ancien associé (cédé 02/2025)– ⁨YOUSSEF FASSI / يوسف الفاسي⁩ ⚑ –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé (06/2025)– KARIM BENALI ⚑\"}, {\"bl\": \"\", \"cle\": \"S:999003@CASABLANCA|gerant\", \"distance\": 1, \"fiab\": 0.2828, \"force\": 0.14, \"nature\": null, \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"EL IDRISSI MOHAMED (inscrit) –gérant (11/2023)– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}], \"cin\": \"ZZ900001\", \"compte\": {\"1\": 2, \"2\": 3, \"3\": 1, \"4\": 1}, \"doublons\": [], \"id\": \"E:5\", \"listes\": \"INDESIRABLE\", \"motifs\": \"Falsification\", \"nature\": \"découverte\", \"noeuds\": {\"E:5\": {\"bl\": \"\", \"d\": 0, \"nom\": \"EL IDRISSI MOHAMED\", \"sous\": \"CIN ZZ900001\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 2, \"nature\": \"découverte\", \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant (01/2025), associé (05/2024)\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit : FASSI YOUSSEF\", \"d\": 2, \"lat\": \"YOUSSEF FASSI\", \"nature\": \"découverte\", \"nom\": \"YOUSSEF FASSI / يوسف الفاسي\", \"sous\": \"ancien associé (cédé 02/2025)\", \"t\": \"PP\"}, \"I:6\": {\"bl\": \"inscrit : BENALI KARIM\", \"d\": 2, \"lat\": \"KARIM BENALI\", \"nature\": \"découverte\", \"nom\": \"كريم بنعلي\", \"sous\": \"associé (11/2023)\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 4, \"nature\": \"découverte\", \"nom\": \"KARIM BENALI\", \"sous\": \"associé (06/2025)\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nature\": \"découverte\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2023-11-20\", \"diss\": 0, \"lat\": \"CHARKA MATAL NOUR LILKHADMAT CH M M\", \"nature\": null, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 3, \"dern\": \"2025-06-30\", \"diss\": 0, \"nature\": null, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"EL IDRISSI MOHAMED\", \"nouveau\": null, \"racine\": \"E:5\", \"type\": \"PP\"}]",
+   "[\"E:6\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:6\", \"b\": \"S:3\", \"court\": \"associé\", \"fiab\": 0.2828, \"force\": 0.1, \"lib\": \"associé (11/2023)\", \"pont\": \"rapprochement R07 (homonymie, poids 0.28) avec « كريم بنعلي »\", \"style\": \"rap\"}, {\"a\": \"E:6\", \"b\": \"S:4\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.35355, \"lib\": \"associé (06/2025)\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « KARIM BENALI »\", \"style\": \"certain\"}, {\"a\": \"I:2\", \"b\": \"S:1\", \"court\": \"ancien associé\", \"fiab\": 1.0, \"force\": 0.02625, \"lib\": \"ancien associé (cédé 02/2025)\", \"pont\": \"même CIN ZZ900008\", \"style\": \"ancien pont\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"court\": \"gérant, associé\", \"fiab\": 1.0, \"force\": 0.00919, \"lib\": \"gérant (01/2025), associé (05/2024)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.00656, \"lib\": \"associé (02/2025)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:3\", \"b\": \"I:7\", \"court\": \"gérant\", \"fiab\": 0.2828, \"force\": 0.0495, \"lib\": \"gérant (11/2023)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:2\", \"court\": \"gérant\", \"fiab\": 1.0, \"force\": 0.175, \"lib\": \"gérant (06/2025)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": true, \"chaines\": [{\"bl\": \"FASSI YOUSSEF (inscrit ; découverte)\", \"cle\": \"S:999004@TANGER|associe|I:FASSIYOUSSEF|gerant\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.175, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant (06/2025)– FASSI YOUSSEF ⚑\"}, {\"bl\": \"⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED ; découverte)\", \"cle\": \"S:999003@CASABLANCA|associe|I:محمدالادريسي|gerant\", \"distance\": 2, \"fiab\": 0.2828, \"force\": 0.0495, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (11/2023)– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003] –gérant (11/2023)– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"FASSI YOUSSEF (inscrit ; découverte) | EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte)\", \"cle\": \"S:999004@TANGER|associe|I:FASSIYOUSSEF|gerant|S:999001@CASABLANCA|associe_sortant\", \"distance\": 3, \"fiab\": 1.0, \"force\": 0.02625, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant (06/2025)– FASSI YOUSSEF ⚑ –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"FASSI YOUSSEF (inscrit ; découverte) | EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | MEHDI TAZI (inscrit ; découverte)\", \"cle\": \"S:999004@TANGER|associe|I:FASSIYOUSSEF|gerant|S:999001@CASABLANCA|associe_sortant|I:MEHDITAZI|gerant\", \"distance\": 4, \"fiab\": 1.0, \"force\": 0.00919, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant (06/2025)– FASSI YOUSSEF ⚑ –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant (01/2025), associé (05/2024)– MEHDI TAZI ⚑\"}, {\"bl\": \"FASSI YOUSSEF (inscrit ; découverte) | EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED ; découverte)\", \"cle\": \"S:999004@TANGER|associe|I:FASSIYOUSSEF|gerant|S:999001@CASABLANCA|associe_sortant|I:محمدالادريسي|associe\", \"distance\": 4, \"fiab\": 1.0, \"force\": 0.00656, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –gérant (06/2025)– FASSI YOUSSEF ⚑ –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé (02/2025)– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"\", \"cle\": \"S:999004@TANGER|associe\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.35355, \"nature\": null, \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}, {\"bl\": \"\", \"cle\": \"S:999003@CASABLANCA|associe\", \"distance\": 1, \"fiab\": 0.2828, \"force\": 0.1, \"nature\": null, \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"BENALI KARIM (inscrit) –associé (11/2023)– ⁨شركة مثال نور للخدمات ش.م.م⁩ [RC 999003]\"}], \"cin\": \"ZZ900002\", \"compte\": {\"1\": 2, \"2\": 2, \"3\": 1, \"4\": 2}, \"doublons\": [], \"id\": \"E:6\", \"listes\": \"BLACKLIST\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"E:6\": {\"bl\": \"\", \"d\": 0, \"nom\": \"BENALI KARIM\", \"sous\": \"CIN ZZ900002\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 4, \"nature\": \"découverte\", \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant (01/2025), associé (05/2024)\", \"t\": \"PP\"}, \"I:2\": {\"bl\": \"inscrit\", \"d\": 2, \"nature\": \"découverte\", \"nom\": \"FASSI YOUSSEF\", \"sous\": \"gérant (06/2025)\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 4, \"lat\": \"MOHAMED EL IDRISSI\", \"nature\": \"découverte\", \"nom\": \"محمد الادريسي\", \"sous\": \"associé (02/2025)\", \"t\": \"PP\"}, \"I:7\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"lat\": \"MOHAMED EL IDRISSI\", \"nature\": \"découverte\", \"nom\": \"محمد الادريسي\", \"sous\": \"gérant (11/2023)\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 3, \"dern\": \"2025-02-03\", \"diss\": 0, \"nature\": \"découverte\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:3\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2023-11-20\", \"diss\": 0, \"lat\": \"CHARKA MATAL NOUR LILKHADMAT CH M M\", \"nature\": null, \"nom\": \"شركة مثال نور للخدمات ش.م.م\", \"rc\": \"999003\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2025-06-30\", \"diss\": 0, \"nature\": null, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"BENALI KARIM\", \"nouveau\": null, \"racine\": \"E:6\", \"type\": \"PP\"}]",
+   "[\"E:8\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:8\", \"b\": \"S:2\", \"court\": \"gérant\", \"fiab\": 0.8, \"force\": 0.56, \"lib\": \"gérant (09/2024)\", \"pont\": \"rapprochement R01v (homonymie, poids 0.80) avec « SAMIR OUAZZANI »\", \"style\": \"rap\"}], \"certain\": false, \"chaines\": [{\"bl\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L (société inscrite ; découverte)\", \"cle\": \"S:999002@TANGER|gerant\", \"distance\": 1, \"fiab\": 0.8, \"force\": 0.56, \"nature\": \"découverte\", \"niveau\": \"probable\", \"nouveau\": true, \"texte\": \"OUAZZANI SAMIR (inscrit) –gérant (09/2024)– EXEMPLE ORION LOGISTIQUE S.A.R.L [RC 999002] ⚑\"}], \"cin\": \"ZZ900006X\", \"compte\": {\"1\": 1, \"2\": 0, \"3\": 0, \"4\": 0}, \"doublons\": [], \"id\": \"E:8\", \"listes\": \"INDESIRABLE\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"E:8\": {\"bl\": \"\", \"d\": 0, \"nom\": \"OUAZZANI SAMIR\", \"sous\": \"CIN ZZ900006X\", \"t\": \"PP\"}, \"S:2\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2024-09-01\", \"diss\": 0, \"nature\": \"découverte\", \"nom\": \"EXEMPLE ORION LOGISTIQUE S.A.R.L\", \"rc\": \"999002\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"OUAZZANI SAMIR\", \"nouveau\": null, \"racine\": \"E:8\", \"type\": \"PP\"}]",
+   "[\"E:9\", {\"alerte\": true, \"aretes\": [{\"a\": \"E:9\", \"b\": \"S:1\", \"court\": \"ancien associé\", \"fiab\": 1.0, \"force\": 0.15, \"lib\": \"ancien associé (cédé 02/2025)\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « YOUSSEF FASSI »\", \"style\": \"ancien certain\"}, {\"a\": \"E:9\", \"b\": \"S:4\", \"court\": \"gérant\", \"fiab\": 1.0, \"force\": 0.49497, \"lib\": \"gérant (06/2025)\", \"pont\": \"rapprochement R01 (alerte, poids 1.00) avec « YOUSSEF FASSI » ; puis même CIN ZZ900008\", \"style\": \"certain\"}, {\"a\": \"S:1\", \"b\": \"I:1\", \"court\": \"gérant, associé\", \"fiab\": 1.0, \"force\": 0.0525, \"lib\": \"gérant (01/2025), associé (05/2024)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:1\", \"b\": \"I:3\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.0375, \"lib\": \"associé (02/2025)\", \"pont\": \"\", \"style\": \"\"}, {\"a\": \"S:4\", \"b\": \"I:9\", \"court\": \"associé\", \"fiab\": 1.0, \"force\": 0.175, \"lib\": \"associé (06/2025)\", \"pont\": \"\", \"style\": \"\"}], \"certain\": true, \"chaines\": [{\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe_sortant\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.15, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"FASSI YOUSSEF (inscrit) –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑\"}, {\"bl\": \"KARIM BENALI (inscrit ; découverte)\", \"cle\": \"S:999004@TANGER|gerant|I:KARIMBENALI|associe\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.175, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"FASSI YOUSSEF (inscrit) –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004] –associé (06/2025)– KARIM BENALI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | MEHDI TAZI (inscrit ; même dossier)\", \"cle\": \"S:999001@CASABLANCA|associe_sortant|I:MEHDITAZI|gerant\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.0525, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"FASSI YOUSSEF (inscrit) –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –gérant (01/2025), associé (05/2024)– MEHDI TAZI ⚑\"}, {\"bl\": \"EXEMPLE ATLAS NEGOCE SARL (société inscrite ; découverte) | ⁨محمد الادريسي⁩ (inscrit : EL IDRISSI MOHAMED ; découverte)\", \"cle\": \"S:999001@CASABLANCA|associe_sortant|I:محمدالادريسي|associe\", \"distance\": 2, \"fiab\": 1.0, \"force\": 0.0375, \"nature\": \"découverte\", \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"FASSI YOUSSEF (inscrit) –ancien associé (cédé 02/2025)– EXEMPLE ATLAS NEGOCE SARL [RC 999001] ⚑ –associé (02/2025)– ⁨محمد الادريسي⁩ ⚑\"}, {\"bl\": \"\", \"cle\": \"S:999004@TANGER|gerant\", \"distance\": 1, \"fiab\": 1.0, \"force\": 0.49497, \"nature\": null, \"niveau\": \"certain\", \"nouveau\": true, \"texte\": \"FASSI YOUSSEF (inscrit) –gérant (06/2025)– EXEMPLE NOVA TRANS SARL AU [RC 999004]\"}], \"cin\": \"ZZ900008\", \"compte\": {\"1\": 2, \"2\": 3, \"3\": 0, \"4\": 0}, \"doublons\": [], \"id\": \"E:9\", \"listes\": \"BLACKLIST ; INDESIRABLE\", \"motifs\": null, \"nature\": \"découverte\", \"noeuds\": {\"E:9\": {\"bl\": \"\", \"d\": 0, \"nom\": \"FASSI YOUSSEF\", \"sous\": \"CIN ZZ900008\", \"t\": \"PP\"}, \"I:1\": {\"bl\": \"inscrit\", \"d\": 2, \"nature\": \"même dossier\", \"nom\": \"MEHDI TAZI\", \"sous\": \"gérant (01/2025), associé (05/2024)\", \"t\": \"PP\"}, \"I:3\": {\"bl\": \"inscrit : EL IDRISSI MOHAMED\", \"d\": 2, \"lat\": \"MOHAMED EL IDRISSI\", \"nature\": \"découverte\", \"nom\": \"محمد الادريسي\", \"sous\": \"associé (02/2025)\", \"t\": \"PP\"}, \"I:9\": {\"bl\": \"inscrit\", \"d\": 2, \"nature\": \"découverte\", \"nom\": \"KARIM BENALI\", \"sous\": \"associé (06/2025)\", \"t\": \"PP\"}, \"S:1\": {\"bl\": \"société inscrite\", \"d\": 1, \"dern\": \"2025-02-03\", \"diss\": 0, \"nature\": \"découverte\", \"nom\": \"EXEMPLE ATLAS NEGOCE SARL\", \"rc\": \"999001\", \"t\": \"PM\", \"trib\": \"CASABLANCA\", \"url\": null, \"ville\": \"CASABLANCA\"}, \"S:4\": {\"bl\": \"\", \"d\": 1, \"dern\": \"2025-06-30\", \"diss\": 0, \"nature\": null, \"nom\": \"EXEMPLE NOVA TRANS SARL AU\", \"rc\": \"999004\", \"t\": \"PM\", \"trib\": \"TANGER\", \"url\": null, \"ville\": \"TANGER\"}}, \"nom\": \"FASSI YOUSSEF\", \"nouveau\": null, \"racine\": \"E:9\", \"type\": \"PP\"}]"
   ]
  },
- "types": [
-  "societe",
-  "personne",
-  "inscrit_personne",
-  "inscrit_societe"
- ],
- "villes": [
-  "CASABLANCA",
-  "RABAT",
-  "TANGER"
- ]
+ "manifeste": {
+  "format": 1,
+  "noeuds": 18,
+  "inscrits_personnes": 7,
+  "inscrits_societes": 2,
+  "fictif": true
+ }
 }
