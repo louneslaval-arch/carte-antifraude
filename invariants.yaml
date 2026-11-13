@@ -1,6 +1,13 @@
 {
   "invariants": [
     {"nom": "migrations_appliquees", "comptage": "SELECT count(*) FROM schema_version", "minimum": 1},
-    {"nom": "migrations_sans_empreinte", "zero": "SELECT numero FROM schema_version WHERE empreinte IS NULL OR length(empreinte) <> 64"}
+    {"nom": "migrations_sans_empreinte", "zero": "SELECT numero FROM schema_version WHERE empreinte IS NULL OR length(empreinte) <> 64"},
+    {"nom": "c0_empreinte_pour_deux_json", "zero": "SELECT empreinte FROM c0_dossier_brut GROUP BY empreinte HAVING count(DISTINCT json) > 1"},
+    {"nom": "c0_version_orpheline_de_passage", "zero": "SELECT b.ref FROM c0_dossier_brut b LEFT JOIN c0_export e ON e.id = b.passage WHERE e.id IS NULL"},
+    {"nom": "c0_miroir_sans_version_brute", "zero": "SELECT d.ref FROM \"Dossier\" d WHERE d.ref NOT IN (SELECT ref FROM c0_dossier_brut)"},
+    {"nom": "c0_miroir_pas_la_derniere_version", "zero": "SELECT d.ref FROM \"Dossier\" d WHERE d.\"updatedAt\" <> (SELECT max(b.updated_at) FROM c0_dossier_brut b WHERE b.ref = d.ref)"},
+    {"nom": "c0_piece_sans_dossier", "zero": "SELECT p.id FROM \"Piece\" p WHERE p.\"dossierId\" NOT IN (SELECT id FROM \"Dossier\")"},
+    {"nom": "c0_controle_sans_analyse", "zero": "SELECT c.id FROM \"AnalysisControl\" c WHERE c.\"analysisId\" NOT IN (SELECT id FROM \"Analysis\")"},
+    {"nom": "flux_travail_fait_sans_version", "zero": "SELECT t.id FROM flux_travail t WHERE t.etat = 'fait' AND t.empreinte IS NOT NULL AND NOT EXISTS (SELECT 1 FROM c0_dossier_brut b WHERE b.ref = t.ref AND b.empreinte = t.empreinte)"}
   ]
 }

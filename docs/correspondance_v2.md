@@ -9,6 +9,14 @@ pas aux fichiers de Kamal (dérive).
 | Nom | Où | Pourquoi la v2 ne l'a pas |
 | --- | --- | --- |
 | `schema_version` | toutes couches | numéro des migrations appliquées (`schema/000_schema_version.sql`) ; propre à notre base |
+| `c0_export` | c0 | un passage de collecte (date, source, mode, comptages) : la v2 ne trace pas qui la lit |
+| `c0_dossier_brut` | c0 | chaque version reçue d'un dossier, JSON complet et empreinte, pour tout rejouer ; `updated_at` reprend `updatedAt` |
+| `flux_source`, `flux_curseur`, `flux_travail` | temps réel | état de notre collecteur et de sa file ; `ref`, `updated_at`, `actif` reprennent les notions de la v2 |
+| `Piece.id`, `Reanalysis.id` | miroir | non exposés par l'API : dérivés de l'identifiant du dossier (`<id>:<upstreamPieceId>`, `<id>:relecture:<rang>`) ; viendront de la base de Kamal en lecture directe |
+| `Piece.createdAt`, `Piece.updatedAt` | miroir | non exposés par l'API : ceux du dossier, en attendant la lecture directe |
+| `Dossier.actif` | miroir | non exposé dans le détail : connu en lisant la liste avec et sans `archives=true` |
+| `AnalysisControl.applicabilityReason` | miroir | obligatoire dans la base, mais l'API peut le rendre vide : rangé en chaîne vide |
+| `Synthese`, `ConstatLibre`, `label`, `family`, `numeroMetier`, `previousOutcome` d'un contrôle | version brute seulement | l'API n'en donne pas les clés (`Synthese.id`, `analysisId`) ou les calcule à l'affichage ; lisibles dans `c0_dossier_brut` (`pipeline/couches/c0_brut.py`, `PLACES`) |
 
 <!-- DEBUT PARTIE GENEREE : outils/v2/carte_correspondance.py --ecrire ; ne pas modifier à la main -->
 

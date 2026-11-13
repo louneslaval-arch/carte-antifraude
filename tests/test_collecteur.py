@@ -281,3 +281,19 @@ def test_dossier_inconnu_de_la_v2_est_bloque_sans_nouvelle_tentative(monde):
     c.passer()
     assert cx.execute("SELECT etat, code_erreur FROM flux_travail WHERE ref = 'ZZ26R9002'").fetchone() == \
         ('bloque', 'dossier_inconnu')
+
+
+def test_invariants_verts_apres_un_scenario_complet_et_rouges_si_le_miroir_derive(monde, jeu, tmp_path, capsys):
+    import verifier
+    appli, _, cx, c, heure = monde()
+    for instant in (datetime.datetime(2026, 9, 3), FIN):
+        appli.state.horloge.regler(instant)
+        avancer(heure, minutes=10)
+        c.passer()
+    base = str(tmp_path / 'base_createdAt.sqlite')
+    assert verifier.verifier(base) == 0
+    cx.execute('UPDATE "Dossier" SET "updatedAt" = \'2020-01-01T00:00:00.000Z\' WHERE ref = ?', (jeu.dossiers[0]['ref'],))
+    cx.commit()
+    assert verifier.verifier(base) == 1
+    sortie = capsys.readouterr().out
+    assert 'c0_miroir_pas_la_derniere_version : 1' in sortie and 'ZZ' not in sortie

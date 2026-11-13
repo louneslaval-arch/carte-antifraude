@@ -29,6 +29,8 @@ class Reglages:
     journal_jours: int = 365                     # conservation du journal d'audit
     origine: Optional[str] = None                # seule origine admise par CORS (vide : aucune)
     cookie_securise: bool = True
+    flux_v2_secret: Optional[str] = None         # secret partagé de la notification de la v2 (route inactive sans lui)
+    flux_base: Optional[str] = None              # base du temps réel où la notification met le dossier en file
 
 
 def _texte(env, nom):
@@ -65,6 +67,10 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
         debit_connexion=_texte(env, 'CARTE_DEBIT_CONNEXION'),
         journal_jours=_entier(env, 'CARTE_JOURNAL_JOURS'),
         origine=_texte(env, 'CARTE_ORIGINE'),
-        cookie_securise=env.get('CARTE_COOKIE_NON_SECURISE') != '1')
+        cookie_securise=env.get('CARTE_COOKIE_NON_SECURISE') != '1',
+        flux_v2_secret=_texte(env, 'CARTE_FLUX_V2_SECRET'),
+        flux_base=_texte(env, 'CARTE_FLUX_BASE'))
+    if lus['flux_v2_secret'] and len(lus['flux_v2_secret']) < 32:
+        raise ReglageInvalide('CARTE_FLUX_V2_SECRET trop court (32 caractères au moins)')
     # une variable absente garde la valeur par défaut de Reglages : chaque défaut n'est écrit qu'une fois
     return Reglages(cle_jwt=cle, base_url=base_url, **{k: v for k, v in lus.items() if v is not None})
