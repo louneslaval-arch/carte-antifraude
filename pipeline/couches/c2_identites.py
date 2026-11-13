@@ -4,8 +4,8 @@ Trois sources de « mentions » : la liste noire et le registre du commerce, rec
 (`construire_base.py`, inchangé) par `charger_socle` ; les dossiers de la v2, relus dans la couche 1. Une fiche
 réunit les mentions qui partagent une clé forte :
 
-- personne : même CIN valide, aux noms compatibles (un CIN porté par deux noms incompatibles donne deux fiches et un
-  signalement `CIN_PARTAGE`) ; une mention sans CIN prend le CIN de la seule mention au nom compatible du même
+- personne : même CIN valide, aux noms compatibles (un CIN porté par deux noms incompatibles de la même écriture
+  donne deux fiches et un signalement `CIN_PARTAGE`) ; une mention sans CIN prend le CIN de la seule mention au nom compatible du même
   dossier (`nom_dans_dossier`) ; une personne du registre sans CIN prend celui du seul gérant ou associé au nom
   compatible lu dans un dossier pour la même société (`AF05` : le dossier apporte le CIN) ;
 - société : même RC et même tribunal, même ICE, même identifiant fiscal, même n° d'affiliation CNSS ; deux RC
@@ -119,6 +119,12 @@ def _compatibles(a, b):
 def compatibles(a, b):
     """Deux noms peuvent-ils désigner la même personne ? (latin ou arabe ; un nom absent est compatible avec tout)"""
     return _compatibles(*sorted((a or '', b or '')))
+
+
+def separes(a, b):
+    """Deux noms portés par un même CIN désignent-ils sûrement deux personnes ? Seulement s'ils sont de la même
+    écriture et incompatibles : entre le latin et l'arabe, rien ne prouve l'incompatibilité."""
+    return bool(a and b) and cb.est_arabe(a) == cb.est_arabe(b) and not compatibles(a, b)
 
 
 def _mention(source, type_fiche, cle_origine, **valeurs):
@@ -335,7 +341,7 @@ def _grappes(mentions):
     grappes = []                                          # [(nom fondateur, {noms})]
     for nom_ in sorted(comptes, key=lambda n: (-comptes[n], n)):
         for fondateur, noms in grappes:
-            if compatibles(nom_, fondateur):
+            if not separes(nom_, fondateur):
                 noms.add(nom_)
                 break
         else:

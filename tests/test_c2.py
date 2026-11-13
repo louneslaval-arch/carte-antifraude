@@ -239,6 +239,19 @@ def test_cin_partage_par_deux_noms_incompatibles_pas_de_fusion_signalement(jeu, 
     assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
 
 
+def test_cin_partage_entre_deux_ecritures_jamais_separe_faute_de_preuve(jeu, tmp_path):
+    p, q = [x for x in jeu.monde.personnes if x['nom'][1] and x['prenom'][1]][:2]
+    assert p['nom'][0] != q['nom'][0]
+    kit = mini_socle(tmp_path, societes=[dict(societe_id=1, cle_societe='RC:70001@KENITRA', denomination='TAZOULA SARL',
+                                              rc_num='70001', tribunal_code='KENITRA')],
+                     personnes=[dict(personne_id=1, cle_stable='RC:70001@KENITRA|CIN:ZZ100001', societe_id=1,
+                                     type_personne='PP', nom_complet=f"{q['prenom'][1]} {q['nom'][1]}",
+                                     ecriture='arabe', cin='ZZ100001', cin_norm='ZZ100001', cin_statut='valide',
+                                     role='gerant')])
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(p['nom'][0], p['prenom'][0], 'ZZ100001'))], kit)
+    assert un(cx, 'SELECT count(*) FROM c2_personne') == 1 and un(cx, 'SELECT count(*) FROM c2_correspondance') == 0
+
+
 def test_mention_sans_cin_rattachee_a_la_cin_du_meme_dossier_par_le_nom(jeu, tmp_path):
     d = dossier(jeu, 1, cin_de('ZELMOU', 'BAKRITA', 'ZZ100001'),
                 ('RELEVE_BANCAIRE', {'titulaire_compte': 'BAKRITA ZELMOU', 'rib': '999' + '0' * 21}),
