@@ -170,3 +170,19 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **A.8** : non préparé ; trois des quatre chiffres de référence viennent de `carte_globale.py` (kit du 11/11), et
   aucun script n'a encore de sortie limitée aux comptages.
 - **Prochaine action** : dès que `import/` est déposé, A.2 (contrôle de l'import), A.3, A.4, A.5, A.6, puis A.8.
+
+## 13/11/2026 — étape A, import (partielle)
+
+- **Structure de Kamal** : extraite par Lounès de `antifraude_json_back_front_2026-11-11.zip` (seulement `types/`,
+  `schema/`, `reference/`, `README.md` ; aucun `api/`) dans `import/kamal_structure/` : 9 fichiers. Garde : 4 fichiers
+  refusés par extension (JSON et CSV, attendu) ; 3 constats « reference_dossier » : de vraies références de dossiers de
+  la préproduction dans `README.md` (lignes 3 et 75), `reference/CONTRAT_TANDEM_AI.md` (ligne 92) et les exemples de
+  `schema/openapi_api_v1_export_metier.json` (lignes 37 et 58). Ne jamais les réutiliser ; à remplacer par des
+  références « ZZ » si la structure est un jour versionnée. `champs_par_type_prod.csv` : inventaire des clés avec
+  comptages, sans valeur ; 13 types de pièces (le plan en annonce 14 : à vérifier à l'étape C).
+- **A.3** : sans réponse de Kamal (question n°15), la structure reste dans `import/` (ignoré) ; seule la carte de
+  correspondance de l'étape B sera versionnée.
+- **A.4** : le kit fourni (`kit_base_liste_noire_RC.zip`) est l'ancien : ses 4 fichiers sont identiques à ceux de
+  `pipeline/`. Le kit du 11/11 (`carte_globale.py`, `translitteration.py`, `geo_maroc.py`…) reste à fournir.
+- **A.5** : référentiels non encore localisés (prototype du 21/10).
+- **Étape A fusionnée partielle** (consigne du 13/11) ; restent A.4, A.5, A.6, A.8 et la notice du kit.
