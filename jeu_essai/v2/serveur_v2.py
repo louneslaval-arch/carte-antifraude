@@ -101,11 +101,13 @@ def creer_application(jeu, secret, notifier=None, comptes=None):
     async def connexion(requete: Request):
         try:
             corps = await requete.json()
-            compte = comptes.get(corps.get('email'))
-            mot_de_passe = corps.get('password')
-        except (ValueError, AttributeError):
+        except ValueError:
             return _erreur('unauthorized', 401)
-        if not compte or not isinstance(mot_de_passe, str) or not hmac.compare_digest(mot_de_passe, compte['password']):
+        courriel = corps.get('email') if isinstance(corps, dict) else None
+        mot_de_passe = corps.get('password') if isinstance(corps, dict) else None
+        compte = comptes.get(courriel) if isinstance(courriel, str) else None
+        if not compte or not isinstance(mot_de_passe, str) or not hmac.compare_digest(
+                mot_de_passe.encode(), compte['password'].encode()):
             return _erreur('unauthorized', 401)
         jeton = secrets.token_urlsafe(32)
         jetons[jeton] = compte['role']
@@ -195,13 +197,33 @@ def modeles_v2_valeurs(nom):
     return get_args(getattr(modeles_v2, nom))
 
 
+def adresse_locale(adresse):
+    """Vrai si l'adresse désigne cette machine : http, hôte 127.0.0.1 ou localhost, sans partie « utilisateur@ »."""
+    import urllib.parse
+    try:
+        u = urllib.parse.urlsplit(adresse)
+        u.port                                              # ValueError si le port est illisible
+    except ValueError:
+        return False
+    return u.scheme == 'http' and u.hostname in ('127.0.0.1', 'localhost') and u.username is None \
+        and u.password is None
+
+
 def _notifier_par_http(adresse):
+    """Envoi de la notification vers cette machine seulement : ni mandataire, ni redirection suivie."""
     import urllib.request
+    if not adresse_locale(adresse):
+        raise ValueError('la notification ne part que vers cette machine')
+
+    class SansRedirection(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+    ouvreur = urllib.request.build_opener(urllib.request.ProxyHandler({}), SansRedirection)
 
     def envoyer(corps, entetes):
         requete = urllib.request.Request(adresse, data=corps, headers=entetes, method='POST')
         try:
-            urllib.request.urlopen(requete, timeout=5).close()
+            ouvreur.open(requete, timeout=5).close()
         except OSError as e:
             print(f'notification non remise ({type(e).__name__})', file=sys.stderr)
     return envoyer
@@ -217,7 +239,7 @@ def main(argv=None):
     ap.add_argument('--graine', type=int, default=generer_dossiers.GRAINE)
     ap.add_argument('--notifier', help='adresse locale de POST /api/flux/v2 (127.0.0.1 ou localhost seulement)')
     a = ap.parse_args(argv)
-    if a.notifier and not a.notifier.startswith(('http://127.0.0.1', 'http://localhost')):
+    if a.notifier and not adresse_locale(a.notifier):
         print('arrêt : la notification ne part que vers cette machine', file=sys.stderr)
         return 2
     jeu = generer_dossiers.generer(a.dossiers, a.societes, a.graine)

@@ -471,7 +471,7 @@ class Fabrique:
                            adresse=demandeur['adresse'], date_naissance=demandeur['naissance'],
                            nom_organisme_retraite='CAISSE EXEMPLE', caisse='CAISSE EXEMPLE',
                            pensionne={'nom_complet': self.nom_complet(demandeur), 'cin': demandeur['cin']},
-                           numero_pension='9%06d' % self.r.randrange(1_000_000), montant_pension_mensuel=salaire)
+                           numero_pension='999%06d' % self.r.randrange(1_000_000), montant_pension_mensuel=salaire)
                 forcer |= {'nom', 'prenom', 'numero_cin'}
             elif type_ == 'CARTE_PROFESSIONNELLE':
                 sem = dict(nom=demandeur['nom'], prenom=demandeur['prenom'], numero_cin=demandeur['cin'],
@@ -520,7 +520,7 @@ class Fabrique:
             elif type_ == 'CARTE_GRISE':
                 sem = {'Numéro de chassis': chassis or 'ZZFICTIF%09d' % self.r.randrange(10 ** 9),
                        'Marque véhicule': 'MARQUE FICTIVE', 'Modèle véhicule': 'MODELE FICTIF',
-                       'Immatriculation': '%d-Z-%d' % (self.r.randrange(1000, 99999), self.r.randrange(1, 80)),
+                       'Immatriculation': 'FICTIF-%05d' % self.r.randrange(100_000),
                        'Type carburant': 'DIESEL', 'Puissance fiscal': '8',
                        'nom': demandeur['nom'], 'prenom': demandeur['prenom']}
                 forcer |= {'Numéro de chassis'}
@@ -855,8 +855,12 @@ def main(argv=None):
     a = ap.parse_args(argv)
     try:
         jeu = generer(a.dossiers, a.societes, a.graine)
-    except (PrealableManquant, ValueError) as e:
+    except PrealableManquant as e:
         print(f'arrêt : {e}', file=sys.stderr)
+        return 2
+    except ValueError as e:                    # jamais le texte : il pourrait citer une valeur lue
+        print(f'arrêt : {type(e).__name__} (au moins {MINIMUM_DOSSIERS} dossiers ; inventaire de Kamal lisible ?)',
+              file=sys.stderr)
         return 2
     os.makedirs(a.sortie, exist_ok=True)
     g = jeu.monde

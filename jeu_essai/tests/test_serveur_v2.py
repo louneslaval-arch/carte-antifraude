@@ -221,3 +221,30 @@ def test_notification_de_relecture(jeu):
 def test_sans_destinataire_aucune_notification(jeu):
     appli = serveur_v2.creer_application(jeu, secret=SECRET)
     appli.state.horloge.regler(FIN)      # ne plante pas
+
+
+# ---- la notification ne part que vers cette machine ----------------------------------------------------------------
+
+@pytest.mark.parametrize('adresse', ['http://127.0.0.1:8710/api/flux/v2', 'http://localhost:8710/api/flux/v2'])
+def test_adresse_locale_admise(adresse):
+    assert serveur_v2.adresse_locale(adresse)
+
+
+@pytest.mark.parametrize('adresse', [
+    'http://127.0.0.1.exemple.invalid/api/flux/v2',      # hôte distant au nom trompeur
+    'http://localhost.exemple.invalid/',
+    'http://127.0.0.1@exemple.invalid/',                 # partie « utilisateur@ »
+    'http://localhost:8710@exemple.invalid/',
+    'https://exemple.invalid/', 'ftp://127.0.0.1/', 'fichier', ''])
+def test_adresse_distante_refusee(adresse):
+    assert not serveur_v2.adresse_locale(adresse)
+    with pytest.raises(ValueError):
+        serveur_v2._notifier_par_http(adresse)
+
+
+@pytest.mark.parametrize('corps', [{'email': ['a'], 'password': 'x'}, {'email': {'a': 1}, 'password': 'x'},
+                                   {'email': 'analyste@exemple.invalid', 'password': 'é' * 8}, [1, 2], 'texte'])
+def test_connexion_mal_formee_refusee_proprement(jeu, corps):
+    client = TestClient(serveur_v2.creer_application(jeu, secret=SECRET))
+    r = client.post('/api/auth/login', json=corps)
+    assert r.status_code == 401 and r.json() == {'error': 'unauthorized'}

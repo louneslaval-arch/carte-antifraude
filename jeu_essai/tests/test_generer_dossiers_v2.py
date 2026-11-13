@@ -456,3 +456,23 @@ def test_ligne_de_commande_ecrit_les_fichiers_et_n_affiche_que_des_comptages(tmp
                 'chronologie.json', 'verite_v2.json'):
         assert (tmp_path / nom).exists(), nom
     assert 'ZZ' not in r.stdout
+
+
+def test_identifiants_numeriques_et_plaques_marques_fictifs(jeu):
+    for d in jeu.dossiers:
+        for p in d['pieces']:
+            f = p['fields']
+            for cle in ('numero_pension', 'numero_cnss', 'numero_affiliation'):
+                if f.get(cle):
+                    assert str(f[cle]).startswith('999'), cle
+            if f.get('Immatriculation'):
+                assert 'FICTIF' in f['Immatriculation']
+
+
+def test_erreur_de_generation_sans_valeur_dans_la_console(monkeypatch, capsys, tmp_path):
+    def casse(*a, **k):
+        raise ValueError('ligne ZZ900001 illisible')
+    monkeypatch.setattr(gd, 'generer', casse)
+    assert gd.main(['--sortie', str(tmp_path)]) == 2
+    sortie = capsys.readouterr()
+    assert 'ZZ900001' not in sortie.out + sortie.err
