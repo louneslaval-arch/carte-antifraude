@@ -21,6 +21,8 @@ CREATE TABLE flux_curseur (
 );
 
 -- Un dossier à aller chercher. Une même version annoncée deux fois (scrutation, notification) ne fait qu'un travail.
+-- États (.claude/rules/flux.md) : en_attente → en_cours → fait ; erreur → nouvelle tentative à intervalle croissant ;
+-- bloque après 5 échecs, ou si la v2 ne connaît pas le dossier : visible dans l'administration, jamais effacé.
 CREATE TABLE flux_travail (
     id                  TEXT PRIMARY KEY,
     source              TEXT NOT NULL REFERENCES flux_source (nom),
@@ -29,7 +31,7 @@ CREATE TABLE flux_travail (
     actif               INTEGER NOT NULL DEFAULT 1 CHECK (actif IN (0, 1)),
     empreinte           TEXT,
     recu_le             TEXT NOT NULL,
-    etat                TEXT NOT NULL DEFAULT 'a_prendre' CHECK (etat IN ('a_prendre', 'en_attente', 'fait', 'abandonne')),
+    etat                TEXT NOT NULL DEFAULT 'en_attente' CHECK (etat IN ('en_attente', 'en_cours', 'fait', 'erreur', 'bloque')),
     essais              INTEGER NOT NULL DEFAULT 0,
     prochaine_tentative TEXT,
     duree_ms            INTEGER,

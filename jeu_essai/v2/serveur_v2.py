@@ -65,7 +65,7 @@ class Horloge:
         self.regler(self.maintenant + datetime.timedelta(**duree))
 
 
-def creer_application(jeu, secret, notifier=None, comptes=None, heure_d_envoi=None):
+def creer_application(jeu, secret, notifier=None, comptes=None, heure_d_envoi=None, tri='createdAt'):
     """`notifier(corps: bytes, entetes: dict)` reçoit chaque notification ; None : aucune notification.
     L'horodatage d'une notification est l'heure réelle d'envoi (`heure_d_envoi`), pas l'instant fictif du dossier :
     le destinataire la refuse à plus de 5 minutes."""
@@ -159,7 +159,7 @@ def creer_application(jeu, secret, notifier=None, comptes=None, heure_d_envoi=No
             dossiers = [d for d in dossiers if d['createdAt'][:10] >= q['from']]
         if q.get('to'):
             dossiers = [d for d in dossiers if d['createdAt'][:10] <= q['to']]
-        dossiers.sort(key=lambda d: (d['createdAt'], d['ref']), reverse=True)
+        dossiers.sort(key=lambda d: (d[tri], d['ref']), reverse=True)     # ordre réel de la v2 inconnu : réglable
 
         def compter(champ):
             comptes_ = {}
