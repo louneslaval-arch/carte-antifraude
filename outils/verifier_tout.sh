@@ -17,7 +17,7 @@ if [ ! -x .venv/bin/ruff ]; then echo "ruff absent : .venv/bin/python -m pip ins
 
 etape "mypy (normalisation, lecteurs de structure)"
 if [ ! -x .venv/bin/mypy ]; then echo "mypy absent : .venv/bin/python -m pip install -r requirements-dev.txt"; exit 1; fi
-.venv/bin/mypy --ignore-missing-imports pipeline/normalisation outils/v2
+.venv/bin/mypy --ignore-missing-imports --explicit-package-bases pipeline/normalisation outils/v2
 
 etape "tests"
 $PY -m pytest -q

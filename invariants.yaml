@@ -9,6 +9,12 @@
     {"nom": "c0_miroir_pas_la_derniere_version", "zero": "SELECT d.ref FROM \"Dossier\" d WHERE d.\"updatedAt\" <> (SELECT max(b.updated_at) FROM c0_dossier_brut b WHERE b.ref = d.ref)"},
     {"nom": "c0_piece_sans_dossier", "zero": "SELECT p.id FROM \"Piece\" p WHERE p.\"dossierId\" NOT IN (SELECT id FROM \"Dossier\")"},
     {"nom": "c0_controle_sans_analyse", "zero": "SELECT c.id FROM \"AnalysisControl\" c WHERE c.\"analysisId\" NOT IN (SELECT id FROM \"Analysis\")"},
+    {"nom": "c1_fait_sans_piece", "zero": "SELECT f.ref FROM c1_fait f LEFT JOIN c1_piece p ON p.ref = f.ref AND p.upstream_piece_id = f.upstream_piece_id WHERE p.ref IS NULL"},
+    {"nom": "c1_operation_lue_sans_date", "zero": "SELECT ref FROM c1_releve_operation WHERE nature = 'lue' AND date_operation IS NULL"},
+    {"nom": "c1_piece_absente_du_miroir", "zero": "SELECT c.ref FROM c1_piece c WHERE NOT EXISTS (SELECT 1 FROM \"Piece\" p JOIN \"Dossier\" d ON d.id = p.\"dossierId\" WHERE d.ref = c.ref AND p.\"upstreamPieceId\" = c.upstream_piece_id)"},
+    {"nom": "c1_piece_du_miroir_non_traitee", "zero": "SELECT d.ref FROM \"Piece\" p JOIN \"Dossier\" d ON d.id = p.\"dossierId\" WHERE NOT EXISTS (SELECT 1 FROM c1_piece c WHERE c.ref = d.ref AND c.upstream_piece_id = p.\"upstreamPieceId\")"},
+    {"nom": "c1_piece_d_une_autre_version", "zero": "SELECT c.ref FROM c1_piece c JOIN \"Dossier\" d ON d.ref = c.ref WHERE c.version <> d.\"updatedAt\""},
+    {"nom": "c1_mention_ou_identifiant_sans_piece", "zero": "SELECT m.ref FROM (SELECT ref, upstream_piece_id FROM c1_mention_personne UNION ALL SELECT ref, upstream_piece_id FROM c1_mention_societe UNION ALL SELECT ref, upstream_piece_id FROM c1_identifiant_brut UNION ALL SELECT ref, upstream_piece_id FROM c1_releve_operation) m LEFT JOIN c1_piece p ON p.ref = m.ref AND p.upstream_piece_id = m.upstream_piece_id WHERE p.ref IS NULL"},
     {"nom": "flux_travail_fait_sans_version", "zero": "SELECT t.id FROM flux_travail t WHERE t.etat = 'fait' AND t.empreinte IS NOT NULL AND NOT EXISTS (SELECT 1 FROM c0_dossier_brut b WHERE b.ref = t.ref AND b.empreinte = t.empreinte)"}
   ]
 }
