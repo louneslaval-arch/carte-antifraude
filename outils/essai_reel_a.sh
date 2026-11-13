@@ -26,6 +26,14 @@ for f in "$LISTE_NOIRE" "$ANNONCES" "$PERSONNES" "$EXPORT"; do
     [ -e "$f" ] || { echo "fichier d'entrée absent (voir les noms en tête du script)"; exit 8; }
 done
 
+# L'archive de l'export contient souvent son propre dossier : chercher 1_donnees_prod un niveau plus bas si besoin
+# (sans lot trouvé, charger_antifraude.py du kit s'arrête sur une AttributeError).
+if [ ! -d "$EXPORT/1_donnees_prod" ] && [ ! -d "$EXPORT/2_donnees_preprod" ]; then
+    INTERIEUR="$(ls -d "$EXPORT"/*/1_donnees_prod "$EXPORT"/*/2_donnees_preprod 2>/dev/null | head -1)"
+    [ -n "$INTERIEUR" ] || { echo "export : ni 1_donnees_prod ni 2_donnees_preprod trouvé"; exit 7; }
+    EXPORT="$(dirname "$INTERIEUR")"
+fi
+
 BASE="bl_rc_$DATE.sqlite"
 etape() {  # etape <numéro> <fichier de sortie> <commande…>
     n="$1"; sortie="$2"; shift 2

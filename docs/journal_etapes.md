@@ -274,3 +274,8 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **A.8** : commande de référence préparée (skill `essai-donnees-reelles`), à lancer par Lounès. Les scripts du kit
   ne lisent pas `CARTE_DONNEES_REELLES` : variable retirée de la commande ; à noter pour l'étape où ces scripts
   passent dans les couches (un script qui tourne sur du réel sans ce garde-fou est à corriger).
+- **Premier essai réel (13/11, Lounès)** : étapes 1 (nettoyage) et 2 (construction) faites ; étape 3 en échec
+  (`AttributeError`). Cause, reproduite sur la base fictive : l'archive de l'export contient son propre dossier,
+  `1_donnees_prod` était un niveau plus bas, aucun lot n'a été chargé, et `charger_antifraude.py` du kit plante quand
+  aucun lot n'est trouvé (défaut du kit, noté, non corrigé : le kit s'importe sans modification). `essai_reel_a.sh`
+  cherche désormais les sous-dossiers un niveau plus bas.
