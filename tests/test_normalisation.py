@@ -76,7 +76,7 @@ def test_date_ne_leve_jamais_et_est_stable(texte, annee):
 # ---- texte, CIN, RIB -----------------------------------------------------------------------------------------------
 
 @pytest.mark.parametrize('brut, attendu', [
-    ('  Société   Générale ', 'SOCIETE GENERALE'), ('élève', 'ELEVE'), ('', None), (None, None), ('   ', None),
+    ('  Hôtel   Zérafi ', 'HOTEL ZERAFI'), ('élève', 'ELEVE'), ('', None), (None, None), ('   ', None),
     (12, '12'),
 ])
 def test_texte_norm(brut, attendu):
@@ -167,3 +167,27 @@ def test_table_de_reference_couvre_la_correspondance_du_readme_de_kamal():
     for type_piece, cle, cible in lignes:
         if type_piece != '*':
             assert cles.canon(type_piece, cle) == cible
+
+
+# ---- défauts relevés par les relectures ----------------------------------------------------------------------------
+
+def test_montant_en_chiffres_d_une_autre_ecriture():
+    from pipeline.normalisation.valeurs import montant
+    assert montant('\u0661\u0662\u0663') == 123.0 and montant('1\u0662\u0663') == 123.0
+    assert montant('\u0661\u0662\u0663,\u0665\u0660') == 123.5
+
+
+def test_date_suivie_d_autres_chiffres_n_est_pas_une_date():
+    from pipeline.normalisation.valeurs import date_iso
+    assert date_iso('06.12.' + '345678') is None and date_iso('2026-01-155') is None
+    assert date_iso('06/12/2025 10:30') == '2025-12-06' and date_iso('2025-12-06T10:30:00.000Z') == '2025-12-06'
+
+
+@pytest.mark.parametrize('type_piece, attendu', [
+    ('CIN', 'normal'), ('CARTE_GRISE', 'normal'), ('BULLETIN_DE_PAIE', 'normal'), ('REGISTRE_COMMERCE', 'normal'),
+    ('ATTESTATION_RIB', 'champ_cin_hors_cin'), ('DOMICILIATION', 'champ_cin_hors_cin'),
+    ('CARTE_PROFESSIONNELLE', 'champ_cin_hors_cin'),
+])
+def test_cin_lu_hors_d_une_piece_qui_le_porte(type_piece, attendu):
+    from pipeline.normalisation import cles
+    assert cles.statut_cle(type_piece, 'cin', 'ZZ' + '123456') == attendu

@@ -1,12 +1,20 @@
 """Vocabulaire des clés de `fields` : clé brute → clé canonique, et statut d'une clé.
 
 La clé canonique d'un fait est la clé « moteur » de la v2 (README de Kamal, § 4, table amont → moteur), complétée
-des libellés français de la carte grise. Repris d'`extraire_json_v2.py` (11/11), sans changement de règle. La table
-`ref_cle_canonique` de la base est remplie depuis ce module (`lignes_de_reference`) et versionnée avec lui.
+des libellés français de la carte grise. Repris d'`extraire_json_v2.py` (11/11). La table `ref_cle_canonique` de la
+base est remplie depuis ce module (`lignes_de_reference`) et versionnée avec lui : les traductions ci-dessous, plus
+toutes les clés de l'inventaire de Kamal par type de pièce (`vocabulaire_v2.py`, généré). Une clé absente de cette
+référence est « inconnue » et sort au rapport.
+
+Écarts voulus avec le script d'origine (provisoires, `docs/questions_ouvertes.md`) : `cin` lu sur une attestation de
+RIB, une domiciliation ou une carte professionnelle est un champ de CIN hors CIN (piège T05 : il n'y apparaît qu'à
+la relecture) ; un nom gabarit est reconnu quel que soit l'ordre de ses mots.
 """
 import re
 
-VERSION = '2026-11-11'
+from pipeline.normalisation.vocabulaire_v2 import VOCABULAIRE
+
+VERSION = '2026-11-13'
 
 # clé amont → clé moteur
 CANON = {
@@ -32,6 +40,9 @@ CANON_PAR_TYPE = {
 CLES_INVENTEES = re.compile(r'^(remeration|revelation)\.')
 CHAMPS_CIN = {'filiation_complete', 'date_expiration', 'nom_pere', 'nom_mere'}
 TYPES_AVEC_CIN_LEGITIME = {'CIN', 'CARTE_GRISE'}
+# le numéro de CIN lui-même n'apparaît sur ces pièces qu'à la relecture, avec les autres champs de CIN (piège T05)
+CLES_DU_CIN = {'cin', 'numero_cin'}
+TYPES_SANS_CIN = {'ATTESTATION_RIB', 'DOMICILIATION', 'CARTE_PROFESSIONNELLE'}
 # valeurs d'exemple rendues par le modèle de lecture ; les formes de CIN de démonstration sont assemblées ici pour
 # que ce fichier passe la garde des données
 GABARITS = {'JOHN DOE', 'JANE DOE', 'A' + '123456', 'AB' + '123456', 'X' * 6, 'N/A', 'NULL', 'NONE'}
@@ -53,6 +64,8 @@ def statut_cle(type_piece, cle, valeur):
     racine = cle.split('.')[-1]
     if type_piece not in TYPES_AVEC_CIN_LEGITIME and (racine in CHAMPS_CIN or racine.startswith('mrz_')):
         return 'champ_cin_hors_cin'
+    if type_piece in TYPES_SANS_CIN and racine in CLES_DU_CIN:
+        return 'champ_cin_hors_cin'
     if isinstance(valeur, str) and valeur.strip().upper() in GABARITS:
         return 'gabarit'
     return 'normal'
@@ -60,10 +73,31 @@ def statut_cle(type_piece, cle, valeur):
 
 def lignes_de_reference():
     """Lignes de `ref_cle_canonique` : (type de pièce ou « * », clé brute, clé moteur)."""
-    lignes = []
+    lignes = {}
     for cle, cible in CANON.items():
-        if cle in CANON_PAR_TYPE:
-            lignes += [(type_piece, cle, cible) for type_piece in sorted(CANON_PAR_TYPE[cle])]
-        else:
-            lignes.append(('*', cle, cible))
-    return lignes
+        for type_piece in sorted(CANON_PAR_TYPE.get(cle, ('*',))):
+            lignes[(type_piece, cle)] = cible
+    for type_piece, cles in VOCABULAIRE.items():
+        for cle in cles:
+            lignes[(type_piece, cle)] = canon(type_piece, cle)
+    return [(type_piece, cle, cible) for (type_piece, cle), cible in sorted(lignes.items())]
+
+
+_REFERENCE = {(t, c) for t, c, _ in lignes_de_reference()}
+_CIBLES = {m for _, _, m in lignes_de_reference()}
+
+
+def connue(type_piece, cle_brute):
+    """Vrai si la clé est dans la référence : elle-même ou l'objet qui la contient, pour ce type de pièce ou pour
+    tous, ou une clé déjà écrite dans le vocabulaire moteur."""
+    racine = cle_brute.split('[')[0]
+    return any((t, c) in _REFERENCE for t in (type_piece, '*') for c in (racine, racine.split('.')[0])) \
+        or racine in _CIBLES
+
+
+_NOMS_GABARITS = {tuple(sorted(g.split())) for g in GABARITS if ' ' in g}
+
+
+def nom_gabarit(nom_norm):
+    """Vrai si le nom normalisé est un nom d'exemple (« JOHN DOE »), dans un ordre ou dans l'autre."""
+    return isinstance(nom_norm, str) and tuple(sorted(nom_norm.split())) in _NOMS_GABARITS

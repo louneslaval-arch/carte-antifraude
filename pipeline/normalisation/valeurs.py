@@ -29,6 +29,7 @@ def montant(v):
         return x if math.isfinite(x) else None
     if not isinstance(v, str) or not _FORME_MONTANT.fullmatch(v):
         return None
+    v = ''.join(str(unicodedata.decimal(c)) if c.isdecimal() else c for c in v)      # chiffres d'une autre écriture
     s = re.sub(r'[^\d,.\-]', '', v, flags=re.ASCII)
     if not s:
         return None
@@ -56,10 +57,10 @@ def date_iso(v, annee=None):
     if not isinstance(v, str):
         return None
     s = v.strip()
-    m = re.match(r'^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})', s, re.ASCII)
+    m = re.match(r'^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})(?!\d)', s, re.ASCII)
     if m:
         return _date(m.group(3), m.group(2), m.group(1))
-    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})', s, re.ASCII)
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})(?!\d)', s, re.ASCII)
     if m:
         return _date(m.group(1), m.group(2), m.group(3))
     m = re.match(r'^(\d{1,2})[/.-](\d{1,2})$', s, re.ASCII)

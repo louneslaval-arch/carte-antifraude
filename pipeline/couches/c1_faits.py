@@ -23,14 +23,12 @@ EMPLOI = ('ATTESTATION_TRAVAIL_SALAIRE', 'BULLETIN_DE_PAIE', 'ATTESTATION_CNSS')
 LISTES_DE_PERSONNES = (('gerant', 'gerants'), ('dirigeant', 'dirigeants'), ('associe', 'associes'),
                        ('associe_present', 'associes_presents'), ('nouveau_gerant', 'nouveau_gerant'))
 
-_REFERENCE = {(t, c) for t, c, _ in cles.lignes_de_reference()}
-_CIBLES = {m for _, _, m in cles.lignes_de_reference()}
+LISTES_RANGEES = {'mois', 'cartes'} | {cle for _, cle in LISTES_DE_PERSONNES}
 
 
 def cle_connue(type_piece, cle_brute):
-    """Vrai si la clé est dans `ref_cle_canonique` (traduite, ou déjà écrite dans le vocabulaire moteur)."""
-    racine = cle_brute.split('[')[0]
-    return (type_piece, racine) in _REFERENCE or ('*', racine) in _REFERENCE or racine in _CIBLES
+    """Vrai si la clé est dans `ref_cle_canonique` ; sinon elle sort au rapport des clés inconnues."""
+    return cles.connue(type_piece, cle_brute)
 
 
 # ---- lecture défensive ---------------------------------------------------------------------------------------------
@@ -60,16 +58,53 @@ def _g(d, *chemins):
 
 def _entier(x):
     try:
-        return int(x) if not isinstance(x, bool) else None
+        n = int(x) if not isinstance(x, bool) else None
     except (TypeError, ValueError, OverflowError):
         return None
+    return n if n is not None and abs(n) < 10 ** 9 else None      # au-delà : ni une année ni un mois, ni un entier SQL
 
 
-def _json(texte):
+def _json(valeur):
+    """Contenu d'une colonne JSON : texte à décoder (SQLite) ou objet déjà décodé (jsonb de PostgreSQL)."""
+    if isinstance(valeur, (dict, list)):
+        return valeur
     try:
-        return json.loads(texte) if isinstance(texte, str) else None
+        return json.loads(valeur) if isinstance(valeur, str) else None
     except ValueError:
         return None
+
+
+def _ident(x):
+    """Identifiant en texte, sans espace autour ; un nombre JSON est gardé (comme le n° CNSS)."""
+    if isinstance(x, bool) or not isinstance(x, (str, int)):
+        return None
+    return str(x).strip() or None
+
+
+def _date_du_mois(v, annee, mois):
+    """Date d'une ligne de relevé : l'année est celle du mois du relevé ; une date de janvier dans le bloc de
+    décembre est de l'année suivante, une date de décembre dans le bloc de janvier de l'année précédente."""
+    d = date_iso(v, annee)
+    if d and annee is not None and mois in (1, 12):
+        lu = int(d[5:7])
+        if mois == 12 and lu == 1:
+            return date_iso(v, annee + 1)
+        if mois == 1 and lu == 12:
+            return date_iso(v, annee - 1)
+    return d
+
+
+def _listes_ignorees(obj):
+    """Nombre de listes d'objets que ni `aplatir` ni les mentions ne rangent : comptées, jamais perdues en silence."""
+    if not isinstance(obj, dict):
+        return 0
+    n = 0
+    for k, v in obj.items():
+        if isinstance(v, dict):
+            n += _listes_ignorees(v)
+        elif isinstance(v, list) and v and k not in LISTES_RANGEES and (k in cles.LISTES or isinstance(v[0], dict)):
+            n += 1
+    return n
 
 
 # ---- extraction d'une pièce ----------------------------------------------------------------------------------------
@@ -95,25 +130,26 @@ class _Lignes:
         x = _objet(x)
         complet = _texte(_g(x, 'nom_complet')) or ' '.join(
             s for s in (_texte(_g(x, 'nom', 'nom_gerant')), _texte(_g(x, 'prenom', 'prenom_gerant'))) if s) or None
-        cin = cin_norm(_g(x, 'cin', 'numero_cin', 'numero_cin_gerant'))
-        self.ajouter('c1_mention_personne', upi, type_piece, role, rang, complet, texte_norm(complet), cin,
+        cin = None if type_piece in cles.TYPES_SANS_CIN else cin_norm(_g(x, 'cin', 'numero_cin', 'numero_cin_gerant'))
+        nom_norm = texte_norm(complet)
+        self.ajouter('c1_mention_personne', upi, type_piece, role, rang, complet, nom_norm, cin,
                      date_iso(_g(x, 'date_naissance', 'date_naissance_gerant')), _texte(_g(x, 'qualite')),
                      montant(_g(x, 'parts_sociales', 'nombre_actions')),
                      _texte(_g(x, 'nationalite', 'nationalité_gerant')), _texte(_g(x, 'adresse', 'adresse_gerant')),
-                     cle=(role, rang))
+                     'gabarit' if cles.nom_gabarit(nom_norm) else 'normal', cle=(role, rang))
         self.identifiant(upi, 'CIN', cin, complet)
 
     def societe(self, upi, type_piece, role, nom_, rc=None, tribunal=None, ice=None, affiliation=None, adresse=None):
-        nom_, rc, ice = _texte(nom_), _texte(str(rc)) if rc not in (None, '') else None, _texte(ice)
+        nom_, rc, ice, affiliation = _texte(nom_), _ident(rc), _ident(ice), _ident(affiliation)
         if not nom_ and not rc and not ice:
             return
         tribunal = texte_norm(tribunal) if _texte(tribunal) else None
         ice = re.sub(r'[^0-9]', '', ice) or None if ice else None
         self.ajouter('c1_mention_societe', upi, type_piece, role, nom_, texte_norm(nom_), rc, tribunal, ice,
-                     _texte(affiliation), _texte(adresse), cle=role)
+                     affiliation, _texte(adresse), cle=role)
         self.identifiant(upi, 'RC', f'{rc}|{tribunal}' if rc and tribunal else None, nom_)
         self.identifiant(upi, 'ICE', ice, nom_)
-        self.identifiant(upi, 'AFFILIATION_CNSS', _texte(affiliation), nom_)
+        self.identifiant(upi, 'AFFILIATION_CNSS', affiliation, nom_)
 
 
 def _faits(lignes, upi, type_piece, source, champs, cles_relues):
@@ -156,20 +192,26 @@ def _releve(lignes, upi, champs):
         for rang, o in enumerate(operations):
             libelle = _texte(o.get('libelle'))
             lignes.ajouter('c1_releve_operation', upi, rang_mois, rang, annee, mois,
-                           date_iso(o.get('date_operation'), annee), date_iso(o.get('date_valeur'), annee), libelle,
+                           _date_du_mois(o.get('date_operation'), annee, mois),
+                           _date_du_mois(o.get('date_valeur'), annee, mois), libelle,
                            texte_norm(libelle), montant(o.get('debit')), montant(o.get('credit')),
-                           'lue' if _texte(o.get('date_operation')) else 'reconstituee_amont')
+                           'lue' if _texte(o.get('date_operation')) else 'reconstituee_amont',
+                           _texte(o.get('date_operation')))
 
 
 def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues):
     champs = _objet(champs)
     nb = _faits(lignes, upi, type_piece, source, champs, cles_relues)
-    lignes.ajouter('c1_piece', upi, type_piece, source, statut, version, nb, len(cles_relues))
+    lignes.ajouter('c1_piece', upi, type_piece, source, statut, version, nb, len(cles_relues),
+                   _listes_ignorees(champs))
     titulaire = _g(champs, 'titulaire_compte', 'nom_prenom')
+    if type_piece in ('RELEVE_BANCAIRE', 'ATTESTATION_RIB'):          # `raison_sociale` y est un titulaire (T09)
+        titulaire = titulaire or _g(champs, 'raison_sociale')
 
     if type_piece == 'RELEVE_BANCAIRE':
         lignes.identifiant(upi, 'RIB', rib_norm(_g(champs, 'rib', 'numero_compte')), titulaire)
         _releve(lignes, upi, champs)
+    if type_piece in ('RELEVE_BANCAIRE', 'ATTESTATION_RIB'):
         lignes.societe(upi, type_piece, 'banque', _g(champs, 'banque'))
     if type_piece == 'CIN':
         for rang, carte in enumerate(_objets(champs.get('cartes')) or [champs]):
@@ -190,7 +232,7 @@ def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues
         lignes.identifiant(upi, 'RIB', rib_norm(_g(champs, 'rib')), _g(champs, 'nom'))
     if type_piece == 'ATTESTATION_PENSION':
         lignes.personne(upi, type_piece, 'pensionne', {**champs, **_objet(champs.get('pensionne'))})
-        lignes.identifiant(upi, 'PENSION', _texte(_g(champs, 'numero_pension')), _g(champs, 'nom'))
+        lignes.identifiant(upi, 'PENSION', _ident(_g(champs, 'numero_pension')), _g(champs, 'nom'))
     if type_piece == 'ATTESTATION_RIB':
         lignes.identifiant(upi, 'RIB', rib_norm(_g(champs, 'rib')), titulaire)
     if type_piece == 'CARTE_GRISE':
@@ -207,7 +249,7 @@ def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues
         lignes.societe(upi, type_piece, 'concessionnaire',
                        _g(champs, 'nom_concessionnaire', 'vendeur.nom', 'vendeur.raison_sociale'))
     if type_piece == 'CARTE_PROFESSIONNELLE':
-        lignes.identifiant(upi, 'INPE', _texte(_g(champs, 'numero_inpe')), _g(champs, 'nom'))
+        lignes.identifiant(upi, 'INPE', _ident(_g(champs, 'numero_inpe')), _g(champs, 'nom'))
     if type_piece == 'DOMICILIATION' and _g(champs, 'titulaire', 'nom'):
         lignes.personne(upi, type_piece, 'titulaire_quittance',
                         {**champs, 'nom_complet': _texte(_g(champs, 'titulaire'))})
@@ -227,6 +269,7 @@ def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues
 # ---- écriture ------------------------------------------------------------------------------------------------------
 
 def _traiter(cx, ref):
+    semer_reference(cx)
     for table in TABLES:
         cx.execute(f'DELETE FROM {table} WHERE ref = ?', (ref,))
     dossier = cx.execute('SELECT id, "updatedAt" FROM "Dossier" WHERE ref = ?', (ref,)).fetchone()
@@ -250,6 +293,10 @@ def _traiter(cx, ref):
 
 def semer_reference(cx):
     """Remplit `ref_cle_canonique` depuis `pipeline/normalisation/cles.py` (table saisie, versionnée)."""
+    attendu = len(cles.lignes_de_reference())
+    if cx.execute('SELECT count(*), min(version), max(version) FROM ref_cle_canonique').fetchone() == \
+            (attendu, cles.VERSION, cles.VERSION):
+        return
     cx.execute('DELETE FROM ref_cle_canonique')
     cx.executemany('INSERT INTO ref_cle_canonique (type_piece, cle_brute, cle_moteur, version) VALUES (?, ?, ?, ?)',
                    [ligne + (cles.VERSION,) for ligne in cles.lignes_de_reference()])
@@ -261,7 +308,6 @@ def traiter(cx, ref):
 
 
 def construire_tout(cx):
-    semer_reference(cx)
     for table in TABLES:
         cx.execute(f'DELETE FROM {table}')
     for (ref,) in cx.execute('SELECT ref FROM "Dossier" ORDER BY ref').fetchall():

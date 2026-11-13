@@ -57,6 +57,27 @@ def ref_de(jeu, code, n=0, **notes):
             and all(v['notes'].get(k) == x for k, x in notes.items())][n]
 
 
+def base_de(tmp_path, *dossiers, construire=True):
+    """Base neuve où ces dossiers sont reçus (c0), puis c1 construite en lot."""
+    cx = sqlite3.connect(str(tmp_path / f'base_{len(os.listdir(tmp_path))}.sqlite'))
+    migrer.appliquer(cx)
+    passage = c0.ouvrir_passage(cx, 'essai', 'lot', T0)
+    for d in dossiers:
+        c0.recevoir(cx, passage, d, maintenant=T0)
+    if construire:
+        c1.construire_tout(cx)
+    return cx
+
+
+def avec_piece(jeu, type_piece, champs, relectures=None):
+    """Copie du premier dossier fictif dont la première pièce est remplacée."""
+    d = json.loads(json.dumps(jeu.dossiers[0]))
+    d['pieces'][0]['type'], d['pieces'][0]['fields'] = type_piece, champs
+    if relectures is not None:
+        d['reanalyses'] = relectures
+    return d, d['pieces'][0]['upstreamPieceId']
+
+
 def lignes(cx, sql, *p):
     return cx.execute(sql, p).fetchall()
 
@@ -85,22 +106,38 @@ def test_reference_des_cles_semee_et_versionnee(cx):
 
 
 def test_toute_cle_est_connue_ou_figure_au_rapport_des_cles_inconnues(cx):
-    connues = {(t, c) for t, c, _ in cles.lignes_de_reference()}
-    cibles = {m for _, _, m in cles.lignes_de_reference()}
     for type_piece, cle_brute, connue in lignes(cx, 'SELECT DISTINCT type, cle_brute, cle_connue FROM c1_fait'):
-        racine = cle_brute.split('[')[0]
-        attendu = (type_piece, racine) in connues or ('*', racine) in connues or racine in cibles
-        assert bool(connue) == attendu, (type_piece, cle_brute)
-    inconnues = cx.execute('SELECT sum(nombre) FROM c1_cle_inconnue').fetchone()[0]
-    assert inconnues == cx.execute('SELECT count(*) FROM c1_fait WHERE cle_connue = 0').fetchone()[0] > 0
+        assert bool(connue) == c1.cle_connue(type_piece, cle_brute), (type_piece, cle_brute)
+    inconnues = cx.execute('SELECT coalesce(sum(nombre), 0) FROM c1_cle_inconnue').fetchone()[0]
+    assert inconnues == cx.execute('SELECT count(*) FROM c1_fait WHERE cle_connue = 0').fetchone()[0]
 
 
-def test_inventaire_de_kamal_chaque_cle_a_une_cle_canonique_ou_est_signalee(cx):
+def inventaire():
     import csv
     with open(os.path.join(STRUCTURE, 'reference', 'champs_par_type_prod.csv'), encoding='utf-8') as f:
-        for r in csv.DictReader(f):
-            cle = cles.canon(r['type'], r['key'])
-            assert cle and (cle != r['key'] or c1.cle_connue(r['type'], r['key']) in (True, False))
+        return {(r['type'], r['key']) for r in csv.DictReader(f)}
+
+
+def test_inventaire_de_kamal_chaque_cle_a_une_cle_canonique_dans_la_reference(cx):
+    reference = {(t, c): m for t, c, m in lignes(cx, 'SELECT type_piece, cle_brute, cle_moteur FROM ref_cle_canonique')}
+    for type_piece, cle in inventaire():
+        assert c1.cle_connue(type_piece, cle), (type_piece, cle)
+        assert reference[(type_piece, cle)] == cles.canon(type_piece, cle)
+
+
+def test_cle_hors_de_l_inventaire_inconnue_et_au_rapport(cx, jeu, tmp_path):
+    assert not c1.cle_connue('CIN', 'cle_jamais_vue') and not c1.cle_connue('CIN', 'cle_jamais_vue.sous_cle[01/2026]')
+    assert c1.cle_connue('ATTESTATION_CNSS', 'assure.nom_complet')       # sous-clé d'un objet de l'inventaire
+    connu = inventaire()
+    for type_piece, cle_brute, _ in lignes(cx, 'SELECT * FROM c1_cle_inconnue'):
+        assert (type_piece, cle_brute.split('[')[0].split('.')[0]) not in connu
+    total, inconnus = lignes(cx, 'SELECT count(*), sum(1 - cle_connue) FROM c1_fait')[0]
+    assert inconnus < total / 20                                         # le rapport reste lisible
+    d = json.loads(json.dumps(jeu.dossiers[0]))
+    d['pieces'][0]['fields']['cle_jamais_vue'] = 'x'
+    autre = base_de(tmp_path, d)
+    assert lignes(autre, "SELECT cle_brute, nombre FROM c1_cle_inconnue WHERE cle_brute = 'cle_jamais_vue'") == \
+        [('cle_jamais_vue', 1)]
 
 
 # ---- pièges --------------------------------------------------------------------------------------------------------
@@ -162,8 +199,16 @@ def test_T05_cles_inventees_et_champs_de_cin_hors_cin_ecartes(cx, jeu):
     assert faits(cx, ref, 'ATTESTATION_TRAVAIL_SALAIRE', 'revelation.salaire_brut')[0][6] == 'cle_inventee'
     for type_piece in ('ATTESTATION_RIB', 'DOMICILIATION', 'CARTE_PROFESSIONNELLE'):
         assert faits(cx, ref, type_piece, 'filiation_complete')[0][6] == 'champ_cin_hors_cin'
-    retenus = lignes(cx, 'SELECT cle_brute FROM c1_fait_retenu WHERE ref = ?', ref)
-    assert retenus and not any(c.startswith(('remeration.', 'revelation.')) or c == 'filiation_complete' for (c,) in retenus)
+        assert faits(cx, ref, type_piece, 'cin')[0][6] == 'champ_cin_hors_cin'
+        assert lignes(cx, "SELECT count(*) FROM c1_identifiant_brut i JOIN c1_piece p ON p.ref = i.ref AND "
+                          "p.upstream_piece_id = i.upstream_piece_id WHERE i.ref = ? AND p.type = ? AND i.type = 'CIN'",
+                      ref, type_piece) == [(0,)]
+        assert lignes(cx, 'SELECT count(*) FROM c1_mention_personne WHERE ref = ? AND type_piece = ? AND cin IS NOT NULL',
+                      ref, type_piece) == [(0,)]
+    assert faits(cx, ref, 'CIN', 'cin')[0][6] == 'normal'
+    retenus = lignes(cx, 'SELECT type, cle_brute FROM c1_fait_retenu WHERE ref = ?', ref)
+    assert retenus and not any(c.startswith(('remeration.', 'revelation.')) or c == 'filiation_complete'
+                               or (c == 'cin' and t != 'CIN') for t, c in retenus)
 
 
 def test_T06_montants_en_texte_et_en_nombre_deviennent_des_nombres(cx, jeu):
@@ -235,6 +280,10 @@ def test_T12_valeurs_gabarits_hors_des_identites(cx, jeu):
     assert lignes(cx, "SELECT cin FROM c1_mention_personne WHERE ref = ? AND role = 'titulaire_cin'", ref) == [(None,)]
     assert lignes(cx, "SELECT count(*) FROM c1_identifiant_brut WHERE ref = ? AND type = 'CIN'", ref) == [(0,)]
     assert not lignes(cx, "SELECT 1 FROM c1_fait_retenu WHERE ref = ? AND type = 'CIN' AND cle = 'cin'", ref)
+    n, gabarits = lignes(cx, "SELECT count(*), sum(CASE statut WHEN 'gabarit' THEN 1 ELSE 0 END) FROM "
+                             "c1_mention_personne WHERE nom_norm IN ('DOE JOHN', 'JOHN DOE')")[0]
+    assert n > 0 and n == gabarits                              # le nom gabarit, dans un ordre ou dans l'autre
+    assert lignes(cx, "SELECT count(*) FROM c1_mention_personne WHERE statut = 'gabarit'") == [(n,)]
 
 
 def test_T13_piece_en_echec_d_extraction_gardee_avec_son_statut(cx, jeu):
@@ -301,8 +350,25 @@ def test_traiter_chaque_dossier_dans_un_ordre_au_hasard_egale_le_lot(base, jeu):
         c1.traiter(cx, ref)
     assert contenu(cx) == en_lot
     c1.traiter(cx, refs[0])                                 # retraiter ne change rien
+    assert contenu(cx) == en_lot
     c1.construire_tout(cx)
     assert contenu(cx) == en_lot
+
+
+def test_flux_version_par_version_egale_le_lot(jeu, tmp_path):
+    flux = base_de(tmp_path, construire=False)
+    passage = c0.ouvrir_passage(flux, 'essai', 'scrutation', T0)
+    for e in jeu.chronologie:
+        c0.recevoir(flux, passage, e['dossier'], actif=jeu.meta[e['ref']]['actif'], maintenant=T0)
+        c1.traiter(flux, e['ref'])
+    lot = base_de(tmp_path, construire=False)
+    passage = c0.ouvrir_passage(lot, 'essai', 'lot', T0)
+    for e in jeu.chronologie:
+        c0.recevoir(lot, passage, e['dossier'], actif=jeu.meta[e['ref']]['actif'], maintenant=T0)
+    c1.construire_tout(lot)
+    assert contenu(flux) == contenu(lot)
+    assert lignes(flux, 'SELECT * FROM ref_cle_canonique ORDER BY 1, 2') == \
+        lignes(lot, 'SELECT * FROM ref_cle_canonique ORDER BY 1, 2') != []
 
 
 def test_dossier_sorti_du_miroir_n_a_plus_de_faits(jeu, tmp_path):
@@ -337,19 +403,137 @@ def test_pieces_au_contenu_inattendu_ne_plantent_pas(jeu, tmp_path):
     assert cx.execute('SELECT count(*) FROM c1_piece').fetchone()[0] == len(d['pieces'])
 
 
+def test_entier_demesure_dans_un_releve_ne_fait_pas_tomber_le_lot(jeu, tmp_path):
+    cx = sqlite3.connect(str(tmp_path / 'b.sqlite'))
+    migrer.appliquer(cx)
+    passage = c0.ouvrir_passage(cx, 'essai', 'lot', T0)
+    d = json.loads(json.dumps(jeu.dossiers[0]))
+    d['pieces'][0]['type'] = 'RELEVE_BANCAIRE'
+    d['pieces'][0]['fields'] = {'mois': [{'mois': 10 ** 30, 'annee': 2 ** 70, 'operations': [{'libelle': 'x'}]}]}
+    c0.recevoir(cx, passage, d, maintenant=T0)
+    c0.recevoir(cx, passage, jeu.dossiers[1], maintenant=T0)
+    c1.construire_tout(cx)
+    assert cx.execute('SELECT count(DISTINCT ref) FROM c1_piece').fetchone()[0] == 2
+    assert cx.execute('SELECT annee, mois FROM c1_releve_mois WHERE ref = ? AND upstream_piece_id = ?',
+                      (d['ref'], d['pieces'][0]['upstreamPieceId'])).fetchall() == [(None, None)]
+
+
+def test_relectures_mal_formees_et_champs_deja_decodes_ne_plantent_pas(jeu, tmp_path):
+    d = json.loads(json.dumps(next(d for d in jeu.dossiers if len(d['reanalyses']) >= 1 and d['pieces'])))
+    modele = d['reanalyses'][0]
+    d['reanalyses'] = [dict(modele, result=resultat, status='DONE', pieceId=d['pieces'][0]['upstreamPieceId'])
+                       for resultat in ('texte', {'apres': ['liste']}, {'apres': 'texte'}, ['liste'], None)]
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, 'SELECT count(*) FROM c1_piece')[0][0] == len(d['pieces'])
+    assert lignes(cx, 'SELECT sum(nb_champs_relus) FROM c1_piece') == [(0,)]
+    assert c1._json({'a': 1}) == {'a': 1} and c1._json([1]) == [1] and c1._json('{') is None
+
+
+def test_operation_lue_a_date_illisible_reste_lue_avec_son_texte(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'RELEVE_BANCAIRE', {'mois': [
+        {'annee': 2025, 'mois': 2, 'operations': [{'date_operation': '31/02', 'libelle': 'a'},
+                                                  {'date_operation': '05/02/25', 'libelle': 'b'}]},
+        {'mois': 3, 'operations': [{'date_operation': '05/03', 'libelle': 'c'}]}]})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, 'SELECT nature, date_operation, date_operation_brute FROM c1_releve_operation WHERE '
+                      'upstream_piece_id = ? ORDER BY rang_mois, rang', upi) == \
+        [('lue', None, '31/02'), ('lue', None, '05/02/25'), ('lue', None, '05/03')]
+    assert lignes(cx, 'SELECT sum(nb_operations_lues) FROM c1_releve_mois WHERE upstream_piece_id = ?', upi) == [(3,)]
+    cx.commit()
+    chemin = cx.execute('PRAGMA database_list').fetchone()[2]
+    assert verifier.verifier(chemin) == 0
+
+
+def test_date_a_cheval_sur_la_fin_d_annee_prend_l_annee_voisine(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'RELEVE_BANCAIRE', {'mois': [
+        {'annee': 2025, 'mois': 12, 'operations': [{'date_operation': '31/12', 'date_valeur': '02/01'}]},
+        {'annee': 2026, 'mois': 1, 'operations': [{'date_operation': '31/12', 'date_valeur': '02/01'},
+                                                  {'date_operation': '15/01/2026', 'date_valeur': '16/01'}]}]})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, 'SELECT date_operation, date_valeur FROM c1_releve_operation WHERE upstream_piece_id = ? '
+                      'ORDER BY rang_mois, rang', upi) == \
+        [('2025-12-31', '2026-01-02'), ('2025-12-31', '2026-01-02'), ('2026-01-15', '2026-01-16')]
+
+
+@pytest.mark.parametrize('cle', ['titulaire_compte', 'nom_prenom', 'raison_sociale'])
+@pytest.mark.parametrize('type_piece', ['RELEVE_BANCAIRE', 'ATTESTATION_RIB'])
+def test_titulaire_du_compte_lu_sous_chacune_de_ses_cles(jeu, tmp_path, type_piece, cle):
+    d, upi = avec_piece(jeu, type_piece, {cle: 'Zelmou Bakrita', 'rib': '999' + '0' * 21, 'banque': 'Banque Tazoula'})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, "SELECT nom_complet FROM c1_mention_personne WHERE upstream_piece_id = ? AND role = "
+                      "'titulaire_compte'", upi) == [('Zelmou Bakrita',)]
+    assert lignes(cx, "SELECT porteur FROM c1_identifiant_brut WHERE upstream_piece_id = ? AND type = 'RIB'", upi) == \
+        [('Zelmou Bakrita',)]
+    assert lignes(cx, "SELECT nom FROM c1_mention_societe WHERE upstream_piece_id = ? AND role = 'banque'", upi) == \
+        [('Banque Tazoula',)]
+
+
+def test_identifiants_recus_en_nombre_gardes(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'BULLETIN_DE_PAIE', {'nom': 'Zelmou', 'numero_affiliation': 9991234,
+                                                  'employeur': {'raison_sociale': 'Tazoula Sarl', 'ice': 999000000000001}})
+    cx = base_de(tmp_path, d)
+    assert dict(lignes(cx, 'SELECT type, valeur FROM c1_identifiant_brut WHERE upstream_piece_id = ?', upi)) == \
+        {'AFFILIATION_CNSS': '9991234', 'ICE': '999000000000001'}
+
+
+def test_liste_d_objets_hors_des_listes_connues_comptee_jamais_perdue_en_silence(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'REGISTRE_COMMERCE', {'denomination_sociale': 'Tazoula Sarl', 'saisies': [{'a': 1}],
+                                                   'signataires': [{'nom': 'x'}], 'gerants': [{'nom': 'y'}], 'vide': []})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, 'SELECT nb_listes_ignorees FROM c1_piece WHERE upstream_piece_id = ?', upi) == [(2,)]
+    assert lignes(cx, 'SELECT sum(nb_listes_ignorees) FROM c1_piece WHERE upstream_piece_id <> ?', upi) == [(0,)]
+
+
+def test_reference_des_cles_presente_apres_un_traitement_au_fil_de_l_eau(jeu, tmp_path):
+    cx = base_de(tmp_path, jeu.dossiers[0], construire=False)
+    c1.traiter(cx, jeu.dossiers[0]['ref'])
+    assert lignes(cx, 'SELECT count(*) FROM ref_cle_canonique')[0][0] == len(cles.lignes_de_reference())
+
+
+def test_valeur_retenue_departagee_de_facon_stable(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'FACTURE_PROFORMA_VEHICULE', {'vehicule.marque': 'DACIA', 'vehicule': {'marque': 'Dacia'}})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, "SELECT valeur FROM c1_fait_retenu WHERE upstream_piece_id = ? AND cle = 'marque_vehicule'",
+                  upi) == [('DACIA',)]
+
+
 # ---- invariants ----------------------------------------------------------------------------------------------------
 
 def test_invariants_de_c1_verts_puis_rouges_si_on_les_viole(base, capsys):
     cx, chemin = base
     cx.commit()
     assert verifier.verifier(chemin) == 0
-    cx.execute("INSERT INTO c1_fait VALUES ('ZZ26R9999', 'eqdom_CIN', 'CIN', 'cin', 'cin', 'x', NULL, NULL, NULL, "
+    cx.execute("INSERT INTO c1_fait VALUES ('ZZ26R9999', 'eqdom_CIN', 'CIN', 'nom', 'nom', 'x', NULL, NULL, NULL, "
                "'amont', 'normal', 1)")
     cx.commit()
     assert verifier.verifier(chemin) == 1
     assert 'c1_fait_sans_piece : 1' in capsys.readouterr().out
     cx.execute("DELETE FROM c1_fait WHERE ref = 'ZZ26R9999'")
     cx.commit()
+
+
+@pytest.mark.parametrize('nom, viol', [
+    ('c1_operation_lue_sans_date', "UPDATE c1_releve_operation SET date_operation_brute = NULL, date_operation = NULL "
+                                   "WHERE nature = 'lue'"),
+    ('c1_releve_mois_montant_non_numerique', "UPDATE c1_releve_mois SET solde_cloture = 'douze'"),
+    ('c1_cle_connue_hors_reference', "UPDATE c1_fait SET cle_brute = 'cle_jamais_vue' WHERE cle_brute = 'nom'"),
+    ('c1_piece_absente_du_miroir', 'DELETE FROM "Piece"'),
+    ('c1_piece_du_miroir_non_traitee', ' ; '.join(f'DELETE FROM {t} WHERE ref = (SELECT min(ref) FROM c1_piece)'
+                                                  for t in reversed(TABLES))),
+    ('c1_piece_d_une_autre_version', "UPDATE c1_piece SET version = '2020-01-01T00:00:00.000Z'"),
+    ('c1_mention_ou_identifiant_sans_piece', "UPDATE c1_releve_mois SET upstream_piece_id = 'absente'"),
+])
+def test_chaque_invariant_de_c1_devient_rouge_quand_on_le_viole(jeu, tmp_path, capsys, nom, viol):
+    releve_lu = next(d for d in jeu.dossiers if d['ref'] == ref_de(jeu, 'T01'))
+    cx = base_de(tmp_path, releve_lu, *[d for d in jeu.dossiers[:12] if d is not releve_lu])
+    cx.commit()
+    chemin = cx.execute('PRAGMA database_list').fetchone()[2]
+    assert verifier.verifier(chemin) == 0
+    cx.executescript(viol)
+    cx.commit()
+    assert verifier.verifier(chemin) == 1
+    sortie = capsys.readouterr().out
+    assert f'ÉCART  {nom} : ' in sortie and 'ZZ' not in sortie
 
 
 def test_la_couche_suit_c0_dans_l_ordre_des_couches():

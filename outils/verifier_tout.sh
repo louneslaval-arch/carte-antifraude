@@ -52,10 +52,12 @@ if [ -f reference/v2/schema/schema.prisma ]; then
     $PY outils/v2/carte_correspondance.py --verifier --structure reference/v2
     $PY outils/v2/generer_modeles.py --verifier --types reference/v2/types
     $PY outils/v2/generer_miroir.py --verifier --schema reference/v2/schema/schema.prisma
+    $PY outils/v2/vocabulaire_cles.py --verifier --structure reference/v2
 elif [ -f import/kamal_structure/schema/schema.prisma ]; then
     $PY outils/v2/carte_correspondance.py --verifier
     $PY outils/v2/generer_modeles.py --verifier
     $PY outils/v2/generer_miroir.py --verifier
+    $PY outils/v2/vocabulaire_cles.py --verifier
 else
     echo "structure de Kamal absente (reference/v2/ et import/kamal_structure/) : carte non vérifiée"
     exit 1

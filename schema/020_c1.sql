@@ -5,7 +5,8 @@
 -- avec ses colonnes ; ils portent le préfixe de la couche.
 
 -- Clé brute → clé moteur de la v2, par type de pièce (« * » : tous les types). Saisie depuis le README de Kamal
--- (pipeline/normalisation/cles.py), versionnée ; survit aux reconstructions.
+-- (pipeline/normalisation/cles.py) et de son inventaire des clés par type de pièce (vocabulaire_v2.py, généré) ; le
+-- module fait foi : la table en est la copie versionnée, resemée quand la version change, jamais saisie à la main.
 CREATE TABLE ref_cle_canonique (
     type_piece TEXT NOT NULL,
     cle_brute  TEXT NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE c1_piece (
     version           TEXT NOT NULL,
     nb_champs         INTEGER NOT NULL,
     nb_champs_relus   INTEGER NOT NULL,
+    nb_listes_ignorees INTEGER NOT NULL,    -- listes d'objets que la couche ne range nulle part (saisies, signataires…)
     PRIMARY KEY (ref, upstream_piece_id)
 );
 
@@ -56,7 +58,7 @@ FROM (
         PARTITION BY ref, upstream_piece_id, cle
         ORDER BY CASE origine WHEN 'relue_ciblee' THEN 0 WHEN 'fusion' THEN 1 ELSE 2 END,
                  CASE WHEN cle_brute = cle THEN 0 ELSE 1 END,
-                 CASE WHEN valeur IS NULL THEN 1 ELSE 0 END, cle_brute) AS rang
+                 CASE WHEN valeur IS NULL THEN 1 ELSE 0 END, cle_brute, valeur) AS rang
     FROM c1_fait f WHERE statut = 'normal'
 ) classement WHERE rang = 1;
 
@@ -96,6 +98,7 @@ CREATE TABLE c1_releve_operation (
     debit             DOUBLE PRECISION,
     credit            DOUBLE PRECISION,
     nature            TEXT NOT NULL CHECK (nature IN ('lue', 'reconstituee_amont')),
+    date_operation_brute TEXT,              -- la date telle que lue ; `date_operation` est vide si elle est illisible
     PRIMARY KEY (ref, upstream_piece_id, rang_mois, rang)
 );
 
@@ -114,6 +117,7 @@ CREATE TABLE c1_mention_personne (
     parts_sociales    DOUBLE PRECISION,
     nationalite       TEXT,
     adresse           TEXT,
+    statut            TEXT NOT NULL CHECK (statut IN ('normal', 'gabarit')),    -- gabarit : hors des règles d'identité
     PRIMARY KEY (ref, upstream_piece_id, role, rang)
 );
 
