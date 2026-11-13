@@ -47,7 +47,7 @@ echo "3/4 Rapport de croisement"
 
 # carte_globale.py n'est pas dans le kit reçu : étape sautée tant qu'il manque.
 if [ -f "$PIPELINE/carte_globale.py" ]; then
-    "$PYTHON" "$PIPELINE/carte_globale.py" --base "$SORTIE/essai.sqlite" --json "$SORTIE/globale.json"
+    "$PYTHON" "$PIPELINE/carte_globale.py" --base "$SORTIE/essai.sqlite" --json "$SORTIE/globale.json" --html "$SORTIE/carte_globale.html"
 else
     echo "    (carte_globale.py absent du kit : carte globale non produite)"
 fi

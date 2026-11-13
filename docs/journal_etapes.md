@@ -261,3 +261,16 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 | `regles_bl_rc.sql` | `dc831f638deb1ed9ba2ca8cb84d80ba9f426aaf487f8f212427c080c27c8219a` | `pipeline/regles_bl_rc.sql` |
 | `schema_bl_rc.sql` | `959fe036b74f7fa7011e59b86f15a024acd21c77838eed0e6560bf765957ffd2` | `pipeline/schema_bl_rc.sql` |
 | `translitteration.py` | `c979bdb04467a5ad8678d8c6c13a8a4548075fb90c8ac9abac76efeedab248a6` | `pipeline/translitteration.py` |
+
+## 13/11/2026 — étape A, carte globale et commande de référence
+
+- `networkx` installé par Lounès ; `pipeline/maroc_regions.json` présent (contour Natural Earth, ignoré par git
+  comme tout JSON : à réautoriser dans `outils/garde/fichiers_autorises.txt` si on veut le versionner).
+- `jeu_essai/construire.sh` : la carte globale du jeu d'essai va dans le dossier de sortie (sans `--html`,
+  `carte_globale.py` écrivait à la racine du dépôt, sous le nom de la vraie carte).
+- Jeu d'essai du kit : 18 nœuds, 3 réseaux, plus grand 13 nœuds ; bilans de `construire_base.py`,
+  `chaines_dessin.py` et `carte_globale.py` vérifiés sans aucune valeur du jeu d'essai (comptages seulement).
+- `outils/comptages_a.py` (5 tests) : réseaux et plus grand réseau touchant la liste noire, depuis `globale.json`.
+- **A.8** : commande de référence préparée (skill `essai-donnees-reelles`), à lancer par Lounès. Les scripts du kit
+  ne lisent pas `CARTE_DONNEES_REELLES` : variable retirée de la commande ; à noter pour l'étape où ces scripts
+  passent dans les couches (un script qui tourne sur du réel sans ce garde-fou est à corriger).
