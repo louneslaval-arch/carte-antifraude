@@ -1,0 +1,6 @@
+# Analyse statique en vérification seule (questions ouvertes n°9) : jamais de mise en forme automatique du dépôt.
+extend-exclude = ["import", ".verif", "mutants", "jeu_essai/sortie", ".claude/skills/skill-creator", ".claude/worktrees"]
+
+[lint.per-file-ignores]
+# `motifs` est importé pour être réexporté aux crochets (garde_fichier.py l'emploie depuis _commun).
+".claude/hooks/_commun.py" = ["F401"]

@@ -1,7 +1,7 @@
 """Tests de la carte de correspondance v2 → base : partie générée, partie écrite à la main conservée, dérive."""
 
 import os
-import shutil
+
 import sys
 
 import pytest

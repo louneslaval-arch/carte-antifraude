@@ -7,7 +7,7 @@ from datetime import timedelta
 
 import jwt
 import pytest
-from conftest import CLE, MDP, connecte, connecter, creer, identites, indice_de
+from conftest import CLE, MDP, connecte, connecter, creer, identites
 from fastapi.testclient import TestClient
 from sqlalchemy import update
 
