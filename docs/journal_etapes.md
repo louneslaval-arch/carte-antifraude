@@ -153,3 +153,36 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   équivalent de `git merge --no-ff`, `main` n'ayant rien en propre.
 - Sur `main` : 440 réussis, 2 sautés ; garde `--tout` : les 8 constats connus, réservés à l'étape A.
 - **Prochaine action** : étape A, quand Lounès aura déposé les fichiers dans `import/` (préalables du plan).
+
+## 12/11/2026 — étape A, début (branche `etape-a-remise-a-niveau`)
+
+- **Préalables manquants** : `import/` n'existe pas (structure de Kamal, kit du 11/11, référentiels du 21/10) ; pas
+  de réponse de Kamal (question n°15). Les points A.3 à A.6 et A.8 en dépendent.
+- **A.1** : `api/app/graphe.py` sans mutation ; 440 réussis, 2 sautés.
+- **A.2, jeu d'essai** : lignes 4 et 5 de `jeu_essai/donnees/liste_noire_fictive.csv` (numéros de registre fictifs
+  « RC999… », de la forme d'un CIN) marquées `fictif-volontaire` dans la note, sans toucher à la garde ; la note
+  n'entre dans aucun résultat attendu ; tests inchangés.
+- **A.2, notice du kit** : constats laissés en place ; `pipeline/LISEZMOI-kit.md` sera remplacée par la notice du kit
+  du 11/11 en A.4, et ses constats seront tranchés sur la nouvelle version (exemples de CIN → « ZZ… » ; mots arabes :
+  exemples de translittération sans identifiant associé, à confirmer par Lounès, question n°13).
+- **A.7** : `requirements-dev.txt` aux versions figées (pytest 9.2.0, coverage 7.17.2, mutmut 2.5.1, ruff 0.17.4,
+  mypy 2.4.1, hypothesis 6.170.15) ; installés seulement pytest, coverage et mutmut ; les autres à l'étape B.
+- **A.8** : non préparé ; trois des quatre chiffres de référence viennent de `carte_globale.py` (kit du 11/11), et
+  aucun script n'a encore de sortie limitée aux comptages.
+- **Prochaine action** : dès que `import/` est déposé, A.2 (contrôle de l'import), A.3, A.4, A.5, A.6, puis A.8.
+
+## 13/11/2026 — étape A, import (partielle)
+
+- **Structure de Kamal** : extraite par Lounès de `antifraude_json_back_front_2026-11-11.zip` (seulement `types/`,
+  `schema/`, `reference/`, `README.md` ; aucun `api/`) dans `import/kamal_structure/` : 9 fichiers. Garde : 4 fichiers
+  refusés par extension (JSON et CSV, attendu) ; 3 constats « reference_dossier » : de vraies références de dossiers de
+  la préproduction dans `README.md` (lignes 3 et 75), `reference/CONTRAT_TANDEM_AI.md` (ligne 92) et les exemples de
+  `schema/openapi_api_v1_export_metier.json` (lignes 37 et 58). Ne jamais les réutiliser ; à remplacer par des
+  références « ZZ » si la structure est un jour versionnée. `champs_par_type_prod.csv` : inventaire des clés avec
+  comptages, sans valeur ; 13 types de pièces (le plan en annonce 14 : à vérifier à l'étape C).
+- **A.3** : sans réponse de Kamal (question n°15), la structure reste dans `import/` (ignoré) ; seule la carte de
+  correspondance de l'étape B sera versionnée.
+- **A.4** : le kit fourni (`kit_base_liste_noire_RC.zip`) est l'ancien : ses 4 fichiers sont identiques à ceux de
+  `pipeline/`. Le kit du 11/11 (`carte_globale.py`, `translitteration.py`, `geo_maroc.py`…) reste à fournir.
+- **A.5** : référentiels non encore localisés (prototype du 21/10).
+- **Étape A fusionnée partielle** (consigne du 13/11) ; restent A.4, A.5, A.6, A.8 et la notice du kit.

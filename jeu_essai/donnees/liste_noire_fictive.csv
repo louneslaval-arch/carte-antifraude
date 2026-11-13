@@ -1,8 +1,8 @@
 num_seq,cin,regist_com,ice,regist_tribune,cli_phy_mor,no_drpp,nom_ras,t_cli,date_naiss,adresse,ville,lib_emp,interm,part,motif,motif2,type_liste,type_fraude,orig_liste,orig_agence,mt_exposition,note,dat_sais,user_sais,user_maj,nom,prenom
 90001,ZZ900001,,,,PP,,,,,,CASABLANCA,,,,,Falsification,INDESIRABLE,FRAUDE EVITEE,,,,Exemple fictif,2025-03-10,,,EL IDRISSI,MOHAMED
 90002,ZZ900002,,,,PP,,,,,,2,,,,,,BLACKLIST,,,,,Exemple fictif,2024-11-05,,,BENALI,KARIM
-90003,RC999001,RC999001,,CASAB,PM,,EXEMPLE ATLAS NEGOCE,,,,,,,,,,INDESIRABLE RISQ,,,,,Exemple fictif,2025-05-20,,,,
-90004,,RC999002,,,PM,,EXEMPLE ORION LOGISTIQUE SARL,,,,,,,,,,INDESIRABLE,,,,,Exemple fictif,,,,,
+90003,RC999001,RC999001,,CASAB,PM,,EXEMPLE ATLAS NEGOCE,,,,,,,,,,INDESIRABLE RISQ,,,,,Exemple fictif-volontaire,2025-05-20,,,,
+90004,,RC999002,,,PM,,EXEMPLE ORION LOGISTIQUE SARL,,,,,,,,,,INDESIRABLE,,,,,Exemple fictif-volontaire,,,,,
 90005,ZZ900005,,,,PP,,,,,,,STE EXEMPLE DELTA SERVICES,,,,,INDESIRABLE,,,,,Exemple fictif,,,,SAADI,NADIA
 90006,ZZ900006X,,,,PP,,,,,,,,,,,,INDESIRABLE,,,,,Exemple fictif,,,,OUAZZANI,SAMIR
 90007,,,,,PP,,,,,,RABAT,,,,,,INDESIRABLE,,,,,Exemple fictif,,,,TAZI,MEHDI

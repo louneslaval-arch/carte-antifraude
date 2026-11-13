@@ -1,0 +1,9 @@
+# Outils de développement (étape A, questions ouvertes n°9). Versions figées ; ruff en vérification seule,
+# jamais de mise en forme automatique de tout le dépôt sans décision. pyright 1.1.414 est installé par npm.
+-r api/requirements-tests.txt
+pytest==9.2.0
+coverage==7.17.2
+mutmut==2.5.1
+ruff==0.17.4
+mypy==2.4.1
+hypothesis==6.170.15
