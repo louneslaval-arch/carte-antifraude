@@ -174,6 +174,10 @@ def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues
     if type_piece == 'CIN':
         for rang, carte in enumerate(_objets(champs.get('cartes')) or [champs]):
             lignes.personne(upi, type_piece, 'titulaire_cin', carte, rang)
+    if type_piece in ('RELEVE_BANCAIRE', 'ATTESTATION_RIB') and _texte(titulaire):
+        # tel que lu : personne ou société, la couche 2 tranche (`type_titulaire` gardé en qualité)
+        lignes.personne(upi, type_piece, 'titulaire_compte',
+                        {'nom_complet': titulaire, 'qualite': _g(champs, 'type_titulaire')})
     for role, cle in LISTES_DE_PERSONNES:
         for rang, x in enumerate(_objets(champs.get(cle))):
             lignes.personne(upi, type_piece, role, x, rang)

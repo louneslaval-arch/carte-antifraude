@@ -17,6 +17,14 @@ pas aux fichiers de Kamal (dérive).
 | `Dossier.actif` | miroir | non exposé dans le détail : connu en lisant la liste avec et sans `archives=true` |
 | `AnalysisControl.applicabilityReason` | miroir | obligatoire dans la base, mais l'API peut le rendre vide : rangé en chaîne vide |
 | `Synthese`, `ConstatLibre`, `label`, `family`, `numeroMetier`, `previousOutcome` d'un contrôle | version brute seulement | l'API n'en donne pas les clés (`Synthese.id`, `analysisId`) ou les calcule à l'affichage ; lisibles dans `c0_dossier_brut` (`pipeline/couches/c0_brut.py`, `PLACES`) |
+| `c1_releve_mois`, `c1_releve_operation` | c1 | tables enfants `releve_mois` et `releve_operation` du README § 7, noms et clés repris (`ref`, `upstream_piece_id` = `upstreamPieceId`, rang du mois, rang de l'opération) ; ajouts : `salaire_detecte`, `echeances_credits` (agrégats amont « MM/AAAA »), `nb_operations_lues`, `nature` (`lue` ou `reconstituee_amont`), date complétée avec l'année du mois |
+| `c1_mention_personne` et la vue `c1_societe_personne` | c1 | table enfant `societe_personne` du README § 7 (gérants, dirigeants, associés d'un RC ou de statuts) élargie à toute personne citée par une pièce : la vue rend exactement le périmètre de Kamal ; rôles ajoutés : `titulaire_cin`, `employe`, `pensionne`, `proprietaire`, `acheteur`, `titulaire_compte`, `titulaire_quittance` (les deux derniers absents de l'extracteur du 11/11) |
+| `c1_piece` | c1 | une ligne par pièce du miroir, avec la version du dossier (`updatedAt`) et le nombre de champs lus et relus : la v2 ne compte pas |
+| `c1_fait`, vue `c1_fait_retenu` | c1 | `Piece.fields` est un JSON libre dans la v2 ; ici une ligne par valeur aplatie : clé brute, clé canonique (clé moteur de la v2), texte normalisé, nombre, date, origine (`amont`, `relue_ciblee`, `fusion`), statut (normal, clé inventée, champ de CIN hors CIN, gabarit) |
+| `c1_cle_inconnue` (vue) | c1 | rapport des clés absentes de `ref_cle_canonique` : jamais acceptées en silence |
+| `c1_mention_societe` | c1 | société citée par une pièce (société du RC et des statuts, employeur, concessionnaire, banque), avec RC, tribunal, ICE, n° d'affiliation : la v2 les laisse dans `fields` |
+| `c1_identifiant_brut` | c1 | identifiant normalisé porté par une pièce (RIB, CIN, CNSS, pension, châssis, immatriculation, INPE, RC + tribunal, ICE, affiliation) : un nœud du graphe, pas un lien |
+| `ref_cle_canonique` | référentiel | table de passage clé brute → clé moteur par type de pièce, saisie depuis le README § 4 de Kamal (`pipeline/normalisation/cles.py`), versionnée ; la v2 la porte dans son code, pas dans sa base |
 
 <!-- DEBUT PARTIE GENEREE : outils/v2/carte_correspondance.py --ecrire ; ne pas modifier à la main -->
 

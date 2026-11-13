@@ -260,6 +260,24 @@ def test_mentions_et_identifiants_d_un_dossier_salarie(cx, jeu):
                                                  for x in identifiants[t])
 
 
+def test_titulaire_du_compte_mentionne_sur_le_releve_et_l_attestation_de_rib(cx, jeu):
+    ref = next(v['ref'] for v in jeu.verite if 'S04' in v['scenarios'])
+    attendu = {(upi, nom) for upi, nom in lignes(
+        cx, "SELECT upstream_piece_id, valeur FROM c1_fait WHERE ref = ? AND type IN ('RELEVE_BANCAIRE', "
+            "'ATTESTATION_RIB') AND cle_brute = 'titulaire_compte' AND valeur IS NOT NULL", ref)}
+    mentions = set(lignes(cx, "SELECT upstream_piece_id, nom_complet FROM c1_mention_personne WHERE ref = ? "
+                              "AND role = 'titulaire_compte'", ref))
+    assert attendu and mentions == attendu
+    assert lignes(cx, "SELECT count(*) FROM c1_mention_personne WHERE role = 'titulaire_compte' AND "
+                      "type_piece NOT IN ('RELEVE_BANCAIRE', 'ATTESTATION_RIB')") == [(0,)]
+
+
+def test_titulaire_de_la_quittance_mentionne_sur_la_domiciliation(cx):
+    n, m = lignes(cx, "SELECT count(*), count(nom_complet) FROM c1_mention_personne WHERE role = "
+                      "'titulaire_quittance' AND type_piece = 'DOMICILIATION'")[0]
+    assert n > 0 and n == m
+
+
 def test_chassis_et_rc_normalises(cx, jeu):
     refs = [v['ref'] for v in jeu.verite if 'S18' in v['scenarios']]
     chassis = {lignes(cx, "SELECT valeur FROM c1_identifiant_brut WHERE ref = ? AND type = 'CHASSIS'", r)[0][0]
