@@ -1,0 +1,6 @@
+{
+  "invariants": [
+    {"nom": "migrations_appliquees", "comptage": "SELECT count(*) FROM schema_version", "minimum": 1},
+    {"nom": "migrations_sans_empreinte", "zero": "SELECT numero FROM schema_version WHERE empreinte IS NULL OR length(empreinte) <> 64"}
+  ]
+}
