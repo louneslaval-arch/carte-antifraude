@@ -7,3 +7,5 @@ pipeline/normalisation/**
 pipeline/tests/**
 jeu_essai/**
 tests/**
+pipeline/carte_globale_modele.html
+pipeline/carte_chaines_modele.html

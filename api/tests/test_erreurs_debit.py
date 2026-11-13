@@ -3,7 +3,7 @@
 import logging
 
 import pytest
-from conftest import CLE, connecte, connecter, creer
+from conftest import connecte, connecter, creer
 from fastapi.testclient import TestClient
 
 from app import identites
