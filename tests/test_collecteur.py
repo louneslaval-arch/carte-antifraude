@@ -292,6 +292,9 @@ def test_invariants_verts_apres_un_scenario_complet_et_rouges_si_le_miroir_deriv
         appli.state.horloge.regler(instant)
         avancer(heure, minutes=10)
         c.passer()
+    from pipeline.couches import COUCHES
+    for couche in COUCHES[1:]:                    # le traiteur (étape ultérieure) le fera au fil de l'eau
+        couche.construire_tout(cx)
     base = str(tmp_path / 'base_createdAt.sqlite')
     assert verifier.verifier(base) == 0
     cx.execute('UPDATE "Dossier" SET "updatedAt" = \'2020-01-01T00:00:00.000Z\' WHERE ref = ?', (jeu.dossiers[0]['ref'],))

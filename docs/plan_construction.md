@@ -9,7 +9,7 @@
 | B | socle des couches, lecture de la structure de Kamal, carte de correspondance | 3–4 j | partielle (13/11) : attend comparer_bases.py (kit du 11/11), ruff et mypy installés |
 | C | générateur et serveur v2 fictifs, au format exact des types de Kamal | 2–3 j | fait (13/11) |
 | D | c0 : versions brutes, miroir de la v2, collecteur | 2–3 j | fait (13/11) ; PostgreSQL non vérifié |
-| E | c1 pièces et faits | 4–5 j | à faire |
+| E | c1 pièces et faits | 4–5 j | fait (13/11) ; comptages réels à rapporter par Lounès (182, 160, 252, 2, 9) |
 | F | c2 identités | 5–7 j | à faire |
 | G | c3 dossier, revenus, comptes, véhicules | 4–5 j | à faire |
 | H | c5 graphe | 4–5 j | à faire |
