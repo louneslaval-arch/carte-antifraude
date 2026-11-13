@@ -33,7 +33,9 @@ FORMAT = 1
 # Types de nœud (couche 1, champ t)
 T_SOCIETE, T_PERSONNE, T_INSCRIT_PP, T_INSCRIT_PM = 0, 1, 2, 3
 NOMS_TYPES = ['societe', 'personne', 'inscrit_personne', 'inscrit_societe']
-STYLES = ['', 'rap', 'pont']          # rôle simple, rapprochement inscrit ↔ registre, passage d'une société à l'autre
+# Rôle simple, rapprochement inscrit ↔ registre, passage d'une société à l'autre ; puis les styles du kit du 11/11 :
+# rapprochement certain, rôle terminé (« ancien »), et leurs combinaisons. Les numéros existants ne changent jamais.
+STYLES = ['', 'rap', 'pont', 'certain', 'ancien', 'ancien rap', 'ancien certain', 'ancien pont']
 FICHIERS = ('geometrie.json', 'identites.sqlite', 'statistiques.json')   # tous portés par le manifeste
 PREFIXE_FICTIF = 'ZZ'                 # tous les CIN du jeu d'essai et du générateur
 
@@ -45,8 +47,29 @@ _ROLES = sorted(set(ROLES_FR.values()) | {'associée de'})          # ordre indi
 ROLE_PERMIS_RE = re.compile('^(' + '|'.join(map(re.escape, _ROLES)) + r')( \(\d+(\.\d+)? %\))?$')
 
 
+# Rôles datés du kit du 11/11 : « gérant (06/2025) », « ancien associé (cédé 02/2025) », « associé 50 % (01/2023) »,
+# plusieurs rôles séparés par une virgule, suffixe « · annonce mélangée ». La couche 1 garde le rôle et la part, jamais
+# la date (une date d'annonce, croisée avec le registre public, désignerait la société).
+_DATE_ROLE_RE = re.compile(r'\s*\((?:cédé |remplacé |autre gérant nommé )?\d{2}/\d{4}\)')
+_PART_NUE_RE = re.compile(r'^(.*?) (\d+(?:\.\d+)?) %$')
+
+
+def _role_simple(partie):
+    if partie != partie.strip():  # espace parasite : libellé inattendu, il reste en couche 2
+        return None
+    partie = _DATE_ROLE_RE.sub('', partie)
+    m = _PART_NUE_RE.match(partie)  # « associé 50 % » → « associé (50 %) »
+    if m:
+        partie = f'{m.group(1)} ({m.group(2)} %)'
+    return partie if ROLE_PERMIS_RE.match(partie) else None
+
+
 def role_couche1(lib):
-    return lib if lib and ROLE_PERMIS_RE.match(lib) else ''
+    if not lib:
+        return ''
+    lib = lib.split(' · ', 1)[0]
+    parties = [_role_simple(p) for p in lib.split(', ')]
+    return ', '.join(parties) if all(parties) else ''
 
 
 class Indices:
@@ -142,7 +165,9 @@ def composantes(n, aretes):
 
 # ---- une carte d'inscrit : sa part de couche 1 et sa chaîne complète (couche 2) --------------------------------
 def style_de(arete):
-    return STYLES.index(arete['style']) if arete['style'] in STYLES else 0
+    if arete['style'] not in STYLES:  # un style nouveau du kit ne doit jamais se perdre en silence
+        raise ValueError('style d\'arête inconnu : ajouter à STYLES')
+    return STYLES.index(arete['style'])
 
 
 def carte_couche1(x, ind, certain):

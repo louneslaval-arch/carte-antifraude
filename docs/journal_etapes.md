@@ -211,3 +211,96 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Bloqué de mon côté** : pip ne démarre pas dans le bac à sable (accès aux certificats du système refusé) ;
   `verifier_tout.sh` reste rouge à l'étape ruff tant que Lounès n'a pas lancé
   `.venv/bin/python -m pip install -r requirements-dev.txt`.
+
+## 13/11/2026 — étape A, import du kit du 11/11 (branche `etape-a-import-kit`)
+
+- **Kit du 11/11** trouvé : `kit_base_liste_noire_RC_2.zip` (fichiers datés du 11/11). Extrait par Lounès sans
+  `jeu_essai/`, sans `modele_export_kamal/`, sans base, classeur, CSV ni JSON. 15 fichiers, copiés dans `pipeline/`
+  (empreintes d'origine ci-dessous). `rapport_croisement.py`, `regles_bl_rc.sql`, `schema_bl_rc.sql` inchangés.
+- **Contrôle (A.2)** : écriture arabe attendue dans `construire_base.py`, `chaines_dessin.py`, `translitteration.py`
+  (déjà autorisés). Modifications de **commentaires seulement** dans `charger_antifraude.py` : marque
+  `fictif-volontaire` sur les lignes 59 et 181 (valeurs gabarits), raison sociale d'exemple (ligne 484) remplacée par
+  une description. Notice : mots arabes → « [arabe] », CIN d'exemple → « ZZ », valeur gabarit marquée.
+  **En attente de Lounès** : `pipeline/carte_globale_modele.html:96` et `pipeline/carte_chaines_modele.html:135`
+  (lettres arabes d'aide à la lecture et un nom très courant en exemple) : l'ajout de ces deux fichiers à
+  `outils/garde/arabe_autorise.txt` a été refusé par la protection de l'app (affaiblissement d'une garde) ; à faire
+  par Lounès s'il l'approuve.
+- **Deux incompatibilités de `publier_carte.py` avec le kit, corrigées (tests d'abord)** :
+  1. styles d'arête composés du kit (`certain`, `ancien`, `ancien rap`…) rangés en silence dans le style simple :
+     liste `STYLES` étendue (numéros existants inchangés), style inconnu désormais refusé ;
+  2. rôles datés (« gérant (06/2025) », « ancien associé (cédé 02/2025) », rôles multiples) : la couche 1 les
+     perdait tous ; elle garde maintenant le rôle et la part, **jamais la date** (une date d'annonce désignerait la
+     société via le registre public) ; la date reste en couche 2.
+- **`attendu_kit.json` régénéré**, chaque écart expliqué par la notice du kit :
+  libellés datés en couche 2 (rôles datés) ; « cessionnaire » → « associé », « cédant » → « ancien associé »
+  (`ROLES_FR`) ; E:6–S:4 et E:9–S:4 `rap` → `certain` (rapprochement certain distingué) ; E:9–S:1 et I:2–S:1 →
+  `ancien…`, force 0,25 → 0,15 (rôle terminé, poids 0,3 à 0,5) ; passage I:3 → S:3 par un nom courant refusé (nom rare
+  ou indice exigé) : nouvelle personne I:7, 14 réseaux au lieu de 13, 18 nœuds au lieu de 17, une identité et une
+  entrée de recherche de plus.
+- **Dépendance nouvelle (provisoire)** : `networkx==3.7` pour `carte_globale.py` (`requirements.txt`) ; à installer
+  par Lounès. **Fichier manquant** : `maroc_regions.json` (contour Natural Earth lu par `geo_maroc.py`).
+- **Référentiels** (A.5) : `referentiel_villes.json` (données géographiques GeoNames, sans personne) et
+  `grands_employeurs.txt` (106 expressions de raisons sociales) restent dans `import/reference/` : un JSON se
+  versionne seulement après ajout à `outils/garde/fichiers_autorises.txt` (décision de Lounès). Aucun script ne les
+  lit encore (étapes G et H).
+- **Tests** : 513 réussis, 2 sautés.
+| Fichier du kit | sha256 d'origine | Destination |
+| --- | --- | --- |
+| `LISEZMOI.md` | `d7ed9f29417e1fd7cb6bce3a74821fda9d88761986bada2ac669b2a73bf053ee` | `pipeline/LISEZMOI-kit.md` |
+| `carte_chaines_modele.html` | `9f4c27b82eaee855a5a738541c3a0013e58775ffb2e82cb171a7d4004762be36` | `pipeline/carte_chaines_modele.html` |
+| `carte_globale.py` | `b3918af8349167287e7a3f2f8d60b8041e8a09d8b5155bebc8d1353ab93d4340` | `pipeline/carte_globale.py` |
+| `carte_globale_modele.html` | `0980f6fbd7c863319d22395dc673f7b8ec8a07124b29a0c91ea8a8525572bd93` | `pipeline/carte_globale_modele.html` |
+| `chaines_dessin.py` | `fe79255405d6c3fc0dbb7e316bacae220425b14737d9feb03604e04225097696` | `pipeline/chaines_dessin.py` |
+| `charger_antifraude.py` | `6fdac8811cf3f558eb8d22136c1f9e2534ceb8b56f829281b6ed62d02ecb2753` | `pipeline/charger_antifraude.py` |
+| `comparer_bases.py` | `e3bfb167bac299d2d2a79c7e6905b3ed74ae1b27cda856552dc0e4ab32a6f80a` | `pipeline/comparer_bases.py` |
+| `construire_base.py` | `bb2aad88dcef7cb54b5252cb68876abb96bbb51639131e83e98bb84116dc6395` | `pipeline/construire_base.py` |
+| `geo_maroc.py` | `ed5513629373a14b6c6e5264ed6ef10264bdf00fcfc7ccbb5f1d15fd953be61c` | `pipeline/geo_maroc.py` |
+| `nettoyer_liste_noire.py` | `2dfac356623aae92b59d351629fb518e3fc7a434c375e2ff41806fcf98eeb29e` | `pipeline/nettoyer_liste_noire.py` |
+| `rapport_antifraude.py` | `504e84eadf689023963fbd47c0a697c173b3c3ed6e123ccc036ebe995d282d0c` | `pipeline/rapport_antifraude.py` |
+| `rapport_croisement.py` | `f2fddcfa7aa294bfe8905d0f1984c24ebb44ce0ff80f502db84425f475173111` | `pipeline/rapport_croisement.py` |
+| `regles_bl_rc.sql` | `dc831f638deb1ed9ba2ca8cb84d80ba9f426aaf487f8f212427c080c27c8219a` | `pipeline/regles_bl_rc.sql` |
+| `schema_bl_rc.sql` | `959fe036b74f7fa7011e59b86f15a024acd21c77838eed0e6560bf765957ffd2` | `pipeline/schema_bl_rc.sql` |
+| `translitteration.py` | `c979bdb04467a5ad8678d8c6c13a8a4548075fb90c8ac9abac76efeedab248a6` | `pipeline/translitteration.py` |
+
+## 13/11/2026 — étape A, carte globale et commande de référence
+
+- `networkx` installé par Lounès ; `pipeline/maroc_regions.json` présent (contour Natural Earth, ignoré par git
+  comme tout JSON : à réautoriser dans `outils/garde/fichiers_autorises.txt` si on veut le versionner).
+- `jeu_essai/construire.sh` : la carte globale du jeu d'essai va dans le dossier de sortie (sans `--html`,
+  `carte_globale.py` écrivait à la racine du dépôt, sous le nom de la vraie carte).
+- Jeu d'essai du kit : 18 nœuds, 3 réseaux, plus grand 13 nœuds ; bilans de `construire_base.py`,
+  `chaines_dessin.py` et `carte_globale.py` vérifiés sans aucune valeur du jeu d'essai (comptages seulement).
+- `outils/comptages_a.py` (5 tests) : réseaux et plus grand réseau touchant la liste noire, depuis `globale.json`.
+- **A.8** : commande de référence préparée (skill `essai-donnees-reelles`), à lancer par Lounès. Les scripts du kit
+  ne lisent pas `CARTE_DONNEES_REELLES` : variable retirée de la commande ; à noter pour l'étape où ces scripts
+  passent dans les couches (un script qui tourne sur du réel sans ce garde-fou est à corriger).
+- **Premier essai réel (13/11, Lounès)** : étapes 1 (nettoyage) et 2 (construction) faites ; étape 3 en échec
+  (`AttributeError`). Cause, reproduite sur la base fictive : l'archive de l'export contient son propre dossier,
+  `1_donnees_prod` était un niveau plus bas, aucun lot n'a été chargé, et `charger_antifraude.py` du kit plante quand
+  aucun lot n'est trouvé (défaut du kit, noté, non corrigé : le kit s'importe sans modification). `essai_reel_a.sh`
+  cherche désormais les sous-dossiers un niveau plus bas.
+- **Deuxième essai réel (13/11)** : 25 inscrits reliés, 1 910 réseaux, plus grand réseau touchant la liste noire
+  19 nœuds, 32 chemins de retour (référence : 122, 16 300, 17, 301). Bilan : 22 788 annonces, 21 126 sociétés,
+  0 correspondance certaine. Cause établie sans lire aucune donnée : les annonces employées (11 Mo et 7 Mo, 26/10 à
+  13 h 04) sont une version partielle ; la version corrigée du même jour (`wetransfer_annonces-legales-corrigees_…`,
+  205 Mo et 105 Mo, 14 h 46) porte les **mêmes noms de fichier**. Hypothèse du nettoyage de la liste noire écartée
+  sur le jeu d'essai (mêmes correspondances avec et sans nettoyage). Essai à refaire sur la version corrigée.
+- **Troisième essai réel (13/11), sur les annonces corrigées** : chemins de retour 300 (référence 301), réseaux
+  17 523 (16 300), plus grand réseau touchant la liste noire 25 nœuds (17), inscrits reliés du bilan 329 (122).
+  Deux causes trouvées dans le code et la notice, sans lire aucune donnée :
+  1. le chiffre 122 de la notice compte les **personnes inscrites au départ des chaînes** (`chaines_dessin.py`,
+     « départs parcourus ») et non la ligne « Inscrits reliés au registre » du bilan de construction (personnes et
+     sociétés, probables comprises) : mauvais compteur dans `essai_reel_a.sh`, corrigé ;
+  2. `chaines_dessin.py` lit les exclusions manuelles (vrais noms) **à côté du script**, donc dans `pipeline/` :
+     l'essai a tourné sans elles. `essai_reel_a.sh` exécute désormais une copie du kit placée dans le dossier des
+     données, avec les exclusions à côté si elles y sont ; ce fichier n'entre jamais dans le dépôt.
+- **Quatrième essai réel (13/11, compteur corrigé, sans exclusions manuelles)** : personnes inscrites reliées
+  **121** (référence 122) ; chemins de retour **300** (301) ; réseaux **17 523** (16 300) ; plus grand réseau
+  touchant la liste noire **25** nœuds (17). Écarts restants, hypothèses non vérifiées : exclusions manuelles absentes
+  (fichier introuvable sur le Mac) ; nœuds venus des dossiers de l'antifraude (étape 3, nouveauté du kit du 11/11),
+  sans doute absents de la référence. `essai_reel_a.sh` a une option `SANS_ANTIFRAUDE=1` et une ligne 5 (nœuds des
+  dossiers) pour trancher plus tard.
+- **Décision (consigne du 13/11)** : on poursuit la construction. Référence **provisoire** de ce dépôt = les chiffres
+  du 13/11 ci-dessus, avec ces conditions (annonces corrigées du 26/10, liste noire du 03/08, export antifraude du
+  10/11, sans exclusions) ; copie `bl_rc_reference_2026-11-11.sqlite` chez Lounès. À confirmer avec la référence
+  d'origine dès que les exclusions sont retrouvées.

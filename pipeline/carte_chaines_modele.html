@@ -47,8 +47,15 @@ aside { border-right: 1px solid var(--trait); background: var(--carte); display:
 .item:hover { background: var(--fond); }
 .item[aria-current="true"] { background: var(--accent-doux); }
 .item .nom { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.lat { color: var(--doux); font-weight: 400; font-size: .92em; }
 .item .nom .point { width: 8px; height: 8px; border-radius: 50%; background: var(--alerte); flex: none; }
+.item .nom .point.connu { background: transparent; border: 1.5px solid var(--alerte); }
 .item .compte { font-size: 12px; color: var(--doux); font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
+.badge.certain { background: var(--accent-doux); color: var(--accent); }
+.badge.nouveau { background: var(--pont-doux); color: var(--pont); }
+path.arete.certain { stroke: var(--accent); stroke-dasharray: none; stroke-width: 2.4; }
+.legende i.certain { border-top: 3px solid var(--accent); }
 .vide { padding: 16px 12px; color: var(--doux); font-size: 13px; }
 section#vue { min-width: 0; display: flex; flex-direction: column; }
 .barre { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 12px 16px; border-bottom: 1px solid var(--trait); background: var(--carte); }
@@ -60,6 +67,7 @@ section#vue { min-width: 0; display: flex; flex-direction: column; }
 .legende i { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--ligne); }
 .legende i.pont { border-top: 2px dashed var(--pont); }
 .legende i.rap { border-top: 2px dashed var(--accent); }
+.legende i.ancien { border-top: 2px dotted var(--doux); }
 .legende b.bl { width: 12px; height: 12px; border: 2px solid var(--alerte); border-radius: 3px; background: var(--alerte-doux); display: inline-block; }
 #toile { overflow: auto; flex: 1; position: relative; padding: 8px 4px 16px; min-height: 320px; }
 #toile svg { display: block; }
@@ -76,6 +84,9 @@ section#vue { min-width: 0; display: flex; flex-direction: column; }
 path.arete { fill: none; stroke: var(--ligne); stroke-width: 1.6; }
 path.arete.pont { stroke: var(--pont); stroke-dasharray: 6 4; }
 path.arete.rap { stroke: var(--accent); stroke-dasharray: 6 4; }
+path.arete.ancien { stroke: var(--doux); stroke-dasharray: 2 4; opacity: .75; }
+.carte-noeud.bl.connu rect.fond { fill: var(--carte); stroke: var(--alerte); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.carte-noeud text.tag.connu { fill: var(--doux); }
 path.arete.terne { opacity: .18; }
 g.carte-noeud.terne { opacity: .25; }
 text.etiquette { font-size: 11px; fill: var(--doux); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; stroke-linejoin: round; }
@@ -103,7 +114,9 @@ text.colonne { font-size: 11px; fill: var(--doux); text-transform: uppercase; le
 <header>
   <h1>Réseaux liste noire × registre du commerce</h1>
   <p id="sous-titre">Chaînes du dessin : inscrit –gérant– société –associé– personne –gérant– société –associé– personne.
-    Chaque arête est un rôle publié dans une annonce légale ; les traits pointillés sont des rapprochements à valider.</p>
+    Chaque arête est un rôle daté, publié dans une annonce légale ; les traits pointillés sont des rapprochements à
+    valider. En rouge plein : une découverte (inscrit sans lien connu dans la liste noire) ; en rouge pointillé : un
+    inscrit du même dossier ou du même lot, que le registre ne fait que confirmer.</p>
   <div class="chiffres" id="chiffres"></div>
 </header>
 <main>
@@ -115,7 +128,11 @@ text.colonne { font-size: 11px; fill: var(--doux); text-transform: uppercase; le
     <div class="filtres">
       <input type="search" id="recherche" placeholder="Rechercher un nom, une société, un RC…" aria-label="Rechercher">
       <label><input type="checkbox" id="boucles"> Seulement les réseaux qui reviennent vers la liste noire</label>
+      <label><input type="checkbox" id="decouvertes"> Seulement les découvertes (aucun lien entre eux dans la liste noire)</label>
+      <label><input type="checkbox" id="certains"> Seulement les départs certains (même CIN, ou même RC + tribunal)</label>
+      <label id="lab-nouveaux"><input type="checkbox" id="nouveaux"> Seulement ce qui est nouveau depuis le 22/10</label>
       <label><input type="checkbox" id="profonds"> Seulement les chaînes de 3 ou 4 arêtes</label>
+      <label title="Écriture latine des noms arabes entre parenthèses : apprise dans la base quand la même personne a été publiée dans les deux écritures, sinon par règles (ش → CH, خ → KH, ق → K, و → OU). Ce n'est pas une traduction."><input type="checkbox" id="translit"> Écriture latine des noms arabes entre parenthèses</label>
     </div>
     <div id="liste" role="list"></div>
   </aside>
@@ -127,8 +144,10 @@ text.colonne { font-size: 11px; fill: var(--doux); text-transform: uppercase; le
     </div>
     <div class="legende">
       <span><i></i> rôle publié (gérant, associé…)</span>
-      <span><i class="rap"></i> inscrit ↔ registre : rapprochement à valider</span>
+      <span><i class="certain"></i> inscrit ↔ registre : certain (même CIN, ou même RC + tribunal)</span>
+      <span><i class="rap"></i> inscrit ↔ registre : probable, à valider</span>
       <span><i class="pont"></i> même personne d'une société à l'autre (même nom + même ville)</span>
+      <span><i class="ancien"></i> rôle terminé (parts cédées, gérance reprise)</span>
       <span><b class="bl"></b> élément de la liste noire</span>
     </div>
     <div id="toile"></div>
@@ -143,6 +162,8 @@ text.colonne { font-size: 11px; fill: var(--doux); text-transform: uppercase; le
 const DONNEES = /*__DONNEES__*/[];
 const $ = (s) => document.querySelector(s);
 const etat = { type: 'PP', choisi: null, noeud: null, seuil: 0 };
+etat.lat = false;
+const aff = (n) => (etat.lat && n.lat) ? `${n.nom} (${n.lat})` : n.nom;
 const NS = 'http://www.w3.org/2000/svg';
 const COLONNES = {
   PP: ['Inscrit', '1 arête · PM n°1', '2 arêtes · PP n°2', '3 arêtes · PM n°2', '4 arêtes · PP n°3'],
@@ -158,9 +179,12 @@ function chiffres() {
     [pp.length, 'personnes inscrites retrouvées au registre'],
     [avec(pp, '3'), 'avec une chaîne de 3 arêtes'],
     [avec(pp, '4'), 'avec une chaîne de 4 arêtes'],
-    [pp.filter((x) => x.alerte).length, 'personnes dont le réseau revient vers la liste noire', true],
+    [pp.filter((x) => x.alerte).length, 'personnes dont le réseau revient vers la liste noire'],
+    [DONNEES.filter((x) => x.nature === 'découverte').length, 'inscrits avec une découverte (lien inconnu de la liste noire)', true],
+    [DONNEES.filter((x) => x.certain).length, 'inscrits dont le lien au registre est certain (CIN, RC + tribunal)'],
+    [DONNEES.filter((x) => x.nouveau).length, 'inscrits nouveaux ou avec de nouvelles chaînes depuis le 22/10'],
     [pm.length, 'sociétés inscrites retrouvées au registre'],
-    [pm.filter((x) => x.alerte).length, 'sociétés dont le réseau revient vers la liste noire', true],
+    [pm.filter((x) => x.alerte).length, 'sociétés dont le réseau revient vers la liste noire'],
   ];
   $('#chiffres').innerHTML = blocs.map(([n, t, r]) => `<span class="chiffre${r ? ' rouge' : ''}"><b>${fmt(n)}</b>${t}</span>`).join('');
 }
@@ -170,6 +194,9 @@ function liste() {
   const boucles = $('#boucles').checked, profonds = $('#profonds').checked;
   const items = DONNEES.filter((x) => x.type === etat.type)
     .filter((x) => !boucles || x.alerte)
+    .filter((x) => !$('#decouvertes').checked || x.nature === 'découverte')
+    .filter((x) => !$('#certains').checked || x.certain)
+    .filter((x) => !$('#nouveaux').checked || x.nouveau)
     .filter((x) => !profonds || x.compte['3'] > 0 || x.compte['4'] > 0)
     .filter((x) => !q || x.recherche.includes(q));
   const el = $('#liste');
@@ -180,8 +207,10 @@ function liste() {
     d.className = 'item'; d.setAttribute('role', 'listitem'); d.tabIndex = 0;
     if (etat.choisi === x.id) d.setAttribute('aria-current', 'true');
     const c = x.compte;
-    d.innerHTML = `<div class="nom">${x.alerte ? '<span class="point" title="revient vers la liste noire"></span>' : ''}<span></span></div>
-      <div class="compte">1 arête ${c['1']} · 2 : ${c['2']} · 3 : ${c['3']} · 4 : ${c['4']}</div>`;
+    const titrePoint = x.nature === 'découverte' ? 'découverte : revient vers un inscrit sans lien connu'
+      : 'revient vers la liste noire (' + x.nature + ')';
+    d.innerHTML = `<div class="nom">${x.alerte ? `<span class="point${x.nature === 'découverte' ? '' : ' connu'}" title="${titrePoint}"></span>` : ''}<span></span></div>
+      <div class="compte">${x.certain ? '<span class="badge certain">certain</span> ' : ''}${x.nouveau === 'inscrit' ? '<span class="badge nouveau">nouveau</span> ' : (x.nouveau === 'chaines' ? '<span class="badge nouveau">nouvelles chaînes</span> ' : '')}1 arête ${c['1']} · 2 : ${c['2']} · 3 : ${c['3']} · 4 : ${c['4']}</div>`;
     d.querySelector('.nom span:last-child').textContent = x.nom;
     d.onclick = () => choisir(x.id);
     d.onkeydown = (e) => { if (e.key === 'Enter') choisir(x.id); };
@@ -217,9 +246,10 @@ function dessiner() {
   if (x.cin) meta.push('CIN ' + x.cin);
   if (x.listes) meta.push(x.listes);
   if (x.motifs) meta.push(x.motifs);
+  if (x.doublons && x.doublons.length) meta.push('même personne au registre que : ' + x.doublons.join(', '));
   $('#meta-vue').textContent = meta.join(' · ');
   const vis = visible(x);
-  const W = 214, H = 58, GX = 120, GY = 14, MX = 16, MY = 34;
+  const W = etat.lat ? 300 : 214, H = 58, GX = 120, GY = 14, MX = 16, MY = 34;   // boîtes plus larges avec la translittération
   const cols = [[], [], [], [], []];
   for (const k of vis.noeuds) cols[x.noeuds[k].d].push(k);
   // ordre : barycentre des parents dans la colonne précédente
@@ -266,14 +296,14 @@ function dessiner() {
     path.appendChild(titre); gA.appendChild(path);
     const lab = document.createElementNS(NS, 'text');
     lab.setAttribute('x', mx); lab.setAttribute('y', (y1 + y2) / 2 - 4); lab.setAttribute('text-anchor', 'middle');
-    lab.setAttribute('class', 'etiquette'); lab.textContent = a.lib;
+    lab.setAttribute('class', 'etiquette'); lab.textContent = a.court || a.lib;
     if (chemin && !chemin.aretes.has(a)) lab.setAttribute('opacity', '.25');
     gE.appendChild(lab);
   }
   for (const k of vis.noeuds) {
     const n = x.noeuds[k], p = xy[k];
     const g = document.createElementNS(NS, 'g');
-    g.setAttribute('class', 'carte-noeud' + (n.bl ? ' bl' : '') + (k === 'R' ? ' racine' : '') +
+    g.setAttribute('class', 'carte-noeud' + (n.bl ? ' bl' : '') + (n.bl && n.nature && n.nature !== 'découverte' ? ' connu' : '') + (k === 'R' ? ' racine' : '') +
       (etat.noeud === k ? ' choisi' : '') + (chemin && !chemin.noeuds.has(k) ? ' terne' : ''));
     g.setAttribute('transform', `translate(${p.x},${p.y})`);
     g.setAttribute('tabindex', '0');
@@ -287,8 +317,8 @@ function dessiner() {
       : 'M9 37 V20 l9-7 9 7 v17 Z M15 37 v-7 h6 v7 M13 23 h3 M20 23 h3');
     g.appendChild(ic);
     const t1 = document.createElementNS(NS, 'text');
-    t1.setAttribute('x', 34); t1.setAttribute('y', 20); t1.textContent = couper(n.nom, 25);
-    const tt = document.createElementNS(NS, 'title'); tt.textContent = n.nom; g.appendChild(tt);
+    t1.setAttribute('x', 34); t1.setAttribute('y', 20); t1.textContent = couper(aff(n), etat.lat && n.lat ? 40 : 25);
+    const tt = document.createElementNS(NS, 'title'); tt.textContent = aff(n); g.appendChild(tt);
     g.appendChild(t1);
     const t2 = document.createElementNS(NS, 'text');
     t2.setAttribute('x', 34); t2.setAttribute('y', 36); t2.setAttribute('class', 'sous');
@@ -296,8 +326,9 @@ function dessiner() {
     g.appendChild(t2);
     if (n.bl) {
       const t3 = document.createElementNS(NS, 'text');
-      t3.setAttribute('x', 34); t3.setAttribute('y', 50); t3.setAttribute('class', 'tag');
-      t3.textContent = k === 'R' ? 'POINT DE DÉPART' : 'LISTE NOIRE'; g.appendChild(t3);
+      t3.setAttribute('x', 34); t3.setAttribute('y', 50);
+      t3.setAttribute('class', 'tag' + (k !== 'R' && n.nature && n.nature !== 'découverte' ? ' connu' : ''));
+      t3.textContent = k === 'R' ? 'POINT DE DÉPART' : 'LISTE NOIRE · ' + (n.nature || '').toUpperCase(); g.appendChild(t3);
     } else if (k === 'R') {
       const t3 = document.createElementNS(NS, 'text');
       t3.setAttribute('x', 34); t3.setAttribute('y', 50); t3.setAttribute('class', 'tag');
@@ -339,14 +370,14 @@ function detail(x, vis) {
   const n = x.noeuds[k];
   const entrants = vis.aretes.filter((a) => a.b === k);
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  let h = `<h3><bdi>${esc(n.nom)}</bdi></h3>`;
+  let h = `<h3><bdi>${esc(n.nom)}</bdi>${etat.lat && n.lat ? ' <span class="lat">(' + esc(n.lat) + ')</span>' : ''}</h3>`;
   if (n.t === 'PM') {
     h += `<div class="ligne">${[n.rc ? 'RC ' + esc(n.rc) : 'RC non lu', esc(n.trib || ''), esc(n.ville || ''),
       n.dern ? 'dernière annonce ' + esc(n.dern) : '', n.diss ? 'dissoute' : ''].filter(Boolean).join(' · ')}</div>`;
     if (n.url) h += `<div class="ligne"><a href="${esc(n.url)}" target="_blank" rel="noopener">Ouvrir la dernière annonce</a></div>`;
   } else if (n.sous) h += `<div class="ligne">${esc(n.sous)}</div>`;
   if (n.bl) h += `<div class="rouge">${esc(n.bl)}</div>`;
-  for (const a of entrants) h += `<div class="ligne">← <bdi>${esc(x.noeuds[a.a].nom)}</bdi> : ${esc(a.lib)}${a.pont ? ' — ' + esc(a.pont) : ''} · fiabilité ${a.fiab} · force ${a.force}</div>`;
+  for (const a of entrants) h += `<div class="ligne">← <bdi>${esc(aff(x.noeuds[a.a]))}</bdi> : ${esc(a.lib)}${a.pont ? ' — ' + esc(a.pont) : ''} · fiabilité ${a.fiab} · force ${a.force}</div>`;
   el.innerHTML = h;
 }
 
@@ -356,7 +387,7 @@ function chainesTexte(x) {
   const l = x.chaines.filter((c) => c.force >= etat.seuil);
   if (!l.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<h3>Chaînes (${l.length})</h3><ol>${l.map((c) =>
-    `<li class="${c.bl ? 'bl' : ''}">${esc(c.texte)} <small>· ${c.distance} arête${c.distance > 1 ? 's' : ''} · fiabilité ${c.fiab} · force ${c.force}${c.bl ? ' · ' + esc(c.bl) : ''}</small></li>`).join('')}</ol>`;
+    `<li class="${c.nature === 'découverte' ? 'bl' : ''}">${c.nouveau ? '<span class="badge nouveau">nouveau</span> ' : ''}${c.niveau === 'certain' ? '<span class="badge certain">certain</span> ' : ''}${esc(c.texte)} <small>· ${c.distance} arête${c.distance > 1 ? 's' : ''} · fiabilité ${c.fiab} · force ${c.force}${c.bl ? ' · ' + esc(c.bl) : ''}</small></li>`).join('')}</ol>`;
 }
 
 function seuil() {
@@ -367,13 +398,19 @@ function seuil() {
   dessiner();
 }
 
-for (const x of DONNEES) x.recherche = (x.nom + ' ' + Object.values(x.noeuds).map((n) => n.nom + ' ' + (n.rc || '')).join(' ')).toLowerCase();
+for (const x of DONNEES) x.recherche = (x.nom + ' ' + Object.values(x.noeuds).map((n) => n.nom + ' ' + (n.lat || '') + ' ' + (n.rc || '')).join(' ')).toLowerCase();
 $('#tab-pp').onclick = () => { etat.type = 'PP'; $('#tab-pp').setAttribute('aria-pressed', 'true'); $('#tab-pm').setAttribute('aria-pressed', 'false'); liste(); };
 $('#tab-pm').onclick = () => { etat.type = 'PM'; $('#tab-pm').setAttribute('aria-pressed', 'true'); $('#tab-pp').setAttribute('aria-pressed', 'false'); liste(); };
 $('#recherche').oninput = liste;
 $('#boucles').onchange = liste;
+$('#decouvertes').onchange = liste;
+$('#certains').onchange = liste;
+$('#nouveaux').onchange = liste;
+if (!DONNEES.some((x) => x.nouveau !== null && x.nouveau !== undefined)) $('#lab-nouveaux').style.display = 'none';
 $('#profonds').onchange = liste;
 $('#seuil').oninput = seuil;
+try { if (localStorage.getItem('carte-translit') === '1') { $('#translit').checked = true; etat.lat = true; } } catch (e) { /* stockage indisponible */ }
+$('#translit').onchange = () => { etat.lat = $('#translit').checked; try { localStorage.setItem('carte-translit', etat.lat ? '1' : '0'); } catch (e) { /* stockage indisponible */ } dessiner(); };
 chiffres();
 window.addEventListener('resize', () => { clearTimeout(window.__t); window.__t = setTimeout(dessiner, 150); });
 let depart = null;

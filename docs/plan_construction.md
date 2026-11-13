@@ -5,7 +5,7 @@
 | Étape | Contenu | Durée indicative | État |
 | --- | --- | --- | --- |
 | 1 | skills et cadre de travail | 1 séance | fait (11/11/2026), fusionné |
-| A | remise à niveau, import contrôlé du kit et de la structure de Kamal | 1–2 j | partielle (13/11) : attend le kit du 11/11, les référentiels et la mesure réelle |
+| A | remise à niveau, import contrôlé du kit et de la structure de Kamal | 1–2 j | fait (13/11) ; référence réelle provisoire (121, 17 523, 25, 300), à confirmer avec les exclusions |
 | B | socle des couches, lecture de la structure de Kamal, carte de correspondance | 3–4 j | partielle (13/11) : attend comparer_bases.py (kit du 11/11), ruff et mypy installés |
 | C | générateur et serveur v2 fictifs, au format exact des types de Kamal | 2–3 j | à faire |
 | D | c0 : versions brutes, miroir de la v2, collecteur | 2–3 j | à faire |
