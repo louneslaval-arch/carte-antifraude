@@ -38,10 +38,14 @@ def verifier(base, invariants=INVARIANTS):
     with sqlite3.connect(base) as cx:
         for inv in liste:
             if 'zero' in inv:
-                n = len(cx.execute(inv['zero']).fetchall())
+                n = cx.execute(f'SELECT count(*) FROM ({inv["zero"]})').fetchone()[0]
                 ok = n == 0
             else:
-                n = cx.execute(inv['comptage']).fetchone()[0]
+                ligne = cx.execute(inv['comptage']).fetchone()
+                n = ligne[0] if ligne else None
+                if not isinstance(n, (int, float)):
+                    print(f'ÉCART  {inv["nom"]} : aucun nombre')
+                    return 1
                 if 'attendu' in inv:
                     ok = abs(n - inv['attendu']) <= inv.get('tolerance', 0)
                 else:

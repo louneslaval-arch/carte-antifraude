@@ -186,3 +186,28 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   `pipeline/`. Le kit du 11/11 (`carte_globale.py`, `translitteration.py`, `geo_maroc.py`…) reste à fournir.
 - **A.5** : référentiels non encore localisés (prototype du 21/10).
 - **Étape A fusionnée partielle** (consigne du 13/11) ; restent A.4, A.5, A.6, A.8 et la notice du kit.
+
+## 13/11/2026 — étape B, socle des couches (branche `etape-b-socle`, fusionnée partielle)
+
+- **Fait** : arborescence (`pipeline/normalisation`, `couches`, `regles`, `flux/`, `schema/`, `tests/`, `jeu_essai/v2/`,
+  `outils/v2/`) ; `schema/000_schema_version.sql` et `pipeline/migrer.py` (idempotent, tout ou rien, migration
+  modifiée après coup refusée) ; `construire.py` (`--jeu-essai`, `--base`, `--depuis`, `--jusqua`, `--dossier`) ;
+  `verifier.py` et `invariants.yaml` (zéro ligne, comptage avec tolérance ou minimum, arrêt au premier écart,
+  comptages seulement) ; `outils/v2/lire_prisma.py`, `lire_types_ts.py`, `carte_correspondance.py` ;
+  `docs/correspondance_v2.md` générée (13 modèles, 175 champs, 13 énumérations de schema.prisma ; 20 interfaces) avec
+  test de dérive ; `pytest.ini` (un seul `pytest` lance tout) ; `outils/verifier_tout.sh`.
+- **Tests** : 492 réussis, 2 sautés (avant : 440). Tests et code dans les mêmes enregistrements : l'ordre « tests
+  d'abord » a été suivi (chaque test vu rouge) mais n'est pas lisible dans l'historique.
+- **Relectures** : `gardien-donnees` sans constat bloquant (aucune référence réelle de Kamal dans les fichiers
+  suivis) ; corrigé : sortie d'erreur de `construire.py` réduite au type, `--depuis` après `--jusqua` refusé,
+  comptage vide ou nul traité comme un écart, invariant « zéro » compté en SQL, carte vérifiée aussi depuis
+  `reference/v2/` et contrôle de carte obligatoire dans `verifier_tout.sh`.
+- **Non fait** : B.5 `comparer_bases.py` (kit du 11/11 absent) ; tests par propriétés (pas encore de fonction de
+  normalisation reprise du kit ; hypothesis non installé) ; `testeur-mutation` (bac à sable, question n°22).
+- **Choix provisoires** : `invariants.yaml` en forme JSON du YAML (aucune dépendance) ; `migrer.py` propre à SQLite,
+  à rendre portable à l'étape L.
+- **Hors périmètre, fait** : notice du kit (A.2) : exemples de CIN remplacés par « ZZ », mots en écriture arabe par
+  « [arabe] » (choix prudent de la question n°13, réversible).
+- **Bloqué de mon côté** : pip ne démarre pas dans le bac à sable (accès aux certificats du système refusé) ;
+  `verifier_tout.sh` reste rouge à l'étape ruff tant que Lounès n'a pas lancé
+  `.venv/bin/python -m pip install -r requirements-dev.txt`.

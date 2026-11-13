@@ -33,10 +33,13 @@ $PY verifier.py --base "$BASE"
 rm -f "$BASE"
 
 etape "carte de correspondance"
-if [ -f import/kamal_structure/schema/schema.prisma ]; then
+if [ -f reference/v2/schema/schema.prisma ]; then
+    $PY outils/v2/carte_correspondance.py --verifier --structure reference/v2
+elif [ -f import/kamal_structure/schema/schema.prisma ]; then
     $PY outils/v2/carte_correspondance.py --verifier
 else
-    echo "structure de Kamal absente d'import/ : vérification sautée"
+    echo "structure de Kamal absente (reference/v2/ et import/kamal_structure/) : carte non vérifiée"
+    exit 1
 fi
 
 printf '\nvérification complète : vert\n'

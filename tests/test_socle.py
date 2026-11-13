@@ -178,3 +178,33 @@ def test_construire_puis_verifier_en_une_commande(tmp_path):
     assert r1.returncode == 0, r1.stderr
     r2 = subprocess.run([sys.executable, 'verifier.py', '--base', base], cwd=RACINE, capture_output=True, text=True)
     assert r2.returncode == 0, r2.stdout + r2.stderr
+
+
+def test_erreur_de_construction_sans_valeur_dans_la_console(monkeypatch, capsys, tmp_path):
+    def casse(*a, **k):
+        raise ValueError('dossier ZZ000001 illisible')
+    monkeypatch.setattr(construire, 'construire', casse)
+    assert construire.main(['--base', str(tmp_path / 'b.sqlite'), '--dossier', 'ZZ000001']) == 2
+    sortie = capsys.readouterr()
+    assert 'ZZ000001' not in sortie.out + sortie.err
+    assert 'ValueError' in sortie.err
+
+
+def test_depuis_seul(base, migrations, couches):
+    liste, journal = couches
+    construire.construire(base, couches=liste, schema=migrations, depuis='c1')
+    assert journal == [('c1', 'tout'), ('c2', 'tout')]
+
+
+def test_depuis_apres_jusqua_refuse(base, migrations, couches):
+    with pytest.raises(ValueError):
+        construire.construire(base, couches=couches[0], schema=migrations, depuis='c2', jusqua='c0')
+
+
+@pytest.mark.parametrize('requete', ['SELECT numero FROM schema_version WHERE 0', 'SELECT sum(numero) FROM schema_version WHERE 0'])
+def test_comptage_vide_ou_nul_est_un_ecart(base, migrations, tmp_path, requete, capsys):
+    with sqlite3.connect(base) as cx:
+        migrer.appliquer(cx, migrations)
+    inv = _invariants(tmp_path, [{'nom': 'vide', 'comptage': requete, 'minimum': 1}])
+    assert verifier.verifier(base, inv) == 1
+    assert 'vide : aucun nombre' in capsys.readouterr().out

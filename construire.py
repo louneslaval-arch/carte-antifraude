@@ -35,6 +35,8 @@ def _selection(couches, depuis, jusqua):
             raise ValueError(f'couche inconnue : {borne}')
     debut = noms.index(depuis) if depuis else 0
     fin = noms.index(jusqua) + 1 if jusqua else len(noms)
+    if (depuis or jusqua) and fin <= debut:
+        raise ValueError(f'--depuis {depuis} vient après --jusqua {jusqua}')
     return couches[debut:fin]
 
 
@@ -67,7 +69,7 @@ def main(argv=None):
     try:
         appliquees, faites = construire(base, depuis=a.depuis, jusqua=a.jusqua, dossier=a.dossier)
     except (ValueError, migrer.ErreurMigration) as e:
-        print(f'erreur : {e}', file=sys.stderr)
+        print(f'erreur : {type(e).__name__} (détail retiré : la sortie ne cite jamais une valeur)', file=sys.stderr)
         return 2
     print(f'migrations appliquées : {len(appliquees)} ; couches construites : {len(faites)}')
     return 0
