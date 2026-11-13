@@ -4,6 +4,7 @@
     {"nom": "migrations_sans_empreinte", "zero": "SELECT numero FROM schema_version WHERE empreinte IS NULL OR length(empreinte) <> 64"},
     {"nom": "c0_empreinte_pour_deux_json", "zero": "SELECT empreinte FROM c0_dossier_brut GROUP BY empreinte HAVING count(DISTINCT json) > 1"},
     {"nom": "c0_version_orpheline_de_passage", "zero": "SELECT b.ref FROM c0_dossier_brut b LEFT JOIN c0_export e ON e.id = b.passage WHERE e.id IS NULL"},
+    {"nom": "c0_reference_brute_absente_du_miroir", "zero": "SELECT DISTINCT b.ref FROM c0_dossier_brut b WHERE b.ref NOT IN (SELECT ref FROM \"Dossier\")"},
     {"nom": "c0_miroir_sans_version_brute", "zero": "SELECT d.ref FROM \"Dossier\" d WHERE d.ref NOT IN (SELECT ref FROM c0_dossier_brut)"},
     {"nom": "c0_miroir_pas_la_derniere_version", "zero": "SELECT d.ref FROM \"Dossier\" d WHERE d.\"updatedAt\" <> (SELECT max(b.updated_at) FROM c0_dossier_brut b WHERE b.ref = d.ref)"},
     {"nom": "c0_piece_sans_dossier", "zero": "SELECT p.id FROM \"Piece\" p WHERE p.\"dossierId\" NOT IN (SELECT id FROM \"Dossier\")"},

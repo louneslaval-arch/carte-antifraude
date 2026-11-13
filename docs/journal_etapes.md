@@ -350,3 +350,22 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   table `User` créée vide ; miroir PostgreSQL généré, jamais exécuté (question n°18) ; `pipeline/migrer.py` et la
   couche c0 emploient `sqlite3` directement (portage à l'étape L) ; la route de notification est la seule écriture de
   l'API hors de son journal (une ligne dans la file).
+- **Relectures de l'étape D** (trois sous-agents) et suites données, tests d'abord :
+  - *perte possible* (relecteur et vérificateur, reproduite) : le tri de la liste était jugé sur la première page
+    seule, puis plus aucune relecture complète → relecture complète au moins toutes les 5 minutes, tri jugé sur toutes
+    les pages, lecture rapide abandonnée au moindre doute ;
+  - *dossier pris pour écarté* : la liste avec archives est lue avant celle des actifs ; l'état « écarté » n'est
+    décidé que sur une lecture complète ; une notification, qui l'ignore, ne l'écrase plus ;
+  - *flux ≠ lot* : une version plus récente refusée par le miroir retire le dossier du miroir dans les deux cas ; le
+    travail est bloqué (`miroir_refuse`), visible ; invariant « référence brute absente du miroir » ;
+  - toute forme inattendue d'un dossier est un refus du miroir, sans arrêt du collecteur ni transaction ouverte ;
+  - route de notification : signature vérifiée avant toute ouverture de la base, corps borné à la réception,
+    réponses aux conventions de Kamal (`{"error": code}`) ; horodatage ISO avec ou sans millisecondes ;
+  - collecteur : `https` exigé hors de cette machine, pas d'identifiants dans l'adresse, ni mandataire ni netrc
+    (`trust_env=False`), référence encodée dans l'adresse, exception d'origine jamais chaînée ;
+  - test de couverture des routes (`roles.HORS_ROLES`) ; test « flux = lot » dans un ordre tiré au hasard.
+- **Non corrigé, noté** : portabilité PostgreSQL (question n°37) ; horodatage de la notification non signé (n°31) ;
+  état `en_cours` de la file jamais posé (le traiteur, étape I) ; `main()` du collecteur non testé ; invariant
+  « chaque ref de la liste a une version » impossible en SQL seul (la liste est hors de la base) ; `testeur-mutation`
+  non lancé (n°22). Questions ajoutées : n°34 à 37.
+- **Tests après corrections** : 754 réussis, 2 sautés ; `verifier_tout.sh` vert.

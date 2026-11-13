@@ -38,6 +38,7 @@ class Client:
     def __init__(self, appli):
         self.vrai = TestClient(appli)
         self.appels = []
+        self.parametres = []
         self.panne = None             # None, 'reseau', ou un code HTTP
         self.panne_detail = set()     # références dont le détail répond 503
         self.modifier_detail = None
@@ -45,6 +46,7 @@ class Client:
 
     def _appel(self, methode, url, **k):
         self.appels.append((methode, url.split('?')[0]))
+        self.parametres.append(k.get('params') or {})
         if self.panne == 'reseau':
             raise httpx.ConnectError('connexion refusée')
         if self.panne:
@@ -297,3 +299,85 @@ def test_invariants_verts_apres_un_scenario_complet_et_rouges_si_le_miroir_deriv
     assert verifier.verifier(base) == 1
     sortie = capsys.readouterr().out
     assert 'c0_miroir_pas_la_derniere_version : 1' in sortie and 'ZZ' not in sortie
+
+
+# ---- défauts relevés par les relectures ----------------------------------------------------------------------------
+
+def instant(e):
+    return datetime.datetime.strptime(e['instant'], serveur_v2.FORMAT)
+
+
+def test_dossier_modifie_loin_dans_une_liste_crue_triee_n_est_jamais_perdu(monde, jeu):
+    appli, _, cx, c, heure = monde(tri='createdAt')
+    relectures = [e for e in jeu.chronologie if e['version'] > 1]
+    premier = min(instant(e) for e in relectures) - datetime.timedelta(seconds=1)
+    appli.state.horloge.regler(premier)
+    c.passer()                                    # aucun dossier modifié : la liste par création a l'air triée
+    assert un(cx, 'SELECT liste_triee FROM flux_source') == 1
+    deja_la = {e['ref'] for e in jeu.chronologie if e['version'] == 1 and instant(e) <= premier}
+    appli.state.horloge.regler(FIN)               # des dossiers anciens sont relus, loin dans la liste
+    for _ in range(4):
+        avancer(heure, minutes=2)
+        c.passer()
+    relus = {e['ref'] for e in relectures} & deja_la
+    assert relus                                  # des dossiers vus au premier passage, modifiés ensuite
+    for ref in relus:
+        assert un(cx, 'SELECT count(*) FROM c0_dossier_brut WHERE ref = ?', ref) >= 2
+    assert un(cx, 'SELECT liste_triee FROM flux_source') == 0
+    assert un(cx, 'SELECT count(DISTINCT ref) FROM c0_dossier_brut') == len(jeu.dossiers)
+
+
+def test_relecture_complete_au_moins_toutes_les_cinq_minutes_meme_si_la_liste_est_triee(monde, jeu):
+    _, client, cx, c, heure = monde(tri='updatedAt')
+    c.passer()
+    complet = client.compte('GET', '/api/dossiers')
+    avancer(heure, minutes=6)
+    c.passer()
+    assert client.compte('GET', '/api/dossiers') == 2 * complet
+
+
+def test_la_liste_avec_archives_est_lue_avant_celle_des_actifs(monde):
+    _, client, _, c, _ = monde()
+    c.passer()
+    listes = [p for (m, u), p in zip(client.appels, client.parametres) if u == '/api/dossiers']
+    assert listes[0].get('archives') == 'true' and 'archives' not in listes[-1]
+
+
+def test_dossier_ecarte_annonce_par_notification_reste_ecarte(monde, jeu):
+    _, _, cx, c, heure = monde()
+    archive = next(d for d in jeu.dossiers if not jeu.meta[d['ref']]['actif'])
+    file.annoncer(cx, 'v2', archive['ref'], archive['updatedAt'], None, heure[0])     # état « écarté » inconnu
+    cx.commit()
+    c.passer()
+    assert un(cx, 'SELECT actif FROM "Dossier" WHERE ref = ?', archive['ref']) == 0
+
+
+def test_version_refusee_par_le_miroir_bloque_le_travail_et_reste_visible(monde, jeu):
+    _, client, cx, c, _ = monde()
+    cible = jeu.dossiers[5]['ref']
+    client.modifier_detail = lambda d: dict(d, verdict='VERDICT_INCONNU') if d['ref'] == cible else d
+    bilan = c.passer()
+    assert bilan['miroir_refuse'] == 1
+    assert cx.execute('SELECT etat, code_erreur FROM flux_travail WHERE ref = ?', (cible,)).fetchone() == \
+        ('bloque', 'miroir_refuse')
+    assert un(cx, 'SELECT count(*) FROM c0_dossier_brut WHERE ref = ?', cible) == 1     # la version brute est gardée
+    assert un(cx, 'SELECT count(*) FROM "Dossier" WHERE ref = ?', cible) == 0
+
+
+@pytest.mark.parametrize('adresse, admise', [
+    ('https://v2.exemple.invalid', True), ('http://127.0.0.1:8720', True), ('http://localhost:8720', True),
+    ('http://v2.exemple.invalid', False),                         # en clair vers une autre machine
+    ('https://compte:secret@v2.exemple.invalid', False),          # identifiants dans l'adresse
+    ('ftp://v2.exemple.invalid', False), ('v2.exemple.invalid', False), ('', False)])
+def test_adresse_de_la_v2(adresse, admise):
+    assert collecteur.adresse_admise(adresse) is admise
+
+
+def test_reference_encodee_dans_l_adresse_du_detail(monde):
+    _, client, cx, c, heure = monde()
+    c.passer()
+    file.annoncer(cx, 'v2', 'ZZ/../x?y#z', '2026-09-01T08:00:00.000Z', True, heure[0])
+    cx.commit()
+    avancer(heure, minutes=10)
+    c.passer()
+    assert client.appels[-1][1] == '/api/dossiers/ZZ%2F..%2Fx%3Fy%23z'

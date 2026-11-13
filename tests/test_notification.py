@@ -96,3 +96,21 @@ def test_notification_refusee_n_ecrit_rien(cx):
     with pytest.raises(notification.NotificationRefusee):
         notification.recevoir(cx, 'v2', c, 'fausse', horodatage(), SECRET, MAINTENANT)
     assert cx.execute('SELECT count(*) FROM flux_travail').fetchone()[0] == 0
+
+
+@pytest.mark.parametrize('h', ['2026-11-13T12:00:00.123Z', '2026-11-13T12:00:00Z', '2026-11-13T12:00:00.000Z',
+                               '2026-11-13T13:00:00.000+01:00'])
+def test_horodatage_iso_avec_ou_sans_millisecondes(h):
+    c = corps()
+    notification.verifier(c, signer(c), h, SECRET, MAINTENANT)
+
+
+def test_declencheurs_egaux_a_ceux_de_la_base_de_kamal():
+    schema = os.path.join(RACINE, 'import', 'kamal_structure', 'schema', 'schema.prisma')
+    if not os.path.exists(schema):
+        pytest.skip('structure de Kamal absente')
+    sys.path.insert(0, os.path.join(RACINE, 'outils', 'v2'))
+    import lire_prisma
+    with open(schema, encoding='utf-8') as f:
+        attendus = {v.nom for v in lire_prisma.lire(f.read()).enums['AnalysisTrigger'].valeurs}
+    assert notification.DECLENCHEURS == attendus

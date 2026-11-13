@@ -35,6 +35,10 @@
 | 31 | Notification de la v2 : noms des en-têtes (signature, horodatage) et étendue de la signature (corps seul, selon la spécification ; l'horodatage n'est donc pas signé) non fixés par Kamal | provisoire : `X-Signature`, `X-Horodatage`, HMAC SHA-256 du corps ; proposer à Kamal de signer aussi l'horodatage | Kamal | D, M |
 | 32 | Liste de la v2 : ordre de tri, valeur par défaut et maximum de `limit`, erreur d'un paramètre invalide | provisoire dans le serveur fictif : création décroissante, 50 et 500, 400 `parametre_invalide` | Kamal | D |
 | 33 | Identifiants de pièce côté EQDOM (`upstreamPieceId`) : six sont cités au README ; la table complète est dans le code de Kamal | les autres suivent la forme `eqdom_<type>` ; demander la table | Kamal | E |
+| 34 | « Un seul écrivain, l'API lit seulement » (règles du temps réel) contre la route `POST /api/flux/v2`, qui met une ligne en file, et le collecteur, qui écrit la version brute et le miroir | exception assumée : la route n'écrit qu'une ligne de `flux_travail`, après vérification de la signature ; le collecteur et le traiteur seront un même processus écrivain (étape I) | Lounès | I |
+| 35 | « Toute route déclare son droit » contre une route appelée par la v2 | `roles.HORS_ROLES` liste les routes sans rôle et leur protection (signature) ; un test vérifie que toute autre route exige une session | Lounès | J |
+| 36 | `updatedAt` de la v2 change-t-il quand seule une pièce, une analyse ou une relecture change ? (Prisma ne le garantit pas) Sinon, la comparaison d'`updatedAt` manquerait la version | à demander à Kamal ; en attendant, la relecture complète de la liste toutes les 5 minutes ne compare que `updatedAt` | Kamal | D sur la v2 réelle |
+| 37 | Portabilité PostgreSQL de c0 et du collecteur : `pipeline/migrer.py`, `c0_brut.py` et les invariants emploient SQLite (booléens en 0 et 1, listes en texte, dates en texte) ; le miroir PostgreSQL est généré mais jamais exécuté | porter à l'étape L, avec PostgreSQL installé en local | Lounès | L |
 
 ### À obtenir
 

@@ -42,9 +42,12 @@ def verifier(corps, signature, horodatage, secret, maintenant):
     attendue = hmac.new(secret.encode(), corps, hashlib.sha256).hexdigest()
     if not isinstance(signature, str) or not hmac.compare_digest(signature.encode(), attendue.encode()):
         raise NotificationRefusee('signature')
-    try:
-        ecart = abs((maintenant - datetime.datetime.strptime(horodatage, FORMAT)).total_seconds())
-    except (TypeError, ValueError):
+    try:                                              # ISO 8601, avec ou sans millisecondes, « Z » ou décalage
+        emis = datetime.datetime.fromisoformat(horodatage.replace('Z', '+00:00'))
+        if emis.tzinfo is not None:
+            emis = emis.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        ecart = abs((maintenant - emis).total_seconds())
+    except (AttributeError, TypeError, ValueError):
         raise NotificationRefusee('horodatage') from None
     if ecart > TOLERANCE_S:
         raise NotificationRefusee('horodatage')
@@ -60,7 +63,11 @@ def verifier(corps, signature, horodatage, secret, maintenant):
 
 def recevoir(cx, source, corps, signature, horodatage, secret, maintenant):
     """Vérifie la notification et met le dossier en file. Rend faux si cette version était déjà annoncée."""
-    charge = verifier(corps, signature, horodatage, secret, maintenant)
-    nouveau = file.annoncer(cx, source, charge['ref'], charge['updatedAt'], True, maintenant)
+    return mettre_en_file(cx, source, verifier(corps, signature, horodatage, secret, maintenant), maintenant)
+
+
+def mettre_en_file(cx, source, charge, maintenant):
+    """Met en file le dossier d'une charge déjà vérifiée. L'état « écarté » est inconnu ici : la liste le dira."""
+    nouveau = file.annoncer(cx, source, charge['ref'], charge['updatedAt'], None, maintenant)
     cx.commit()
     return nouveau

@@ -6,7 +6,9 @@
   version la plus récente (`updatedAt` le plus grand). Rien n'est interprété : ni normalisation, ni filtre.
 
 `recevoir` (au fil de l'eau), `traiter` (un dossier) et `construire_tout` (tout rejouer) passent par la même
-fonction `projeter` : le flux et le lot donnent le même miroir.
+fonction `projeter` : le flux et le lot donnent le même miroir. Si le miroir refuse la version la plus récente d'un
+dossier (valeur hors des énumérations de Kamal, forme inattendue), le dossier sort du miroir dans les deux cas : la
+version reste brute, et l'invariant « référence brute absente du miroir » le signale.
 
 Ce que l'API de la v2 n'expose pas et que sa base exige, posé ici (noté dans `docs/correspondance_v2.md`) :
 `Piece.id` et `Reanalysis.id` (dérivés de l'identifiant du dossier), `Piece.createdAt` et `updatedAt` (ceux du
@@ -16,7 +18,6 @@ directe de la base de Kamal (production), ces valeurs viendront de ses tables, s
 import datetime
 import hashlib
 import json
-import sqlite3
 import uuid
 
 nom = 'c0'
@@ -146,8 +147,10 @@ def recevoir(cx, passage, detail, actif=True, maintenant=None):
     cx.commit()                                       # la version brute est acquise, quoi que dise le miroir
     try:
         projeter(cx, ref)
-    except (sqlite3.IntegrityError, KeyError, TypeError) as e:
+    except Exception as e:                            # noqa: BLE001  toute forme inattendue : le miroir refuse
         cx.rollback()
+        _retirer(cx, ref)                             # comme construire_tout : pas d'ancienne projection gardée
+        cx.commit()
         raise MiroirRefuse(f'miroir refusé ({type(e).__name__})') from None
     cx.commit()
     return nouvelle
@@ -163,8 +166,11 @@ def construire_tout(cx):
     for table in ('AnalysisControl', 'Reanalysis', 'Analysis', 'Piece', 'Dossier'):
         cx.execute(f'DELETE FROM "{table}"')
     for (ref,) in cx.execute('SELECT DISTINCT ref FROM c0_dossier_brut ORDER BY ref').fetchall():
+        cx.execute('SAVEPOINT projection')
         try:
             projeter(cx, ref)
-        except (sqlite3.IntegrityError, KeyError, TypeError):
-            _retirer(cx, ref)                         # version que le miroir refuse : elle reste brute seulement
+        except Exception:                             # noqa: BLE001  version que le miroir refuse : brute seulement
+            cx.execute('ROLLBACK TO projection')
+            _retirer(cx, ref)
+        cx.execute('RELEASE projection')
     cx.commit()

@@ -223,3 +223,43 @@ def test_chaque_champ_de_dossier_detail_a_sa_place_declaree(cx):
 def test_la_couche_est_declaree_dans_l_ordre_des_couches():
     from pipeline.couches import COUCHES
     assert COUCHES[0] is c0 and c0.nom == 'c0'
+
+
+# ---- défauts relevés par les relectures ----------------------------------------------------------------------------
+
+def test_version_plus_recente_refusee_meme_miroir_au_fil_de_l_eau_et_en_lot(cx, passage, jeu):
+    avant, apres = versions(jeu, ref_de(jeu, 'S17'))
+    c0.recevoir(cx, passage, avant, maintenant=T0)
+    with pytest.raises(c0.MiroirRefuse):
+        c0.recevoir(cx, passage, dict(apres, verdict='VERDICT_INCONNU'), maintenant=T0)
+    au_fil_de_l_eau = miroir(cx)
+    assert compte(cx, 'Dossier') == 0 and compte(cx, 'c0_dossier_brut') == 2
+    c0.construire_tout(cx)
+    assert miroir(cx) == au_fil_de_l_eau
+
+
+@pytest.mark.parametrize('abime', [{'pieces': ['x']}, {'reanalyses': [None]}, {'alertsMinor': 2 ** 70},
+                                   {'analyses': 'texte'}, {'latestAnalysis': {'controls': [3]}}])
+def test_dossier_abime_refuse_par_le_miroir_sans_planter_ni_laisser_de_transaction(cx, passage, jeu, abime):
+    with pytest.raises(c0.MiroirRefuse):
+        c0.recevoir(cx, passage, dict(copy.deepcopy(jeu.dossiers[0]), **abime), maintenant=T0)
+    assert not cx.in_transaction and compte(cx, 'Dossier') == 0 and compte(cx, 'c0_dossier_brut') == 1
+    c0.construire_tout(cx)
+    assert compte(cx, 'Dossier') == 0
+
+
+def test_flux_egale_lot_dans_un_ordre_tire_au_hasard(cx, passage, jeu, tmp_path):
+    import random
+    evenements = jeu.chronologie[:150] + [e for e in jeu.chronologie if e['version'] > 1]
+    for e in evenements:
+        c0.recevoir(cx, passage, e['dossier'], actif=jeu.meta[e['ref']]['actif'], maintenant=T0)
+    dans_l_ordre = miroir(cx)
+    autre = sqlite3.connect(str(tmp_path / 'autre.sqlite'))
+    migrer.appliquer(autre)
+    p2 = c0.ouvrir_passage(autre, 'essai', 'lot', T0)
+    melange = list(evenements)
+    random.Random(7).shuffle(melange)
+    for e in melange:
+        c0.recevoir(autre, p2, e['dossier'], actif=jeu.meta[e['ref']]['actif'], maintenant=T0)
+    assert miroir(autre) == dans_l_ordre
+    autre.close()

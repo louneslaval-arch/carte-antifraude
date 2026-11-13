@@ -24,17 +24,22 @@ def delai(essais, initial=DELAI_INITIAL_S, maximum=DELAI_MAX_S):
 
 
 def annoncer(cx, source, ref, updated_at, actif, maintenant):
-    """Ajoute un travail pour cette version si elle n'est pas déjà annoncée. Rend vrai si le travail est nouveau."""
-    avant = cx.total_changes
-    cx.execute('INSERT INTO flux_travail (id, source, ref, updated_at, actif, recu_le) VALUES (?, ?, ?, ?, ?, ?) '
-               'ON CONFLICT (source, ref, updated_at) DO NOTHING',
-               (str(uuid.uuid4()), source, ref, updated_at, int(actif), _iso(maintenant)))
-    nouveau = cx.total_changes > avant
-    if nouveau:                                           # la version plus ancienne encore à faire n'a plus d'objet
-        cx.execute("UPDATE flux_travail SET etat = 'fait', code_erreur = 'remplace', prochaine_tentative = NULL "
-                   "WHERE source = ? AND ref = ? AND updated_at < ? AND etat IN ('en_attente', 'erreur')",
-                   (source, ref, updated_at))
-    return nouveau
+    """Ajoute un travail pour cette version si elle n'est pas déjà annoncée. Rend vrai si le travail est nouveau.
+    `actif` vaut None quand l'annonce ne sait pas si le dossier est écarté (notification) : une annonce qui le sait
+    (lecture de la liste) corrige alors le travail encore à faire."""
+    existant = cx.execute('SELECT id, etat FROM flux_travail WHERE source = ? AND ref = ? AND updated_at = ?',
+                          (source, ref, updated_at)).fetchone()
+    if existant:
+        if actif is not None and existant[1] != 'fait':
+            cx.execute('UPDATE flux_travail SET actif = ? WHERE id = ?', (int(actif), existant[0]))
+        return False
+    cx.execute('INSERT INTO flux_travail (id, source, ref, updated_at, actif, recu_le) VALUES (?, ?, ?, ?, ?, ?)',
+               (str(uuid.uuid4()), source, ref, updated_at, 1 if actif is None else int(actif), _iso(maintenant)))
+    # la version plus ancienne encore à faire n'a plus d'objet
+    cx.execute("UPDATE flux_travail SET etat = 'fait', code_erreur = 'remplace', prochaine_tentative = NULL "
+               "WHERE source = ? AND ref = ? AND updated_at < ? AND etat IN ('en_attente', 'erreur')",
+               (source, ref, updated_at))
+    return True
 
 
 def a_prendre(cx, source, maintenant):

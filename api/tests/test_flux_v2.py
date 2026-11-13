@@ -72,7 +72,7 @@ def test_notification_en_double_sans_effet(client, base):
     (dict(charge=dict(CHARGE, clientName='NOM FICTIF')), 400), (dict(corps=b'pas du json'), 400)])
 def test_notification_refusee_sans_rien_ecrire_ni_recopier(client, base, cas, statut):
     r = envoyer(client, **cas)
-    assert r.status_code == statut and r.json() == {'detail': 'Notification refusée'}
+    assert r.status_code == statut and r.json() == {'error': 'unauthorized' if statut == 401 else 'charge_invalide'}
     assert travaux(base) == []
 
 
@@ -85,10 +85,36 @@ def test_corps_trop_long_refuse(client, base):
 def test_route_inactive_sans_secret_ou_sans_base(env, tmp_path):
     with appli(env, tmp_path) as c:
         r = envoyer(c)
-        assert r.status_code == 503 and r.json() == {'detail': 'Notification inactive'}
+        assert r.status_code == 503 and r.json() == {'error': 'inactif'}
 
 
 def test_secret_trop_court_refuse_au_demarrage(tmp_path):
     from app.config import ReglageInvalide
     with pytest.raises(ReglageInvalide):
         appli({'CARTE_FLUX_V2_SECRET': 'court', 'CARTE_FLUX_BASE': 'x.sqlite'}, tmp_path)
+
+
+def test_requete_non_signee_n_ecrit_rien_dans_la_base(client, base):
+    envoyer(client, secret='un-autre-secret')
+    with sqlite3.connect(base) as cx:
+        assert cx.execute('SELECT count(*) FROM flux_source').fetchone()[0] == 0
+
+
+def test_corps_annonce_trop_long_refuse_sans_etre_lu(client, base):
+    r = client.post('/api/flux/v2', content=b'{}', headers={'Content-Length': '999999'})
+    assert r.status_code == 413 and r.json() == {'error': 'trop_long'}
+
+
+def test_reponse_d_acceptation_aux_conventions_de_la_v2(client):
+    assert envoyer(client).json() == {'ok': True}
+
+
+def test_toute_route_exige_une_session_sauf_celles_declarees_hors_roles(client):
+    from app.roles import HORS_ROLES
+    routes = sorted((sorted(r.methods)[0], r.path) for r in client.app.routes if hasattr(r, 'methods'))
+    assert {chemin for _, chemin in routes} >= set(HORS_ROLES)
+    for methode, chemin in routes:
+        if chemin in HORS_ROLES:
+            continue
+        r = client.request(methode, chemin.replace('{indice}', '0'))
+        assert r.status_code == 401, f'{methode} {chemin} répond {r.status_code} sans session'
