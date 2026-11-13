@@ -78,6 +78,14 @@ def avec_piece(jeu, type_piece, champs, relectures=None):
     return d, d['pieces'][0]['upstreamPieceId']
 
 
+def au_dessus(cx):
+    """Construit les couches au-dessus de c1 : les invariants se vérifient sur une base entièrement construite."""
+    from pipeline.couches import COUCHES
+    for couche in COUCHES[2:]:
+        couche.construire_tout(cx)
+    cx.commit()
+
+
 def lignes(cx, sql, *p):
     return cx.execute(sql, p).fetchall()
 
@@ -439,7 +447,7 @@ def test_operation_lue_a_date_illisible_reste_lue_avec_son_texte(jeu, tmp_path):
                       'upstream_piece_id = ? ORDER BY rang_mois, rang', upi) == \
         [('lue', None, '31/02'), ('lue', None, '05/02/25'), ('lue', None, '05/03')]
     assert lignes(cx, 'SELECT sum(nb_operations_lues) FROM c1_releve_mois WHERE upstream_piece_id = ?', upi) == [(3,)]
-    cx.commit()
+    au_dessus(cx)
     chemin = cx.execute('PRAGMA database_list').fetchone()[2]
     assert verifier.verifier(chemin) == 0
 
@@ -501,7 +509,7 @@ def test_valeur_retenue_departagee_de_facon_stable(jeu, tmp_path):
 
 def test_invariants_de_c1_verts_puis_rouges_si_on_les_viole(base, capsys):
     cx, chemin = base
-    cx.commit()
+    au_dessus(cx)
     assert verifier.verifier(chemin) == 0
     cx.execute("INSERT INTO c1_fait VALUES ('ZZ26R9999', 'eqdom_CIN', 'CIN', 'nom', 'nom', 'x', NULL, NULL, NULL, "
                "'amont', 'normal', 1)")
@@ -526,7 +534,7 @@ def test_invariants_de_c1_verts_puis_rouges_si_on_les_viole(base, capsys):
 def test_chaque_invariant_de_c1_devient_rouge_quand_on_le_viole(jeu, tmp_path, capsys, nom, viol):
     releve_lu = next(d for d in jeu.dossiers if d['ref'] == ref_de(jeu, 'T01'))
     cx = base_de(tmp_path, releve_lu, *[d for d in jeu.dossiers[:12] if d is not releve_lu])
-    cx.commit()
+    au_dessus(cx)
     chemin = cx.execute('PRAGMA database_list').fetchone()[2]
     assert verifier.verifier(chemin) == 0
     cx.executescript(viol)
