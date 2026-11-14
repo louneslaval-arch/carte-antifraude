@@ -159,16 +159,17 @@ CREATE TABLE c2_correspondance_mention (
 );
 CREATE INDEX c2_correspondance_mention_ref_idx ON c2_correspondance_mention (ref);
 
--- Décision d'un analyste sur un couple de fiches (fiche_a < fiche_b) ; survit à toutes les reconstructions.
+-- Décision d'un analyste sur un rapprochement. Elle se prend sur un couple de fiches et s'attache aux couples de
+-- mentions qui le fondent (identifiants de mention : stables, alors qu'une fiche change d'identifiant quand sa clé
+-- se renforce) ; elle survit à toutes les reconstructions.
 CREATE TABLE c2_decision (
-    fiche_a       TEXT NOT NULL,
-    fiche_b       TEXT NOT NULL,
+    mention_a     TEXT NOT NULL,
+    mention_b     TEXT NOT NULL,
     decision      TEXT NOT NULL CHECK (decision IN ('meme_personne', 'homonyme_ecarte')),
     analyste      TEXT,
     date_decision TEXT,
     justification TEXT,
-    PRIMARY KEY (fiche_a, fiche_b),
-    CHECK (fiche_a < fiche_b)
+    PRIMARY KEY (mention_a, mention_b)
 );
 
 -- Périmètre des règles : toutes les mentions v2 en lot, celles d'un dossier au fil de l'eau. Même SQL.
@@ -190,7 +191,13 @@ FROM (
     WHERE a.fiche IS NOT NULL AND b.fiche IS NOT NULL AND a.fiche <> b.fiche
     GROUP BY a.fiche, b.fiche, c.nature, c.regle, c.source
 ) x
-LEFT JOIN c2_decision d ON (d.fiche_a = x.fiche_a AND d.fiche_b = x.fiche_b) OR (d.fiche_a = x.fiche_b AND d.fiche_b = x.fiche_a);
+LEFT JOIN (
+    SELECT a.fiche AS fiche_a, b.fiche AS fiche_b, min(k.decision) AS decision
+    FROM c2_decision k
+    JOIN c2_mention a ON a.id = k.mention_a
+    JOIN c2_mention b ON b.id = k.mention_b
+    GROUP BY a.fiche, b.fiche
+) d ON (d.fiche_a = x.fiche_a AND d.fiche_b = x.fiche_b) OR (d.fiche_a = x.fiche_b AND d.fiche_b = x.fiche_a);
 
 -- Graphies sous lesquelles une fiche a été lue.
 CREATE VIEW c2_alias AS

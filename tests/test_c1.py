@@ -476,6 +476,13 @@ def test_titulaire_du_compte_lu_sous_chacune_de_ses_cles(jeu, tmp_path, type_pie
         [('Banque Tazoula',)]
 
 
+def test_adresse_du_releve_portee_par_la_mention_du_titulaire(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'RELEVE_BANCAIRE', {'titulaire_compte': 'Zelmou Bakrita', 'adresse': '9 RUE ZIRMAK'})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, "SELECT adresse FROM c1_mention_personne WHERE upstream_piece_id = ? AND role = "
+                      "'titulaire_compte'", upi) == [('9 RUE ZIRMAK',)]
+
+
 def test_identifiants_recus_en_nombre_gardes(jeu, tmp_path):
     d, upi = avec_piece(jeu, 'BULLETIN_DE_PAIE', {'nom': 'Zelmou', 'numero_affiliation': 9991234,
                                                   'employeur': {'raison_sociale': 'Tazoula Sarl', 'ice': 999000000000001}})

@@ -3,7 +3,9 @@
 n'affiche que des nombres.
 
 Le script peut tourner sur des données réelles (lancé par Lounès, hors du dépôt) : il n'affiche jamais une valeur
-lue ni le détail d'une erreur. Un comptage par règle qui porte sur moins de 5 lignes s'affiche « < 5 ».
+lue ni le détail d'une erreur. Aucun chiffre de 1 à 4 ne s'affiche (« < 5 ») ; un comptage par règle qui porte sur
+moins de 5 fiches distinctes est réuni aux autres. Sans la variable d'environnement du garde-fou des données réelles
+(posée par Lounès dans sa commande, jamais ailleurs), un kit dont un CIN ne commence pas par « ZZ » est refusé.
 
 Usage : comptages_f.py --base-kit BASE_DU_KIT --base BASE_NEUVE
 Codes de sortie : 0 fait ; 1 un invariant en écart ; 2 arguments ou base refusés ; 3 échec (classe de l'erreur).
@@ -12,6 +14,7 @@ import argparse
 import contextlib
 import io
 import os
+import re
 import sqlite3
 import sys
 
@@ -40,10 +43,15 @@ TOTAUX = (
     ('CIN partagés par des noms incompatibles',
      "SELECT count(DISTINCT cle_valeur) FROM c2_correspondance_mention WHERE regle = 'CIN_PARTAGE'"),
 )
+# (titre, requête : libellé, nombre de lignes, nombre de fiches distinctes concernées)
 GROUPES = (
-    ('mentions par règle de rattachement', "SELECT coalesce(regle, 'aucune'), count(*) FROM c2_mention GROUP BY 1 ORDER BY 1"),
-    ('rapprochements entre fiches par règle', 'SELECT regle, sum(nb_mentions) FROM c2_correspondance GROUP BY 1 ORDER BY 1'),
+    ('mentions par règle de rattachement',
+     "SELECT coalesce(regle, 'aucune'), count(*), count(DISTINCT coalesce(fiche, id)) FROM c2_mention GROUP BY 1"),
+    ('rapprochements entre fiches par règle',
+     'SELECT regle, sum(nb_mentions), count(DISTINCT fiche_a) FROM c2_correspondance GROUP BY 1'),
 )
+LIBELLE = re.compile(r'[A-Za-z0-9_]{1,24}')
+AUTRES = 'autres (sous le seuil)'
 
 
 class _Analyseur(argparse.ArgumentParser):
@@ -52,21 +60,50 @@ class _Analyseur(argparse.ArgumentParser):
         raise SystemExit(2)
 
 
-def _compter(a):
+def _affiche(n):
+    """Aucun chiffre sur moins de 5 : un comptage de 1 à 4 s'affiche « < 5 »."""
+    return n if n == 0 or n >= SEUIL else '< 5'
+
+
+def _groupes(rangs):
+    """Groupes affichables : ceux qui portent sur 5 fiches distinctes au moins et dont le libellé est un nom de
+    règle ; les autres sont réunis (avec le plus petit groupe affiché tant que la réunion reste sous le seuil), pour
+    qu'aucun ne se retrouve par soustraction."""
+    grands = sorted(((nom, n) for nom, n, fiches in rangs if fiches >= SEUIL and LIBELLE.fullmatch(nom or '')),
+                    key=lambda g: (g[1], g[0]))
+    reste = sum(n for nom, n, fiches in rangs) - sum(n for _, n in grands)
+    while 0 < reste < SEUIL and grands:
+        reste += grands.pop(0)[1]
+    return sorted(grands) + ([(AUTRES, _affiche(reste))] if reste else [])
+
+
+def _fictif(kit):
+    """Vrai si le kit ne porte que des CIN fictifs (« ZZ ») : sans le garde-fou, rien d'autre n'est lu."""
+    return kit.execute("SELECT (SELECT count(*) FROM bl_entite WHERE cin IS NOT NULL AND cin NOT LIKE 'ZZ%') + "
+                       "(SELECT count(*) FROM rc_personne WHERE cin_norm IS NOT NULL AND cin_norm NOT LIKE 'ZZ%')"
+                       ).fetchone()[0] == 0
+
+
+def _compter(a, reel):
     kit = sqlite3.connect(f'file:{a.base_kit}?mode=ro', uri=True)
-    print(f"inscrits du kit : {kit.execute('SELECT count(*) FROM bl_entite').fetchone()[0]}")
-    kit.close()
+    try:
+        if not reel and not _fictif(kit):
+            print('refusé : kit non fictif, et garde-fou des données réelles absent de la commande')
+            return 2
+        print(f"inscrits du kit : {_affiche(kit.execute('SELECT count(*) FROM bl_entite').fetchone()[0])}")
+    finally:
+        kit.close()
     cx = sqlite3.connect(a.base)
     migrer.appliquer(cx)
     for couche in COUCHES:                                # base sans dossier : les couches se construisent vides
         couche.construire_tout(cx)
     c2_identites.charger_socle(cx, a.base_kit)
     for libelle, sql in TOTAUX:
-        print(f'{libelle} : {cx.execute(sql).fetchone()[0]}')
+        print(f'{libelle} : {_affiche(cx.execute(sql).fetchone()[0])}')
     for titre, sql in GROUPES:
         print(f'{titre} :')
-        for nom, n in cx.execute(sql).fetchall():
-            print(f'  {nom} : {n if n >= SEUIL else "< 5"}')
+        for nom, n in _groupes(cx.execute(sql).fetchall()):
+            print(f'  {nom} : {n}')
     cx.commit()
     cx.close()
     with contextlib.redirect_stdout(io.StringIO()):
@@ -84,11 +121,12 @@ def main(argv=None):
         print('refusé : la base neuve existe déjà, ou la base du kit est introuvable')
         return 2
     depot = os.path.realpath(RACINE)
-    if os.environ.get(GARDE_FOU) == '1' and os.path.commonpath([os.path.realpath(a.base), depot]) == depot:
+    reel = os.environ.get(GARDE_FOU) == '1'
+    if reel and os.path.commonpath([os.path.realpath(a.base), depot]) == depot:
         print('refusé : une base de données réelles ne se crée jamais dans le dépôt')
         return 2
     try:
-        return _compter(a)
+        return _compter(a, reel)
     except Exception as e:                                # noqa: BLE001  ni message ni trace : seulement la classe
         print(f'échec : {type(e).__name__}')
         return 3

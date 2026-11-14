@@ -16,10 +16,13 @@ Tout le reste est un rapprochement, jamais une fusion : règles R01 à R11 du ki
 écrites en SQL sur la vue `perimetre` (toutes les mentions v2 en lot, celles du dossier au fil de l'eau).
 
 L'identifiant d'une fiche est dérivé de sa clé naturelle (empreinte) : il ne dépend ni de l'ordre d'arrivée ni de la
-base, et ne cite aucune valeur. `traiter(cx, ref)` et `construire_tout(cx)` passent par les mêmes fonctions : les
+base. Il ne montre aucune valeur, mais se retrouve par énumération des CIN : il se traite comme le CIN lui-même et
+ne sort jamais vers une URL, un journal, un événement ou Tandem (questions ouvertes). `traiter(cx, ref)` et `construire_tout(cx)` passent par les mêmes fonctions : les
 fiches sont une fonction des mentions. Aucune sortie, aucun message ne porte de valeur.
 
-Hors de ce lot (noté aux questions ouvertes) : les dossiers `af_*` de l'ancien export.
+Hors de ce lot (questions ouvertes) : les dossiers `af_*` de l'ancien export ; les règles AF qui croisent les
+dossiers ou les chemins (AF09, AF11, AF20 : couches 3 et 5) ; le signalement d'un RC porté par des noms
+incompatibles (AF02n, AF03n).
 """
 import functools
 import hashlib
@@ -62,7 +65,7 @@ def _empreinte(texte, taille):
 
 
 def identifiant(type_fiche, cle_naturelle):
-    """Identifiant stable d'une fiche : empreinte de sa clé naturelle, sans aucune valeur lisible."""
+    """Identifiant stable d'une fiche : empreinte de sa clé naturelle (interne : réversible par énumération)."""
     return ('pp_' if type_fiche == 'PP' else 'pm_') + _empreinte(f'{type_fiche}|{cle_naturelle}', 16)
 
 
@@ -87,7 +90,8 @@ def _rc(x):
     if x in (None, ''):
         return None
     numero, _, statut = cb.normalise_rc(re.sub(r'(?<=\d)[\s.](?=\d)', '', str(x)))
-    return numero if statut == 'rc' and numero and numero != '0' else None
+    # un RC à 1 ou 2 chiffres n'identifie pas une société (règles de méthode, `docs/decisions.md`)
+    return numero if statut == 'rc' and numero and len(numero.lstrip('0')) >= 3 else None
 
 
 def _ice(x):
@@ -176,7 +180,8 @@ def _mentions_v2(cx, ref=None):
             continue
         m = _mention('v2', 'PM', f'v2:{ref_}:{upi}:PM:{role}', ref=ref_, upstream_piece_id=upi, type_piece=type_piece,
                      role=role, rang=0, nom=nom_, rc=_rc(rc), tribunal=cb.tribunal_code(tribunal)[0] if tribunal else None,
-                     ice=_ice(ice), affiliation_cnss=_chiffres(affiliation, 5), adresse=adresse)
+                     ice=_ice(ice), adresse=adresse,
+                     affiliation_cnss=_chiffres(affiliation, 5) if role == 'employeur' else None)
         societes[(ref_, upi, role)] = m
         mentions.append(m)
     for ref_, upi, type_piece, role, rang, nom_, cin, naissance, parts, adresse, statut in cx.execute(
@@ -225,6 +230,8 @@ def charger_socle(cx, chemin_base_kit):
         morale = e['type_entite'] == 'PM'
         nom_, prenom = premiers.get(e['entite_id'], (None, None))
         libelle = e['nom_affiche'] or ''
+        statut = e['statut'] or 'actif'                   # sans statut : actif, comme le défaut du kit
+        actif = statut == 'actif'                         # une inscription retirée reste visible, sans compter (n°4)
         cx.execute(
             'INSERT INTO ref_liste_noire (id, kind, label, normalized, city, active, "createdAt", personne, nom, '
             'prenom, "raisonSociale", cin, rc, "typeListe", motif, source, cle_entite, tribunal, ice, '
@@ -232,16 +239,16 @@ def charger_socle(cx, chemin_base_kit):
             'nb_inscriptions, premiere_saisie, derniere_saisie) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
             '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             ('bl_' + _empreinte(e['cle_entite'], 16), 'EMPLOYEUR' if morale else 'CLIENT', libelle,
-             texte_norm(libelle) or '', e['ville_code'], int(e['statut'] == 'actif'), e['premiere_saisie'],
+             texte_norm(libelle) or '', e['ville_code'], int(actif), e['premiere_saisie'],
              e['type_entite'], None if morale else nom_, None if morale else prenom, libelle if morale else None,
              e['cin'], e['rc_num'], e['types_liste'], e['motifs'], e['origines'], e['cle_entite'], e['tribunal_code'],
-             e['ice'], e['if_num'], e['date_naissance'], e['adresse'], e['employeur'], e['statut'] or 'actif',
+             e['ice'], e['if_num'], e['date_naissance'], e['adresse'], e['employeur'], statut,
              e['date_reference'], e['types_fraude'], e['nb_inscriptions'], e['premiere_saisie'], e['derniere_saisie']))
         m = _mention('liste_noire', e['type_entite'], 'bl:' + e['cle_entite'], nom=e['nom_affiche'],
                      cin=None if morale else _cin(e['cin']), date_naissance=e['date_naissance'], adresse=e['adresse'],
                      rc=_rc(e['rc_num']) if morale else None, tribunal=e['tribunal_code'] if morale else None,
                      ice=_ice(e['ice']) if morale else None, identifiant_fiscal=_chiffres(e['if_num'], 4) if morale else None,
-                     inscrit=int(e['statut'] == 'actif'))
+                     inscrit=int(actif))
         par_entite[e['entite_id']] = m
         mentions.append(m)
     for s in societes:
@@ -274,26 +281,35 @@ def charger_socle(cx, chemin_base_kit):
                 (a['id'], b['id'], c['nature'] or 'identite', c['regle'], c['niveau'], c['statut'] or 'a_verifier',
                  c['cle_type'], c['cle_valeur'], c['confirmation'], c['poids']))
     _construire(cx)
-    for d in decisions:                                   # décisions d'analyste du kit, rapportées aux fiches
-        fiches = [cx.execute('SELECT fiche FROM c2_mention WHERE cle_origine = ?', (cle,)).fetchone()
-                  for cle in ('bl:' + d['cle_bl'], ('rcs:' if d['rc_objet'] == 'rc_societe' else 'rcp:') + d['cle_rc'])]
-        if all(f and f[0] for f in fiches) and fiches[0][0] != fiches[1][0] and d['decision'] in DECISIONS:
-            a, b = sorted(f[0] for f in fiches)
-            cx.execute('INSERT INTO c2_decision (fiche_a, fiche_b, decision, analyste, date_decision, justification) '
-                       'VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (fiche_a, fiche_b) DO NOTHING',
-                       (a, b, d['decision'], d['analyste'], d['date_decision'], d['justification']))
+    for d in decisions:                                   # décisions d'analyste du kit, attachées aux mentions
+        if d['decision'] in DECISIONS:
+            couple = ('bl:' + d['cle_bl'], ('rcs:' if d['rc_objet'] == 'rc_societe' else 'rcp:') + d['cle_rc'])
+            _ecrire_decision(cx, _id_mention(couple[0]), _id_mention(couple[1]), d['decision'], d['analyste'],
+                             d['date_decision'], d['justification'], remplacer=False)
     cx.commit()
 
 
+def _ecrire_decision(cx, mention_a, mention_b, decision, analyste, date_decision, justification, remplacer=True):
+    suite = ('DO UPDATE SET decision = excluded.decision, analyste = excluded.analyste, date_decision = '
+             'excluded.date_decision, justification = excluded.justification') if remplacer else 'DO NOTHING'
+    cx.execute('INSERT INTO c2_decision (mention_a, mention_b, decision, analyste, date_decision, justification) '
+               f'VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (mention_a, mention_b) {suite}',
+               (mention_a, mention_b, decision, analyste, date_decision, justification))
+
+
 def decider(cx, fiche_a, fiche_b, decision, analyste=None, justification=None, date_decision=None):
-    """Enregistre la décision d'un analyste sur un couple de fiches ; elle survit à toutes les reconstructions."""
+    """Enregistre la décision d'un analyste sur le rapprochement de deux fiches. Elle s'attache aux couples de
+    mentions qui fondent ce rapprochement : elle survit aux reconstructions et au changement de clé d'une fiche."""
     if decision not in DECISIONS or not fiche_a or not fiche_b or fiche_a == fiche_b:
         raise ValueError('décision ou couple de fiches invalide')
-    a, b = sorted((fiche_a, fiche_b))
-    cx.execute('INSERT INTO c2_decision (fiche_a, fiche_b, decision, analyste, date_decision, justification) '
-               'VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (fiche_a, fiche_b) DO UPDATE SET decision = excluded.decision, '
-               'analyste = excluded.analyste, date_decision = excluded.date_decision, '
-               'justification = excluded.justification', (a, b, decision, analyste, date_decision, justification))
+    couples = cx.execute(
+        'SELECT c.mention_a, c.mention_b FROM c2_correspondance_mention c JOIN c2_mention a ON a.id = c.mention_a '
+        'JOIN c2_mention b ON b.id = c.mention_b WHERE (a.fiche = ? AND b.fiche = ?) OR (a.fiche = ? AND b.fiche = ?)',
+        (fiche_a, fiche_b, fiche_b, fiche_a)).fetchall()
+    if not couples:
+        raise ValueError('aucun rapprochement entre ces deux fiches')
+    for mention_a, mention_b in couples:
+        _ecrire_decision(cx, mention_a, mention_b, decision, analyste, date_decision, justification)
     cx.commit()
 
 
@@ -522,7 +538,7 @@ def _regles(cx, ref=None):
             'INSERT INTO c2_correspondance_mention (mention_a, mention_b, nature, regle, niveau, statut, cle_type, '
             'cle_valeur, source, ref) '
             f"SELECT s.id, p.id, '{nature}', '{regle}', '{niveau}', '{statut}', '{cle_type}', p.cle_nom, 'v2', p.ref "
-            "FROM perimetre p JOIN c2_mention s ON s.source = 'liste_noire' AND s.cle_nom = p.cle_nom "
+            "FROM perimetre p JOIN c2_mention s ON s.source = 'liste_noire' AND s.inscrit = 1 AND s.cle_nom = p.cle_nom "
             f"AND {jointure} WHERE p.statut = 'normal' AND p.cle_nom IS NOT NULL AND {filtre} "
             'ON CONFLICT (mention_a, mention_b, regle) DO NOTHING')
     cx.execute('DELETE FROM c2_perimetre')

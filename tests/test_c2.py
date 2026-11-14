@@ -231,9 +231,9 @@ def test_societe_sous_deux_denominations_une_seule_fiche(jeu, tmp_path):
 def test_cin_partage_par_deux_noms_incompatibles_pas_de_fusion_signalement(jeu, tmp_path):
     cx = base_de(tmp_path, [dossier(jeu, 1, cin_de('ZELMOU', 'BAKRITA', 'ZZ100001')),
                             dossier(jeu, 2, cin_de('ZELMOU', 'BAKRITA', 'ZZ100001')),
-                            dossier(jeu, 3, cin_de('TAGHRIZ', 'MILOUDA', 'ZZ100001'))])
+                            dossier(jeu, 3, cin_de('TAGHRIZ', 'LOUMIZA', 'ZZ100001'))])
     assert sorted(lignes(cx, 'SELECT nom, cin, nb_mentions FROM c2_personne')) == \
-        [('TAGHRIZ MILOUDA', 'ZZ100001', 1), ('ZELMOU BAKRITA', 'ZZ100001', 2)]
+        [('TAGHRIZ LOUMIZA', 'ZZ100001', 1), ('ZELMOU BAKRITA', 'ZZ100001', 2)]
     assert lignes(cx, 'SELECT regle, niveau, statut FROM c2_correspondance') == [('CIN_PARTAGE', 'a_verifier', 'alerte')]
     cx.commit()
     assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
@@ -255,14 +255,14 @@ def test_cin_partage_entre_deux_ecritures_jamais_separe_faute_de_preuve(jeu, tmp
 def test_mention_sans_cin_rattachee_a_la_cin_du_meme_dossier_par_le_nom(jeu, tmp_path):
     d = dossier(jeu, 1, cin_de('ZELMOU', 'BAKRITA', 'ZZ100001'),
                 ('RELEVE_BANCAIRE', {'titulaire_compte': 'BAKRITA ZELMOU', 'rib': '999' + '0' * 21}),
-                ('ATTESTATION_RIB', {'titulaire_compte': 'TAGHRIZ MILOUDA', 'rib': '999' + '1' * 21}))
+                ('ATTESTATION_RIB', {'titulaire_compte': 'TAGHRIZ LOUMIZA', 'rib': '999' + '1' * 21}))
     cx = base_de(tmp_path, [d])
     assert sorted(lignes(cx, 'SELECT role, regle FROM c2_mention ORDER BY role')) == \
         [('titulaire_cin', 'CIN'), ('titulaire_compte', 'nom_dans_dossier'), ('titulaire_compte', 'propre')]
     assert un(cx, 'SELECT count(*) FROM c2_personne') == 2
     assert sorted(lignes(cx, "SELECT p.nom, i.valeur FROM c2_identifiant i JOIN c2_personne p ON p.identifiant = "
                              "i.fiche WHERE i.type = 'RIB'")) == \
-        [('TAGHRIZ MILOUDA', '999' + '1' * 21), ('ZELMOU BAKRITA', '999' + '0' * 21)]
+        [('TAGHRIZ LOUMIZA', '999' + '1' * 21), ('ZELMOU BAKRITA', '999' + '0' * 21)]
 
 
 def test_gerant_d_un_dossier_retrouve_au_registre_dans_la_meme_societe_le_dossier_apporte_le_cin(jeu, tmp_path):
@@ -270,14 +270,14 @@ def test_gerant_d_un_dossier_retrouve_au_registre_dans_la_meme_societe_le_dossie
                                               rc_num='70001', tribunal_code='KENITRA')],
                      personnes=[dict(personne_id=k, cle_stable=f'RC:70001@KENITRA|N:{nom}', societe_id=1,
                                      type_personne='PP', nom_complet=nom, ecriture='latin', cin_statut='absent',
-                                     role='gerant') for k, nom in enumerate(('ZELMOU BAKRITA', 'TAGHRIZ MILOUDA'), 1)])
+                                     role='gerant') for k, nom in enumerate(('ZELMOU BAKRITA', 'TAGHRIZ LOUMIZA'), 1)])
     d = dossier(jeu, 1, ('REGISTRE_COMMERCE', {'denomination_sociale': 'TAZOULA', 'numero_analytique': '70001',
                                                'ville_tribunal': 'KENITRA',
                                                'gerants': [{'nom_complet': 'BAKRITA ZELMOU', 'cin': 'ZZ100001'}]}))
     cx = base_de(tmp_path, [d], kit)
     assert sorted(lignes(cx, "SELECT nom, regle, cin_effectif FROM c2_mention WHERE source = 'registre' AND "
                              "type_fiche = 'PP'")) == \
-        [('TAGHRIZ MILOUDA', 'propre', None), ('ZELMOU BAKRITA', 'AF05', 'ZZ100001')]
+        [('TAGHRIZ LOUMIZA', 'propre', None), ('ZELMOU BAKRITA', 'AF05', 'ZZ100001')]
     assert un(cx, 'SELECT count(*) FROM c2_personne') == 2 and un(cx, 'SELECT count(*) FROM c2_societe') == 1
     assert lignes(cx, "SELECT count(DISTINCT fiche), count(DISTINCT societe) FROM c2_role WHERE role = 'gerant'") == \
         [(2, 1)]
@@ -285,7 +285,7 @@ def test_gerant_d_un_dossier_retrouve_au_registre_dans_la_meme_societe_le_dossie
     c1.traiter(cx, d['ref'])
     c2.traiter(cx, d['ref'])
     assert sorted(lignes(cx, "SELECT nom, regle, cin_effectif FROM c2_mention")) == \
-        [('TAGHRIZ MILOUDA', 'propre', None), ('TAZOULA SARL', 'RC_TRIB', None), ('ZELMOU BAKRITA', 'propre', None)]
+        [('TAGHRIZ LOUMIZA', 'propre', None), ('TAZOULA SARL', 'RC_TRIB', None), ('ZELMOU BAKRITA', 'propre', None)]
     assert un(cx, 'SELECT count(*) FROM c2_personne') == 2 and un(cx, 'SELECT count(*) FROM c2_personne WHERE cin IS NOT NULL') == 0
 
 
@@ -350,6 +350,71 @@ def test_decision_homonyme_ecarte_survit_aux_reconstructions(jeu, socle, tmp_pat
     assert un(cx, "SELECT count(*) FROM c2_correspondance WHERE statut = 'homonymie'") < avant
     with pytest.raises(ValueError):
         c2.decider(cx, a, b, 'autre_chose')
+
+
+def test_decision_survit_quand_une_fiche_change_de_cle(jeu, tmp_path):
+    kit = mini_socle(tmp_path, entites=[dict(entite_id=1, cle_entite='P#1', type_entite='PP',
+                                             nom_affiche='ZELMOU BAKRITA', statut='actif')],
+                     societes=[dict(societe_id=1, cle_societe='RC:70001@KENITRA', denomination='TAZOULA SARL',
+                                    rc_num='70001', tribunal_code='KENITRA')],
+                     personnes=[dict(personne_id=1, cle_stable='RC:70001@KENITRA|N:ZELMOUBAKRITA', societe_id=1,
+                                     type_personne='PP', nom_complet='ZELMOU BAKRITA', ecriture='latin',
+                                     cin_statut='absent', role='gerant')],
+                     correspondances=[dict(bl_entite_id=1, rc_objet='rc_personne', rc_objet_id=1, societe_id=1,
+                                           nature='identite', regle='R07', niveau='probable', statut='homonymie')])
+    cx = base_de(tmp_path, [], kit)
+    (a, b), = lignes(cx, 'SELECT fiche_a, fiche_b FROM c2_correspondance')
+    c2.decider(cx, a, b, 'homonyme_ecarte', analyste='essai')
+    d = dossier(jeu, 1, ('REGISTRE_COMMERCE', {'denomination_sociale': 'TAZOULA', 'numero_analytique': '70001',
+                                               'ville_tribunal': 'KENITRA',
+                                               'gerants': [{'nom_complet': 'BAKRITA ZELMOU', 'cin': 'ZZ100001'}]}))
+    c0.recevoir(cx, c0.ouvrir_passage(cx, 'essai', 'lot', T0), d, maintenant=T0)
+    c1.traiter(cx, d['ref'])
+    c2.traiter(cx, d['ref'])                               # le dossier apporte le CIN : la fiche du registre change de clé
+    (a2, b2, statut), = lignes(cx, 'SELECT fiche_a, fiche_b, statut FROM c2_correspondance')
+    assert b2 != b and statut == 'ecarte'
+    c2.construire_tout(cx)
+    assert lignes(cx, 'SELECT statut FROM c2_correspondance') == [('ecarte',)]
+    with pytest.raises(ValueError):
+        c2.decider(cx, a2, 'pp_sans_rapprochement', 'homonyme_ecarte')
+
+
+def test_inscrit_retire_ne_compte_plus_pour_les_liens_statut_vide_vaut_actif(jeu, tmp_path):
+    kit = mini_socle(tmp_path, entites=[
+        dict(entite_id=1, cle_entite='P#1', type_entite='PP', nom_affiche='ZELMOU BAKRITA', statut='retiré'),
+        dict(entite_id=2, cle_entite='P#2', type_entite='PP', nom_affiche='TAGHRIZ LOUMIZA', statut=None),
+        dict(entite_id=3, cle_entite='P:ZZ100003', type_entite='PP', nom_affiche='ZIRMAK NADOUL', cin='ZZ100003',
+             statut='retiré')])
+    emploi = lambda nom, prenom: ('ATTESTATION_TRAVAIL_SALAIRE', {'nom': nom, 'prenom': prenom})  # noqa: E731
+    cx = base_de(tmp_path, [dossier(jeu, 1, emploi('ZELMOU', 'BAKRITA')), dossier(jeu, 2, emploi('TAGHRIZ', 'LOUMIZA')),
+                            dossier(jeu, 3, cin_de('ZIRMAK', 'NADOUL', 'ZZ100003'))], kit)
+    assert lignes(cx, 'SELECT cle_entite, statut, active FROM ref_liste_noire ORDER BY 1') == \
+        [('P#1', 'retiré', 0), ('P#2', 'actif', 1), ('P:ZZ100003', 'retiré', 0)]
+    assert lignes(cx, "SELECT a.nom FROM c2_correspondance_mention c JOIN c2_mention a ON a.id = c.mention_a") == \
+        [('TAGHRIZ LOUMIZA',)]
+    assert lignes(cx, "SELECT inscrit, nb_mentions FROM c2_personne WHERE cin = 'ZZ100003'") == [(0, 2)]   # visible, non inscrit
+
+
+def test_rc_a_un_ou_deux_chiffres_n_est_pas_une_cle(jeu, tmp_path):
+    rc = lambda nom, numero: ('REGISTRE_COMMERCE', {'denomination_sociale': nom, 'numero_analytique': numero,  # noqa: E731
+                                                    'ville_tribunal': 'KENITRA'})
+    cx = base_de(tmp_path, [dossier(jeu, 1, rc('TAZOULA SARL', '12')), dossier(jeu, 2, rc('ZIRMAK SARL', '12'))])
+    assert lignes(cx, 'SELECT count(*), count(rc) FROM c2_societe') == [(2, 0)]
+
+
+def test_flux_depuis_une_base_vide_dans_un_ordre_au_hasard_egale_le_lot(jeu, socle, tmp_path):
+    lot = base_de(tmp_path, jeu.dossiers, socle)
+    flux = base_de(tmp_path, [], socle)
+    dossiers = list(jeu.dossiers)
+    random.Random(3).shuffle(dossiers)
+    passage = c0.ouvrir_passage(flux, 'essai', 'scrutation', T0)
+    for d in dossiers:
+        c0.recevoir(flux, passage, d, maintenant=T0)
+        c1.traiter(flux, d['ref'])
+        c2.traiter(flux, d['ref'])
+    a, b = contenu(flux), contenu(lot)
+    for t in TABLES + VUES:
+        assert a[t] == b[t], t
 
 
 def test_decisions_du_kit_reprises(jeu, tmp_path):
@@ -482,6 +547,16 @@ def test_chaque_invariant_de_c2_devient_rouge_quand_on_le_viole(jeu, socle, tmp_
     assert verifier.verifier(chemin) == 1
     sortie = capsys.readouterr().out
     assert f'ÉCART  {nom} : ' in sortie and 'ZZ' not in sortie
+
+
+def test_construire_charge_le_socle_en_une_commande(socle, tmp_path, capsys):
+    import construire
+    base = str(tmp_path / 'base.sqlite')
+    assert construire.main(['--base', base, '--socle', socle]) == 0
+    cx = sqlite3.connect(base)
+    assert un(cx, 'SELECT count(*) FROM ref_liste_noire') > 50 and un(cx, 'SELECT count(*) FROM c2_personne') > 0
+    assert construire.main(['--base', base, '--socle', str(tmp_path / 'absente.sqlite')]) == 2
+    assert 'absente' not in capsys.readouterr().err
 
 
 def test_la_couche_suit_c1_dans_l_ordre_des_couches():
