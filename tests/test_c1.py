@@ -335,6 +335,13 @@ def test_titulaire_de_la_quittance_mentionne_sur_la_domiciliation(cx):
     assert n > 0 and n == m
 
 
+def test_chassis_sans_ponctuation(jeu, tmp_path):
+    d, upi = avec_piece(jeu, 'CARTE_GRISE', {'Numéro de chassis': 'zz-fictif essai.0003'})
+    cx = base_de(tmp_path, d)
+    assert lignes(cx, "SELECT valeur FROM c1_identifiant_brut WHERE upstream_piece_id = ? AND type = 'CHASSIS'", upi) == \
+        [('ZZFICTIFESSAI0003',)]
+
+
 def test_chassis_et_rc_normalises(cx, jeu):
     refs = [v['ref'] for v in jeu.verite if 'S18' in v['scenarios']]
     chassis = {lignes(cx, "SELECT valeur FROM c1_identifiant_brut WHERE ref = ? AND type = 'CHASSIS'", r)[0][0]

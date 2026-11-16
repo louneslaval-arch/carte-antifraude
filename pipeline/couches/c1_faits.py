@@ -237,7 +237,7 @@ def _piece(lignes, upi, type_piece, source, statut, version, champs, cles_relues
     if type_piece == 'ATTESTATION_RIB':
         lignes.identifiant(upi, 'RIB', rib_norm(_g(champs, 'rib')), titulaire)
     if type_piece == 'CARTE_GRISE':
-        chassis = (texte_norm(_g(champs, 'Numéro de chassis', 'numero_chassis')) or '').replace(' ', '') or None
+        chassis = re.sub(r'[^A-Z0-9]', '', texte_norm(_g(champs, 'Numéro de chassis', 'numero_chassis')) or '') or None
         lignes.identifiant(upi, 'CHASSIS', chassis, None)
         lignes.identifiant(upi, 'IMMATRICULATION', texte_norm(_g(champs, 'Immatriculation', 'immatriculation')), None)
         if _g(champs, 'nom', 'cin'):

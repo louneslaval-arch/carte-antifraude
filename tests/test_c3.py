@@ -154,17 +154,18 @@ def test_en_tete_au_format_du_modele_dossier_de_kamal(cx, jeu):
 
 def test_contexte_declare_lu_et_valeur_par_defaut_marquee_jamais_comparee(cx, jeu):
     d = jeu.dossiers[0]
-    assert lignes(cx, 'SELECT civil_cin, declared_employer, employeur_par_defaut, declared_monthly_income, agency_code '
+    assert lignes(cx, 'SELECT civil_cin, declared_employer, declared_monthly_income, agency_code '
                       'FROM c3_dossier WHERE ref = ?', d['ref']) == \
-        [(d['businessData']['civil']['cin'], 'VAB', 1, 35110.75, 'AG07')]
+        [(d['businessData']['civil']['cin'], 'VAB', 35110.75, 'AG07')]
+    assert lignes(cx, 'SELECT champ FROM c3_valeur_par_defaut WHERE ref = ?', d['ref']) == [('employeur_declare',)]
     assert un(cx, "SELECT count(*) FROM ref_valeur_defaut WHERE champ = 'employeur_declare' AND valeur = 'VAB'") == 1
     assert un(cx, "SELECT count(*) FROM c3_incoherence WHERE type LIKE '%declare%'") == 0
 
 
 def test_T11_contexte_partiel_d_une_societe_sans_plantage(cx, jeu):
     ref = next(v['ref'] for v in jeu.verite if 'T11' in v['pieges'])
-    assert lignes(cx, 'SELECT "personType", civil_cin, declared_employer, employeur_par_defaut, declared_monthly_income '
-                      'FROM c3_dossier WHERE ref = ?', ref) == [('PM', None, None, 0, None)]
+    assert lignes(cx, 'SELECT "personType", civil_cin, declared_employer, declared_monthly_income '
+                      'FROM c3_dossier WHERE ref = ?', ref) == [('PM', None, None, None)]
     assert un(cx, "SELECT count(*) FROM c3_revenu WHERE ref = ? AND nature = 'declare'", ref) == 0
 
 
@@ -402,6 +403,109 @@ def test_la_couche_n_ecrit_rien_sur_la_sortie(jeu, tmp_path, capfd):
     assert sortie.out == '' and sortie.err == ''
 
 
+# ---- défauts relevés par la relecture de code ---------------------------------------------------------------------
+
+def test_parametre_ou_valeur_par_defaut_changes_valent_sans_retraitement(jeu, tmp_path):
+    dossiers = [dossier(jeu, n, cin_de(n), bulletin('10 000,00'), releve(rib='999' + str(n) * 21, salaire=8000.0))
+                for n in (1, 2)]
+    for d in dossiers:
+        d['businessData']['declared']['employer'] = 'NEANT'
+    cx = base_de(tmp_path, dossiers)
+    assert un(cx, "SELECT count(*) FROM c3_incoherence WHERE type = 'salaire_bulletin_releve'") == 2
+    assert un(cx, 'SELECT count(*) FROM c3_valeur_par_defaut') == 0
+    cx.execute("INSERT INTO c6_version_parametres (version, nom, valeur, provisoire) VALUES ('2099-01-01', "
+               "'c3_tolerance_salaire', 0.25, 1)")
+    cx.execute("INSERT INTO ref_valeur_defaut (champ, valeur) VALUES ('employeur_declare', 'NEANT')")
+    assert un(cx, "SELECT count(*) FROM c3_incoherence WHERE type = 'salaire_bulletin_releve'") == 0
+    assert un(cx, 'SELECT count(*) FROM c3_valeur_par_defaut') == 2
+    cx.execute("INSERT INTO c6_version_parametres (version, nom, valeur, provisoire) VALUES ('2099-01-02', "
+               "'c3_rafale_dossiers', 2, 1)")
+    cx.execute("UPDATE c3_cle_dossier SET valeur = 'X' WHERE type = 'RIB'")
+    assert un(cx, "SELECT count(DISTINCT ref) FROM c3_incoherence WHERE type = 'dossiers_en_rafale'") == 2
+
+
+def test_parametre_absent_erreur_nommee(jeu, tmp_path):
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1))])
+    cx.execute("DELETE FROM c6_version_parametres WHERE nom = 'c3_tolerance_salaire'")
+    with pytest.raises(c3.ParametreAbsent):
+        c3.verifier_parametres(cx)
+
+
+def test_meme_rib_meme_demandeur_n_est_pas_une_incoherence_porteur_inconnu_un_signal(jeu, tmp_path):
+    sans_cin = lambda n: dossier(jeu, n, ('RELEVE_BANCAIRE', {'rib': RIB_A, 'mois': []}))  # noqa: E731
+    a, b = sans_cin(1), sans_cin(2)
+    b['businessData']['civil']['cin'] = a['businessData']['civil']['cin']
+    c = sans_cin(3)
+    cx = base_de(tmp_path, [a, b, c])
+    assert sorted(lignes(cx, "SELECT ref, gravite, ref_b FROM c3_incoherence WHERE type = 'rib_autre_dossier'")) == [
+        ('ZZ26T0001', 'signal', 'ZZ26T0003'), ('ZZ26T0002', 'signal', 'ZZ26T0003'),
+        ('ZZ26T0003', 'signal', 'ZZ26T0001'), ('ZZ26T0003', 'signal', 'ZZ26T0002')]
+
+
+def test_demandeur_unique_meme_si_le_cin_declare_n_est_pas_lu(jeu, tmp_path):
+    d = dossier(jeu, 1, cin_de(7))                         # CIN déclaré ZZ100001, CIN lu ZZ100007
+    e = dossier(jeu, 2, cin_de(2))
+    e['businessData']['civil']['cin'] = 'INCONNU'
+    cx = base_de(tmp_path, [d, e])
+    assert lignes(cx, 'SELECT ref, count(DISTINCT fiche) FROM c3_partie_dossier WHERE demandeur = 1 GROUP BY 1') == \
+        [('ZZ26T0001', 1), ('ZZ26T0002', 1)]
+    assert lignes(cx, "SELECT civil_cin FROM c3_dossier WHERE ref = 'ZZ26T0002'") == [(None,)]
+    assert lignes(cx, 'SELECT count(*) FROM c3_partie_dossier p WHERE demandeur = 0 AND EXISTS (SELECT 1 FROM '
+                      'c3_partie_dossier q WHERE q.ref = p.ref AND q.fiche = p.fiche AND q.demandeur = 1)') == [(0,)]
+
+
+def test_adresse_equivalente_mots_en_plus_ou_ordre_change(jeu, tmp_path):
+    quittance = lambda n, a: ('DOMICILIATION', {'titulaire': 'ZELMOU BAKRITA', 'adresse': a})  # noqa: E731
+    cx = base_de(tmp_path, [
+        dossier(jeu, 1, cin_de(1, '12 Avenue Tazoula, Appartement 3'), quittance(1, '12 AV TAZOULA APT 3 HAY ZIRMAK')),
+        dossier(jeu, 2, cin_de(2, '12 Avenue Tazoula'), quittance(2, 'AV TAZOULA 12')),
+        dossier(jeu, 3, cin_de(3, '12 Avenue Tazoula'), quittance(3, '14 AV TAZOULA'))])
+    assert lignes(cx, "SELECT ref FROM c3_incoherence WHERE type = 'adresse_cin_differente'") == [('ZZ26T0003',)]
+
+
+def test_employeur_connu_au_registre_par_son_nom_et_une_ligne_par_employeur(jeu, socle, tmp_path):
+    nom = sqlite3.connect(socle).execute('SELECT denomination FROM rc_societe WHERE ice IS NULL AND denomination '
+                                         "NOT LIKE '%#%' ORDER BY societe_id").fetchone()[0]
+    emploi = lambda t: (t, {'nom': 'ZELMOU', 'prenom': 'BAKRITA',  # noqa: E731
+                            'employeur': {'raison_sociale': nom, 'ice': '999000000008888'}})
+    inconnu = lambda t: (t, {'nom': 'ZELMOU', 'prenom': 'BAKRITA',  # noqa: E731
+                             'employeur': {'raison_sociale': 'NADOUL TRANS', 'ice': '999000000009999'}})
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), emploi('ATTESTATION_TRAVAIL_SALAIRE')),
+                            dossier(jeu, 2, cin_de(2), inconnu('ATTESTATION_TRAVAIL_SALAIRE'),
+                                    inconnu('BULLETIN_DE_PAIE'))], socle)
+    assert lignes(cx, "SELECT ref FROM c3_incoherence WHERE type = 'employeur_absent_du_registre'") == [('ZZ26T0002',)]
+
+
+def test_analyse_non_terminee_ou_provisoire_hors_des_incoherences(jeu, tmp_path):
+    grise = ('CARTE_GRISE', {'Numéro de chassis': 'ZZFICTIFESSAI0001'})
+    a = dossier(jeu, 1, cin_de(1), grise, bulletin('10 000,00'), releve(salaire=5000.0), analysisStatus='EN_COURS')
+    b = dossier(jeu, 2, cin_de(2), grise, verdictProvisional=True)
+    c = dossier(jeu, 3, cin_de(3), grise)
+    cx = base_de(tmp_path, [a, b, c])
+    assert lignes(cx, 'SELECT ref, en_cours FROM c3_dossier ORDER BY 1') == [('ZZ26T0001', 1), ('ZZ26T0002', 1),
+                                                                            ('ZZ26T0003', 0)]
+    assert incoherences(cx) == []
+
+
+def test_types_d_operation_malgre_la_ponctuation():
+    assert [c3.type_operation(x) for x in ('VIR. RECU DE ZIRMAK', 'VIR/RECU/ZIRMAK', 'CHQ.123', 'RET.GAB',
+                                           'ACHAT CARTE*1234', 'VIREMENTS RECUS', 'VIRT ZIRMAK')] == \
+        ['virement', 'virement', 'cheque', 'especes', 'carte', 'virement', 'virement']
+    assert c3.contrepartie('VIR. RECU DE: TAZOULA') == 'TAZOULA'
+
+
+def test_salaire_nul_n_est_pas_un_salaire_repere(jeu, tmp_path):
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), bulletin('10 000,00'), releve(salaire=0.0))])
+    assert un(cx, "SELECT count(*) FROM c3_revenu WHERE source = 'RELEVE_BANCAIRE'") == 0 and incoherences(cx) == []
+
+
+def test_client_connu_seulement_par_un_booleen(jeu, tmp_path):
+    d = dossier(jeu, 1, cin_de(1))
+    d['businessData']['known_client'] = 'false'
+    cx = base_de(tmp_path, [d])
+    assert lignes(cx, 'SELECT known_client FROM c3_dossier') == [(None,)]
+
+
 # ---- flux = lot, invariants ----------------------------------------------------------------------------------------
 
 def test_traiter_dans_un_ordre_au_hasard_depuis_une_base_vide_egale_le_lot(jeu, socle, tmp_path):
@@ -453,7 +557,8 @@ def test_dossier_sorti_du_miroir_plus_rien_et_l_autre_dossier_n_est_plus_en_doub
     ('c3_dossier_absent_du_miroir', "UPDATE c3_dossier SET ref = 'ZZ26ABSENT' WHERE ref = (SELECT min(ref) FROM c3_dossier)"),
     ('c3_dossier_du_miroir_non_traite', 'DELETE FROM c3_dossier WHERE ref = (SELECT min(ref) FROM c3_dossier)'),
     ('c3_revenu_verifie_sans_piece', "UPDATE c3_revenu SET upstream_piece_id = 'absente' WHERE nature = 'verifie'"),
-    ('c3_incoherence_sans_ses_deux_faits', "UPDATE c3_incoherence_locale SET upstream_piece_id_b = 'absente'"),
+    ('c3_incoherence_sans_ses_deux_faits', "INSERT INTO c3_incoherence_locale VALUES ('ZZ26T0001', "
+                                           "'adresse_cin_differente', 'eqdom_CIN_0', 'adresse', 'absente', 'adresse')"),
     ('c3_operation_non_lue', "UPDATE c3_operation SET date_operation = NULL, date_operation_brute = NULL"),
     ('c3_ligne_sans_dossier', "UPDATE c3_compte SET ref = 'ZZ26ABSENT'"),
 ])
