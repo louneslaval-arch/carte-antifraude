@@ -28,13 +28,13 @@ Ces comptes n'existent que sur la machine où la démonstration tourne (base tem
 ## Ce qu'il y a à voir
 
 - **Portail** (`/`) : la base client au centre, les modules et les usages autour.
-- **Base client** (`/base.html`) : chiffres clés, répartitions, liste filtrable des clients (nom, niveau de lien avec
-  la liste noire, produit, incohérences).
+- **Base client** (`/base.html`) : chiffres clés, répartition des produits, liste des clients filtrable (nom, type,
+  produit) et triable (date de la demande, nom, revenu vérifié).
 - **Fiche client** (`/fiche.html?i=…`) : identité retenue, dossiers, revenus déclarés et vérifiés sur pièce, comptes,
   véhicules, sociétés, adresses et graphies, inscription sur la liste noire, mentions au registre, liens avec la
-  liste noire, et **toutes les données** : chaque valeur lue dans chaque pièce de chaque dossier, avec son origine.
+  liste noire, et **toutes les données** : chaque valeur lue dans chaque pièce de chaque dossier.
 - **Dossier** (`/dossier.html?i=…`) : en-tête au format de la v2, parties, pièces, revenus et charges, opérations du
-  relevé, incohérences, contrôles de la v2.
+  relevé.
 - La carte des réseaux est désactivée pour l'instant.
 
 Les URL ne portent que des indices opaques, tirés au hasard à chaque démarrage : jamais un nom ni un CIN.

@@ -45,10 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ajouter(b, u, 'usage');
   });
 
-  document.getElementById('prealables').append(...C.prealables.map(p =>
-    el('li', { classe: p.n === '2' ? 'coeur' : '' }, el('span', { classe: 'n', texte: p.n }),
-      el('h3', { texte: p.nom }), el('p', { texte: p.texte }))));
-
   function ajouter(element, donnee, genre) {
     scene.append(element);
     ilots.push({ element, donnee, genre });
@@ -67,30 +63,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const L = scene.clientWidth, H = scene.clientHeight;
     courbes.setAttribute('viewBox', `0 0 ${L} ${H}`);
     const cx = C.centre.x / 100 * L, cy = C.centre.y / 100 * H;
+    centreXY = { x: cx, y: cy };
     for (const i of ilots) {
       const x = i.donnee.x / 100 * L, y = i.donnee.y / 100 * H;
+      i.x = x; i.y = y;
       i.element.style.left = `${x}px`;
       i.element.style.top = `${y}px`;
       if (i.genre === 'centre') continue;
-      const source = i.donnee.etat === 'source';                // Reco : son lien va vers le centre
-      const [ax, ay, bx, by] = source ? [x, y, cx, cy] : [cx, cy, x, y];
-      const mx = (ax + bx) / 2 + (ay - by) * 0.18, my = (ay + by) / 2 + (bx - ax) * 0.18;
-      const d = `M${ax.toFixed(1)},${ay.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${bx.toFixed(1)},${by.toFixed(1)}`;
       const chemin = document.createElementNS(NS, 'path');
-      chemin.setAttribute('d', d);
       chemin.setAttribute('class', `courbe${i.genre === 'usage' ? ' courbe-usage' : ''}`);
-      if (source) chemin.setAttribute('marker-end', 'url(#fleche)');
+      if (i.donnee.etat === 'source') chemin.setAttribute('marker-end', 'url(#fleche)');
       courbes.append(chemin);
       i.courbe = chemin;
       if (i.genre === 'usage') {                                // trait rouge qui file vers le centre à l'illumination
         const flux = document.createElementNS(NS, 'path');
-        flux.setAttribute('d', `M${bx.toFixed(1)},${by.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ax.toFixed(1)},${ay.toFixed(1)}`);
         flux.setAttribute('class', 'courbe-flux');
         courbes.append(flux);
-        const longueur = flux.getTotalLength();
-        flux.style.strokeDasharray = `${longueur}`;
-        flux.style.setProperty('--longueur', `${longueur}`);
         i.flux = flux;
+      }
+      tracer(i);
+      if (i.flux) {
+        const longueur = i.flux.getTotalLength();
+        i.flux.style.strokeDasharray = `${longueur}`;
+        i.flux.style.setProperty('--longueur', `${longueur}`);
       }
     }
     const defs = document.createElementNS(NS, 'defs');
@@ -102,6 +97,65 @@ document.addEventListener('DOMContentLoaded', () => {
     marqueur.append(pointe);
     defs.append(marqueur);
     courbes.prepend(defs);
+  }
+  // Courbe d'un îlot, avec son décalage éventuel (îlot saisi) et celui du centre.
+  let centreXY = { x: 0, y: 0 };
+  function tracer(i) {
+    if (!i.courbe) return;
+    const c = ilots[0];
+    const x = i.x + (i.dx || 0), y = i.y + (i.dy || 0);
+    const cx = centreXY.x + (c.dx || 0), cy = centreXY.y + (c.dy || 0);
+    const [ax, ay, bx, by] = i.donnee.etat === 'source' ? [x, y, cx, cy] : [cx, cy, x, y];   // Reco : vers le centre
+    const mx = (ax + bx) / 2 + (ay - by) * 0.18, my = (ay + by) / 2 + (bx - ax) * 0.18;
+    const f = v => v.toFixed(1);
+    i.courbe.setAttribute('d', `M${f(ax)},${f(ay)} Q${f(mx)},${f(my)} ${f(bx)},${f(by)}`);
+    if (i.flux) i.flux.setAttribute('d', `M${f(bx)},${f(by)} Q${f(mx)},${f(my)} ${f(ax)},${f(ay)}`);
+  }
+
+  // ---- saisir une bulle : elle suit le pointeur, sa courbe aussi ; relâchée, elle revient en place (ressort) -------
+  function deplacer(i, dx, dy) {
+    i.dx = dx; i.dy = dy;
+    i.element.style.setProperty('--dx', `${dx}px`);
+    i.element.style.setProperty('--dy', `${dy}px`);
+    if (i.genre === 'centre') ilots.forEach(tracer); else tracer(i);
+  }
+  function revenir(i) {
+    cancelAnimationFrame(i.ressort);
+    if (reduit.matches) { deplacer(i, 0, 0); i.element.classList.remove('saisi'); return; }
+    let vx = 0, vy = 0, avant = performance.now();
+    const pas = t => {
+      const dt = Math.min(0.032, (t - avant) / 1000); avant = t;
+      vx += (-170 * i.dx - 14 * vx) * dt; vy += (-170 * i.dy - 14 * vy) * dt;          // raideur, amortissement
+      const dx = i.dx + vx * dt, dy = i.dy + vy * dt;
+      if (Math.hypot(dx, dy) < 0.3 && Math.hypot(vx, vy) < 5) { deplacer(i, 0, 0); i.element.classList.remove('saisi'); return; }
+      deplacer(i, dx, dy);
+      i.ressort = requestAnimationFrame(pas);
+    };
+    i.ressort = requestAnimationFrame(pas);
+  }
+  for (const i of ilots) {
+    const e = i.element;
+    let depart = null, tire = false;
+    e.setAttribute('draggable', 'false');
+    e.addEventListener('dragstart', ev => ev.preventDefault());
+    e.addEventListener('pointerdown', ev => {
+      if (etroit.matches || ev.button !== 0) return;
+      cancelAnimationFrame(i.ressort);
+      depart = { x: ev.clientX - (i.dx || 0), y: ev.clientY - (i.dy || 0), px: ev.clientX, py: ev.clientY };
+      tire = false;
+    });
+    e.addEventListener('pointermove', ev => {
+      if (!depart) return;
+      if (!tire && Math.hypot(ev.clientX - depart.px, ev.clientY - depart.py) < 5) return;   // un clic reste un clic
+      if (!tire) { tire = true; try { e.setPointerCapture(ev.pointerId); } catch (x) { /* pointeur déjà relâché */ } e.classList.add('saisi'); }
+      deplacer(i, ev.clientX - depart.x, ev.clientY - depart.y);
+    });
+    const lacher = () => { if (!depart) return; depart = null; if (tire) revenir(i); };
+    e.addEventListener('pointerup', lacher);
+    e.addEventListener('pointercancel', lacher);
+    e.addEventListener('click', ev => {            // une bulle qu'on vient de déplacer ne s'ouvre pas
+      if (tire) { ev.preventDefault(); ev.stopImmediatePropagation(); tire = false; }
+    }, true);
   }
   for (const i of ilots) {
     const actif = on => i.courbe && i.courbe.classList.toggle('active', on);

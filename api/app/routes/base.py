@@ -28,6 +28,7 @@ class Recherche(BaseModel):
     niveau: Optional[Literal['critique', 'majeure', 'mineure', 'affiche', 'hors_alerte', 'aucun']] = None
     produit: Optional[str] = Field(default=None, max_length=40)
     avec_incoherence: Optional[bool] = None
+    tri: Literal['gravite', 'recent', 'ancien', 'alpha', 'alpha_inverse', 'dossiers', 'revenu'] = 'gravite'
     page: int = Field(default=1, ge=1, le=10_000)
     taille: int = Field(default=50, ge=1, le=200)
 
@@ -42,19 +43,29 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
             b=Depends(base_client)):
     etat = request.app.state.etat
     resultat = b.rechercher(demande.texte, demande.type, demande.niveau, demande.produit, demande.avec_incoherence,
-                            demande.page, demande.taille)
+                            demande.page, demande.taille, demande.tri)
     indices = [c['indice'] for c in resultat['items']]
     quotas.etiquettes(etat, session, indices)
-    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip)
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,
+                   epoque=b.epoque)
     return resultat
 
 
 def _servir(request, session, action, objet, indice):
+    """Une fiche ou un dossier : la consultation compte au quota de fiches ; chaque tiers nommé dans la réponse
+    compte au quota d'étiquettes et entre dans le journal (action « noms »), avec l'époque de la base."""
     if objet is None:
         raise HTTPException(404, 'Introuvable')
     etat = request.app.state.etat
+    b = etat.base_client
+    tiers = b.fiches_nommees(objet) - {indice}
     quotas.fiches(etat, session)
-    journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip)
+    quotas.etiquettes(etat, session, tiers)
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip,
+                   epoque=b.epoque)
+    if tiers:
+        journal.ecrire(etat.base, session.utilisateur, session.role.value, 'noms', tiers, ip=session.ip,
+                       epoque=b.epoque)
     return objet
 
 
@@ -68,6 +79,11 @@ def dossier(indice: int, request: Request, session: Session = Depends(exige('bas
     return _servir(request, session, 'fiche', b.dossier(indice), indice)
 
 
+CARTE_ACTIVE = False                  # carte des réseaux désactivée pour l'instant (choix de Lounès du 16/11)
+
+
 @routeur.get('/reseau/{indice}')
 def reseau(indice: int, request: Request, session: Session = Depends(exige('base.fiche')), b=Depends(base_client)):
+    if not CARTE_ACTIVE:
+        raise HTTPException(404, 'Carte désactivée')
     return _servir(request, session, 'chaine', b.reseau(indice), indice)

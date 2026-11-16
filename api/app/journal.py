@@ -7,10 +7,10 @@ from sqlalchemy import delete, func, select
 from .base import Journal, JournalIndice, Revocation, maintenant
 
 
-def ecrire(fabrique, utilisateur, role, action, indices=(), ip='', nombre=None):
+def ecrire(fabrique, utilisateur, role, action, indices=(), ip='', nombre=None, epoque=''):
     indices = sorted(set(indices))
     with fabrique.begin() as s:
-        ligne = Journal(utilisateur=utilisateur, role=role, action=action, ip=ip or '',
+        ligne = Journal(utilisateur=utilisateur, role=role, action=action, ip=ip or '', epoque=epoque or '',
                         nombre=len(indices) if nombre is None else nombre)
         s.add(ligne)
         s.flush()

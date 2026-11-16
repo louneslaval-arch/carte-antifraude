@@ -104,6 +104,9 @@
 | 100 | Base fictive de démonstration versionnée compressée (`jeu_essai/demo/base_demo.sqlite.gz`, 20 Mo) : la garde des données ne lit pas l'intérieur d'une archive ; la base est générée (fictive par construction) et l'API refuse une base dont un CIN n'est pas fictif | la régénérer par `outils/demo/construire_demo.py` à chaque changement de couche | Lounès | — |
 | 101 | Comptes de démonstration à mots de passe connus (`analyste-demo`, `direction-demo`), recréés à chaque lancement local | démonstration locale seulement ; jamais sur un serveur partagé | Lounès | L |
 | 102 | Fiche client : un analyste voit toutes les valeurs de toutes les pièces (RIB masqué sauf 4 chiffres) ; AGENCE et DIRECTION n'ont que le résumé agrégé (n°1 en attente) ; pas de quota spécifique au volume d'une fiche complète | gardé | Lounès, conformité | J |
+| 103 | Journal d'audit de la base client : l'époque est l'empreinte (16 caractères) du fichier chargé ; la correspondance indice → fiche n'est gardée qu'en mémoire, donc perdue au redémarrage (colonne `journal.epoque` ajoutée par `create_all`, sans migration pour un journal existant) | provisoire : suffisant pour la démonstration ; avant tout usage réel, garder la table des indices par époque, comme la publication de la carte | Lounès | K |
+| 104 | Fiche citée seulement (salarié, employeur, vendeur) : ne montre que ce que les pièces disent d'elle (mention), jamais revenus, charges, contexte, contrôles ni chemins d'une autre partie | gardé | Lounès | — |
+| 105 | Sociétés demandeuses en double dans la base client (une fiche par la mention RC, une par les statuts, non rapprochées en c2) | à dédoublonner en c2 (RC, ICE) à la reprise de l'étape F | Lounès | F |
 
 ### À obtenir
 

@@ -8,8 +8,10 @@ calculés une fois au chargement (c5) ; une nouvelle base se charge en redémarr
 Aucun chiffre agrégé sous 5 (« < 5 ») ; aucune valeur d'identité dans un message d'erreur ni dans le journal.
 """
 
+import hashlib
 import os
 import random
+import re
 import sqlite3
 import sys
 
@@ -49,11 +51,51 @@ def masquer_rib(rib):
     return f'••• {rib[-4:]}' if rib else None
 
 
+SUITE_LONGUE = re.compile(r'\d(?:[ .-]?\d){15,}')       # RIB (24 chiffres) ou tout numéro de compte, espacé ou non
+
+
+def masquer_numeros(valeur):
+    """Masque tout numéro de compte dans un texte, quelle que soit la clé qui le porte (libellé, explication…)."""
+    if not isinstance(valeur, str):
+        return valeur
+    return SUITE_LONGUE.sub(lambda m: masquer_rib(re.sub(r'\D', '', m.group())), valeur)
+
+
+def masquer_groupe(lignes, cle='nombre'):
+    """Masquage secondaire : un seul compte masqué dans un groupe se retrouverait par différence avec le total ;
+    on masque alors aussi le plus petit compte affiché non nul."""
+    masques = [x for x in lignes if x[cle] == '< 5']
+    if len(masques) == 1:
+        visibles = [x for x in lignes if isinstance(x[cle], int) and x[cle] > 0]
+        if visibles:
+            min(visibles, key=lambda x: x[cle])[cle] = '< 5'
+    return lignes
+
+
+def trier(lignes, tri):
+    """Ordre de la liste des clients. « gravite » : l'ordre calculé par `clients()` (niveau, incohérences, nom).
+    Les autres : la clé choisie, puis le nom ; une valeur absente (date, revenu) va toujours en fin de liste."""
+    if tri == 'gravite':
+        return lignes
+    nom = lambda c: (c['nom'] or '').upper()
+    if tri in ('alpha', 'alpha_inverse'):
+        return sorted(lignes, key=lambda c: (nom(c), c['indice']), reverse=tri == 'alpha_inverse')
+    if tri == 'dossiers':
+        return sorted(lignes, key=lambda c: (-c['dossiers'], nom(c)))
+    cle = {'recent': 'derniere_demande', 'ancien': 'derniere_demande', 'revenu': 'revenu'}[tri]
+    presents = [c for c in lignes if c[cle] is not None]
+    absents = sorted((c for c in lignes if c[cle] is None), key=nom)
+    presents.sort(key=nom)                                   # à valeur égale, ordre alphabétique (tri stable)
+    presents.sort(key=lambda c: c[cle], reverse=tri != 'ancien')
+    return presents + absents
+
+
 class BaseClient:
     def __init__(self, chemin, donnees_reelles=False):
         if not os.path.exists(chemin):
             raise FileNotFoundError('base client introuvable')
         self.chemin = chemin
+        self.epoque = self._empreinte(chemin)
         cx = self.connexion()
         try:
             non_fictifs = cx.execute("SELECT count(*) FROM c2_personne WHERE cin IS NOT NULL AND cin NOT LIKE 'ZZ%'"
@@ -64,6 +106,18 @@ class BaseClient:
             self._chemins(cx)
         finally:
             cx.close()
+
+    @staticmethod
+    def _empreinte(chemin):
+        """Époque de la base chargée : empreinte de son contenu, écrite dans le journal à chaque consultation."""
+        h = hashlib.sha256()
+        with open(chemin, 'rb') as f:
+            for bloc in iter(lambda: f.read(1 << 20), b''):
+                h.update(bloc)
+        return h.hexdigest()[:16]
+
+    def est_fiche(self, indice):
+        return indice in self.fiche_de
 
     def connexion(self):
         cx = sqlite3.connect(f'file:{self.chemin}?mode=ro', uri=True, check_same_thread=False)
@@ -107,18 +161,22 @@ class BaseClient:
 
             def repartition(sql):
                 return [dict(valeur=v or 'non renseigné', nombre=compte(n)) for v, n in cx.execute(sql)]
+            actifs = {r for r, in cx.execute('SELECT ref FROM c3_dossier WHERE actif = 1')}
             niveaux = {}
             for ref, niveau in self.niveau_dossier.items():
-                niveaux[niveau] = niveaux.get(niveau, 0) + 1
+                if ref in actifs:
+                    niveaux[niveau] = niveaux.get(niveau, 0) + 1
             return dict(
-                clients=compte(clients), dossiers=compte(dossiers), dossiers_total=compte(un('SELECT count(*) FROM c3_dossier')),
+                clients=compte(clients), dossiers=compte(dossiers),
+                dossiers_lies=compte(niveaux.get('critique', 0) + niveaux.get('majeure', 0)),
                 societes_registre=compte(un("SELECT count(*) FROM c2_societe")),
                 inscrits=compte(un('SELECT count(*) FROM ref_liste_noire WHERE active = 1')),
                 mise_a_jour=mise_a_jour,
-                produits=repartition('SELECT "productType", count(*) FROM c3_dossier GROUP BY 1 ORDER BY 2 DESC'),
-                csp=repartition('SELECT csp, count(*) FROM c3_dossier GROUP BY 1 ORDER BY 2 DESC'),
-                niveaux=[dict(niveau=n or 'aucun', libelle=LIBELLES_NIVEAU[n], nombre=compte(niveaux.get(n, 0)))
-                         for n in (*NIVEAUX, None)],
+                produits=masquer_groupe(repartition('SELECT "productType", count(*) FROM c3_dossier WHERE actif = 1 '
+                                                    'GROUP BY 1 ORDER BY 2 DESC')),
+                csp=masquer_groupe(repartition('SELECT csp, count(*) FROM c3_dossier WHERE actif = 1 GROUP BY 1 ORDER BY 2 DESC')),
+                niveaux=masquer_groupe([dict(niveau=n or 'aucun', libelle=LIBELLES_NIVEAU[n], nombre=compte(niveaux.get(n, 0)))
+                                        for n in (*NIVEAUX, None)]),
                 incoherences=[dict(type=t, libelle=LIBELLES_INCOHERENCE.get(t, t), nombre=compte(n)) for t, n in
                               cx.execute('SELECT type, count(DISTINCT ref) FROM c3_incoherence GROUP BY 1 ORDER BY 2 DESC')])
         finally:
@@ -163,7 +221,8 @@ class BaseClient:
         finally:
             cx.close()
 
-    def rechercher(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1, taille=50):
+    def rechercher(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1, taille=50,
+                   tri='gravite'):
         lignes = self.clients()
         if texte:
             t = texte.strip().upper()
@@ -176,6 +235,7 @@ class BaseClient:
             lignes = [c for c in lignes if produit in c['produits']]
         if avec_incoherence:
             lignes = [c for c in lignes if c['incoherences']]
+        lignes = trier(lignes, tri)
         debut = (page - 1) * taille
         return dict(total=len(lignes), page=page, taille=taille, items=lignes[debut:debut + taille])
 
@@ -199,7 +259,12 @@ class BaseClient:
                                 adresse=r['adresse'], inscrit=bool(r['inscrit']))
             refs = [x[0] for x in cx.execute('SELECT DISTINCT ref FROM c2_mention WHERE fiche = ? AND source = ? '
                                              'ORDER BY ref', (fiche, 'v2'))]
-            dossiers = [self._resume_dossier(cx, ref, fiche) for ref in refs]
+            # Dossiers où la fiche est demandeur : tout ce que le dossier dit est à elle. Dossiers où elle est seulement
+            # citée (salarié, employeur, vendeur…) : revenus, charges, véhicules, contexte et contrôles appartiennent au
+            # demandeur et ne passent pas ; seules les pièces qui la citent sont montrées.
+            propres = {x[0] for x in cx.execute('SELECT ref FROM c3_demandeur WHERE fiche = ?', (fiche,))}
+            refs_propres = [r for r in refs if r in propres]
+            dossiers = [self._resume_dossier(cx, ref, fiche, demandeur=ref in propres) for ref in refs]
             dossiers.sort(key=lambda d: d['recu'] or '', reverse=True)
             alias = [dict(nom=a, ecriture=e, nombre=n) for a, e, n in cx.execute(
                 'SELECT alias, ecriture, sum(nb_mentions) FROM c2_alias WHERE fiche = ? GROUP BY 1, 2 ORDER BY 3 DESC',
@@ -222,7 +287,7 @@ class BaseClient:
                                           role=LIBELLES_ROLE.get(role, role), source=src, inscrit=p in self.inscrits))
             revenus = [dict(r) for r in cx.execute(
                 f"SELECT ref, nature, source, montant, annee, mois FROM c3_revenu WHERE ref IN "
-                f"({', '.join('?' * len(refs))}) ORDER BY ref, nature, source, annee, mois", refs)] if refs else []
+                f"({self._dans(refs_propres)}) ORDER BY ref, nature, source, annee, mois", refs_propres)] if refs_propres else []
             for r in revenus:
                 r['dossier'] = self.indice_dossier.get(r.pop('ref'))
             par_rib = {}                                      # un compte par RIB : banque et titulaire lus où ils le sont
@@ -236,15 +301,19 @@ class BaseClient:
             comptes = list(par_rib.values())
             vehicules = [dict(r) for r in cx.execute(
                 'SELECT DISTINCT v.type_piece, v.marque, v.modele, v.etat, v.prix FROM c3_vehicule v '
-                f"WHERE v.ref IN ({', '.join('?' * len(refs))})", refs)] if refs else []
+                f"WHERE v.ref IN ({self._dans(refs_propres)})", refs_propres)] if refs_propres else []
             chemins = []
             for ref in refs:
-                for ch in self.chemins_dossier.get(ref, [])[:3]:
+                for ch in self.chemins_dossier.get(ref, []):
+                    if ref not in propres and self._depart(ch) != fiche:
+                        continue                              # chemin d'une autre partie du dossier : pas le sien
                     chemins.append(self._chemin_lisible(cx, ch, ref))
             chemins.sort(key=lambda c: (self._rang(c['niveau']), -c['force']))
             return dict(indice=indice, identite=identite, alias=alias, adresses=adresses, sources=sources,
                         dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
-                        vehicules=vehicules, chemins=chemins[:5], donnees=[self._donnees_dossier(cx, ref, fiche)
+                        vehicules=vehicules, chemins=chemins[:5], charges=self._charges(cx, refs_propres),
+                        operations=self._operations(cx, refs_propres), incoherences=self._incoherences(cx, refs_propres),
+                        identifiants=self._identifiants(cx, fiche), donnees=[self._donnees_dossier(cx, ref, fiche)
                                                                             for ref in refs],
                         liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
         finally:
@@ -259,6 +328,13 @@ class BaseClient:
                 ('category', 'Catégorie'), ('verdict', 'Verdict de la v2'), ('analysisStatus', 'Analyse'),
                 ('alertsCritical', 'Alertes critiques (v2)'), ('alertsMajor', 'Alertes majeures (v2)'),
                 ('alertsMinor', 'Alertes mineures (v2)'), ('businessReceivedAt', 'Reçu le'), ('updatedAt', 'Mis à jour le'))
+
+    CHAMPS_MENTION = ('role', 'nom', 'cin', 'date_naissance', 'adresse', 'rc', 'tribunal', 'ice', 'identifiant_fiscal',
+                      'affiliation_cnss')
+
+    @staticmethod
+    def _depart(ch):
+        return ch['etapes'][0]['de'] if ch['etapes'] else ch['cible']
 
     def _donnees_dossier(self, cx, ref, fiche):
         """Tout ce que le dossier dit : contexte déclaré, chaque valeur de chaque pièce (pour un dossier où le client
@@ -278,25 +354,77 @@ class BaseClient:
                            (ref, upi)).fetchone()
             if p is None:
                 continue
+            if not demandeur:                     # pièce d'un autre client : ce qu'elle dit de cette fiche, rien d'autre
+                faits = []
+                for m in cx.execute(f'SELECT {", ".join(self.CHAMPS_MENTION)} FROM c2_mention WHERE ref = ? AND '
+                                    'upstream_piece_id = ? AND fiche = ?', (ref, upi, fiche)):
+                    faits += [dict(cle=c, valeur=LIBELLES_ROLE.get(m[c], m[c]) if c == 'role' else m[c],
+                                   origine='mention', statut='normal') for c in self.CHAMPS_MENTION if m[c] not in (None, '')]
+                sortie_pieces.append(dict(type=p['type'], source=p['source'], statut=p['extraction_status'], faits=faits,
+                                          mois=[]))
+                continue
             faits = [dict(cle=c, valeur=v, origine=o, statut=s) for c, v, o, s in cx.execute(
                 'SELECT cle_brute, valeur, origine, statut FROM c1_fait WHERE ref = ? AND upstream_piece_id = ? '
                 'ORDER BY cle_brute', (ref, upi))]
             for f in faits:
                 if f['cle'] in ('rib', 'numero_compte') and f['valeur']:
-                    f['valeur'] = masquer_rib(f['valeur'])
+                    f['valeur'] = masquer_rib(re.sub(r'\D', '', str(f['valeur'])) or str(f['valeur']))
+                else:
+                    f['valeur'] = masquer_numeros(f['valeur'])
             mois = [dict(r) for r in cx.execute(
                 'SELECT annee, mois, solde_ouverture, solde_cloture, total_credit, total_debit, salaire_detecte, '
                 'echeances_credits, nb_operations_lues FROM c1_releve_mois WHERE ref = ? AND upstream_piece_id = ? '
                 'ORDER BY rang', (ref, upi))]
             sortie_pieces.append(dict(type=p['type'], source=p['source'], statut=p['extraction_status'], faits=faits,
                                       mois=mois))
-        controles = [dict(r) for r in cx.execute(
+        controles = [dict(r, explication=masquer_numeros(r['explication'])) for r in cx.execute(
             'SELECT c."controlId" AS controle, c.outcome AS resultat, c.criticality AS criticite, c.explanation AS '
             'explication FROM "AnalysisControl" c JOIN "Dossier" x ON x.id = c."dossierId" WHERE x.ref = ? '
-            'ORDER BY c."controlId"', (ref,))]
+            'ORDER BY c."controlId"', (ref,))] if demandeur else []
+        contexte = [dict(libelle=l, valeur=d[c]) for c, l in self.CONTEXTE if d[c] not in (None, '')] if demandeur else []
         return dict(dossier=self.indice_dossier.get(ref), reference=ref, demandeur=bool(demandeur),
-                    contexte=[dict(libelle=l, valeur=d[c]) for c, l in self.CONTEXTE if d[c] not in (None, '')],
+                    contexte=contexte,
                     pieces=sortie_pieces, controles=controles)
+
+    def _dans(self, refs):
+        return ', '.join('?' * len(refs))
+
+    def _charges(self, cx, refs):
+        if not refs:
+            return []
+        lignes = [dict(r) for r in cx.execute(
+            f'SELECT ref, nature, montant, annee, mois FROM c3_charge WHERE ref IN ({self._dans(refs)}) '
+            'ORDER BY ref, nature, annee, mois', refs)]
+        for x in lignes:
+            x['dossier'] = self.indice_dossier.get(x.pop('ref'))
+        return lignes
+
+    def _operations(self, cx, refs, limite=300):
+        if not refs:
+            return []
+        lignes = [dict(r) for r in cx.execute(
+            f'SELECT ref, date_operation, type_operation, libelle, debit, credit FROM c3_operation '
+            f'WHERE ref IN ({self._dans(refs)}) ORDER BY date_operation LIMIT {int(limite)}', refs)]
+        for x in lignes:
+            x['dossier'] = self.indice_dossier.get(x.pop('ref'))
+            x['libelle'] = masquer_numeros(x['libelle'])
+        return lignes
+
+    def _incoherences(self, cx, refs):
+        if not refs:
+            return []
+        return [dict(type=t, libelle=LIBELLES_INCOHERENCE.get(t, t), gravite=g, dossier=self.indice_dossier.get(ref),
+                     autre_dossier=self.indice_dossier.get(ref_b) if ref_b and ref_b != ref else None)
+                for ref, t, g, ref_b in cx.execute(
+                    f'SELECT ref, type, gravite, ref_b FROM c3_incoherence WHERE ref IN ({self._dans(refs)}) '
+                    'ORDER BY ref, type', refs)]
+
+    def _identifiants(self, cx, fiche):
+        """Identifiants portés par la fiche (CIN, RC, ICE, CNSS, affiliation, pension, INPE, châssis…) ; le RIB, masqué,
+        est dans les comptes."""
+        return [dict(type=t, valeur=v, dossier=self.indice_dossier.get(ref)) for t, v, ref in cx.execute(
+            "SELECT DISTINCT type, valeur, ref FROM c2_identifiant WHERE fiche = ? AND type <> 'RIB' ORDER BY 1, 2",
+            (fiche,))]
 
     def _liste_noire(self, cx, fiche):
         lignes = cx.execute(
@@ -311,22 +439,26 @@ class BaseClient:
             "SELECT coalesce(s.nom, m.nom), m.role, m.parts, m.adresse FROM c2_mention m LEFT JOIN c2_mention s "
             "ON s.id = m.societe_mention WHERE m.fiche = ? AND m.source = 'registre' ORDER BY 1", (fiche,))]
 
-    def _resume_dossier(self, cx, ref, fiche=None):
+    def _resume_dossier(self, cx, ref, fiche=None, demandeur=True):
         d = cx.execute('SELECT "productType", csp, "paymentMode", verdict, category, "analysisStatus", actif, '
                        '"businessReceivedAt", agency_city, declared_monthly_income FROM c3_dossier WHERE ref = ?',
                        (ref,)).fetchone()
         role = None
-        if fiche:
-            r = cx.execute('SELECT role FROM c2_mention WHERE ref = ? AND fiche = ? ORDER BY role LIMIT 1',
-                           (ref, fiche)).fetchone()
-            role = LIBELLES_ROLE.get(r[0], r[0]) if r else None
-        niveau = self.niveau_dossier.get(ref)
-        return dict(indice=self.indice_dossier.get(ref), produit=d['productType'], csp=d['csp'],
-                    paiement=d['paymentMode'], verdict=d['verdict'], categorie=d['category'],
+        if fiche and demandeur:
+            role = 'demandeur'
+        elif fiche:
+            roles = sorted({LIBELLES_ROLE.get(r, r) for r, in cx.execute(
+                'SELECT DISTINCT role FROM c2_mention WHERE ref = ? AND fiche = ?', (ref, fiche)) if r})
+            role = ', '.join(roles) or 'cité'
+        niveau = self.niveau_dossier.get(ref) if demandeur else None
+        propre = (lambda v: v) if demandeur else (lambda v: None)    # ce qui appartient au demandeur ne passe pas
+        return dict(indice=self.indice_dossier.get(ref), produit=d['productType'], csp=propre(d['csp']),
+                    paiement=propre(d['paymentMode']), verdict=propre(d['verdict']), categorie=d['category'],
                     analyse=d['analysisStatus'], actif=bool(d['actif']), recu=d['businessReceivedAt'],
-                    ville=d['agency_city'], revenu_declare=d['declared_monthly_income'], role=role,
-                    niveau=niveau, niveau_libelle=LIBELLES_NIVEAU[niveau],
-                    incoherences=cx.execute('SELECT count(*) FROM c3_incoherence WHERE ref = ?', (ref,)).fetchone()[0])
+                    ville=d['agency_city'], revenu_declare=propre(d['declared_monthly_income']), role=role,
+                    demandeur=demandeur, niveau=niveau, niveau_libelle=LIBELLES_NIVEAU[niveau],
+                    incoherences=cx.execute('SELECT count(*) FROM c3_incoherence WHERE ref = ?', (ref,)).fetchone()[0]
+                    if demandeur else None)
 
     def _nom(self, cx, fiche):
         r = cx.execute('SELECT nom FROM c2_personne WHERE identifiant = ? UNION ALL '
@@ -344,6 +476,22 @@ class BaseClient:
                     force=round(ch['force'], 3), longueur=ch['longueur'], homonymie=ch['homonymie'], foyer=ch['foyer'],
                     inscrit=dict(indice=self.indice_fiche.get(ch['cible']), nom=self._nom(cx, ch['cible'])),
                     etapes=etapes)
+
+    def fiches_nommees(self, objet):
+        """Indices de fiche présents dans une réponse (la fiche elle-même et chaque tiers nommé)."""
+        trouves = set()
+        pile = [objet]
+        while pile:
+            x = pile.pop()
+            if isinstance(x, dict):
+                for k, v in x.items():
+                    if k in ('indice', 'id') and isinstance(v, int) and v in self.fiche_de:
+                        trouves.add(v)
+                    elif isinstance(v, (dict, list)):
+                        pile.append(v)
+            elif isinstance(x, list):
+                pile.extend(x)
+        return trouves
 
     # ---- dossier ---------------------------------------------------------------------------------------------------
     def dossier(self, indice):
@@ -370,6 +518,8 @@ class BaseClient:
             operations = [dict(r) for r in cx.execute(
                 'SELECT date_operation, type_operation, libelle, debit, credit FROM c3_operation WHERE ref = ? '
                 'ORDER BY date_operation LIMIT 200', (ref,))]
+            for o in operations:
+                o['libelle'] = masquer_numeros(o['libelle'])
             vehicules = [dict(r) for r in cx.execute('SELECT type_piece, marque, modele, etat, prix FROM c3_vehicule '
                                                      'WHERE ref = ?', (ref,))]
             incoherences = []
