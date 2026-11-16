@@ -65,7 +65,7 @@ def test_noms_fiches_dossiers_reseau_refuses_hors_cellule_fraude(avec_base, role
     with avec_base() as (c, etat):
         connecte(c, etat, 'u', role)
         assert c.post('/api/base/clients', json={}).status_code == 403
-        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1'):
+        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1', '/api/base/reseau/1'):
             assert c.get(chemin).status_code == 403, chemin
 
 
@@ -122,6 +122,47 @@ def test_tri_de_la_liste_des_clients_au_choix(avec_base):
         assert c.post('/api/base/clients', json={'tri': 'inconnu'}).status_code == 422
 
 
+def test_carte_reseau_servie_sans_valeur_d_identifiant_et_journalisee(avec_base, base_demo):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        clients = c.post('/api/base/clients', json={'taille': 200, 'niveau': 'majeure'}).json()['items']
+        lie = next(x for x in clients if x['type'] == 'personne')
+        r = c.get(f'/api/base/reseau/{lie["indice"]}')
+        assert r.status_code == 200
+        carte = r.json()
+        ids = {n['id'] for n in carte['noeuds']}
+        assert [n for n in carte['noeuds'] if n.get('depart')][0]['id'] == lie['indice']
+        assert any(n['inscrit'] for n in carte['noeuds'])
+        assert all(l['de'] in ids and l['vers'] in ids for l in carte['liens'])
+        assert all(n['type'] != 'identifiant' or not any(ch.isdigit() for ch in n['nom']) for n in carte['noeuds'])
+        assert not any(m.search(r.text) for m in MOTIFS)   # ni référence, ni RIB ou identifiant, ni identifiant interne
+        from conftest import tout_le_journal
+        journal = tout_le_journal(etat)
+        assert 'chaine' in journal and 'noms' in journal              # consultation et tiers nommés journalisés
+        assert lie['nom'] not in journal
+        assert c.get('/api/base/reseau/1').status_code == 404
+
+
+def test_carte_reseau_replie_les_gros_noeuds_et_garde_les_inscrits(avec_base, base_demo):
+    """Un employeur de 200 salariés ne noie pas le dessin : 12 voisins au plus par nœud, inscrits d'abord, le reste
+    compté dans `autres`."""
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers ORDER BY n DESC LIMIT 1").fetchone()
+        assert gros[1] > 30
+        salarie = cx.execute("SELECT de FROM c5_arete WHERE type = 'role' AND vers = ? LIMIT 1", (gros[0],)).fetchone()[0]
+        carte = c.get(f'/api/base/reseau/{b.indice_fiche[salarie]}').json()
+        noeud = next(n for n in carte['noeuds'] if n['id'] == b.indice_fiche[gros[0]])
+        voisins = [l for l in carte['liens'] if noeud['id'] in (l['de'], l['vers'])]
+        inscrits = {r[0] for r in cx.execute("SELECT de FROM c5_arete WHERE type = 'role' AND vers = ?", (gros[0],))} & b.inscrits
+        assert len(voisins) <= 13 + len(inscrits) and noeud['autres'] >= gros[1] - 13 - len(inscrits)
+        affiches = {n['id'] for n in carte['noeuds']}
+        assert all(b.indice_fiche[i] in affiches for i in inscrits)
+        assert len(carte['noeuds']) < 80
+
+
 def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
     with avec_base() as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
@@ -142,7 +183,6 @@ def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
         assert chemin['inscrit']['indice'] and chemin['etapes']
         d = c.get(f'/api/base/dossiers/{f["dossiers"][0]["indice"]}').json()
         assert d['entete']['reference'].startswith('ZZ') and d['pieces'] and d['parties']
-        assert c.get(f'/api/base/reseau/{lie["indice"]}').status_code == 404      # carte désactivée
         assert {'charges', 'operations', 'incoherences', 'identifiants'} <= set(f)
         assert all(r['dossier'] for r in f['revenus'] if r['nature'] == 'verifie')
         assert all(set(i) == {'type', 'valeur', 'dossier'} for i in f['identifiants'])
