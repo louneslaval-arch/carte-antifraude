@@ -146,6 +146,7 @@ def _compter(cx, noeuds):
 
 def _construire(cx):
     parametres(cx)
+    cx.execute('DELETE FROM c5_a_refaire')
     for table in TABLES:
         cx.execute(f'DELETE FROM {table}')
     mentions = [dict(zip(COLONNES_MENTION, r)) for r in cx.execute(
@@ -166,11 +167,16 @@ def _traiter(cx, ref):
     cx.execute('DELETE FROM c5_cle_adresse WHERE ref = ?', (ref,))
     _adresses(cx, _mentions(cx, actuelles))
     touchees = set(actuelles) | {m for (m,) in cx.execute('SELECT mention FROM c5_arete WHERE ref = ?', (ref,))}
-    touchees |= {m for (m,) in cx.execute(          # arêtes dont une fiche a changé, ou dont la mention a disparu
-        'SELECT a.mention FROM c5_arete a LEFT JOIN c2_mention m ON m.id = a.mention '
-        'WHERE m.id IS NULL OR m.fiche IS NULL OR m.fiche <> a.de '
-        "UNION SELECT a.mention FROM c5_arete a LEFT JOIN c2_mention s ON s.id = a.mention_b "
-        "WHERE a.type = 'role' AND (s.id IS NULL OR s.fiche IS NULL OR s.fiche <> a.vers)")}
+    # mentions dont la fiche a changé ou qui ont disparu (relevées par les déclencheurs de c2_mention), et les
+    # personnes dont la société est l'une d'elles
+    changees = {m for (m,) in cx.execute('SELECT mention FROM c5_a_refaire')}
+    touchees |= changees
+    lot_ = sorted(changees)
+    for i in range(0, len(lot_), 400):
+        morceau = lot_[i:i + 400]
+        touchees |= {m for (m,) in cx.execute(
+            f'SELECT mention FROM c5_arete WHERE mention_b IN ({", ".join("?" * len(morceau))})', morceau)}
+    cx.execute('DELETE FROM c5_a_refaire')
     noeuds = set()
     ids = sorted(touchees)
     for i in range(0, len(ids), 400):

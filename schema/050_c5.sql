@@ -74,3 +74,19 @@ SELECT c.noeud,
        coalesce((SELECT p.inscrit FROM c2_personne p WHERE p.identifiant = c.noeud),
                 (SELECT s.inscrit FROM c2_societe s WHERE s.identifiant = c.noeud), 0) AS inscrit
 FROM c5_compteur c;
+
+-- Mentions de c2 dont la fiche a changé (ou qui ont disparu) depuis le dernier passage de c5 : relevées au moment
+-- même par des déclencheurs, pour que `traiter` ne parcoure pas toutes les arêtes. Vidée par c5.
+CREATE TABLE c5_a_refaire (mention TEXT PRIMARY KEY);
+CREATE INDEX c5_arete_mention_b_idx ON c5_arete (mention_b);
+
+CREATE TRIGGER c5_fiche_changee AFTER UPDATE OF fiche ON c2_mention
+WHEN OLD.fiche IS NOT NEW.fiche
+BEGIN
+    INSERT INTO c5_a_refaire (mention) VALUES (NEW.id) ON CONFLICT (mention) DO NOTHING;
+END;
+
+CREATE TRIGGER c5_mention_retiree AFTER DELETE ON c2_mention
+BEGIN
+    INSERT INTO c5_a_refaire (mention) VALUES (OLD.id) ON CONFLICT (mention) DO NOTHING;
+END;
