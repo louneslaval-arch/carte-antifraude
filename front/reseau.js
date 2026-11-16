@@ -8,33 +8,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (Commun.role() !== 'ANALYSTE') {
     document.getElementById('sous-titre').textContent = 'La carte des réseaux est réservée à la cellule fraude.';
-    scene.hidden = true;
+    masquerScene();
     return;
   }
-  const choix = document.getElementById('choix');
-  const select = document.getElementById('client');
+  // Recherche d'un client par son nom (dans le corps d'une requête POST, jamais dans l'URL) : aucun nom n'est chargé
+  // tant que l'analyste n'a rien cherché.
+  const choix = document.getElementById('choix'), champ = document.getElementById('recherche');
+  const resultats = document.getElementById('resultats');
   choix.hidden = false;
-  // Clients reliés à la liste noire (à 3 liens au plus), par ordre alphabétique ; les niveaux restent masqués.
-  const relies = [];
-  for (const niveau of ['critique', 'majeure', 'mineure']) {
-    const r = await api('/api/base/clients', { corps: { niveau, taille: 200, tri: 'alpha' } });
-    relies.push(...r.items);
-  }
-  relies.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
-  for (const c of relies) select.append(el('option', { value: c.indice, texte: c.nom }));
-  select.addEventListener('change', () => { if (select.value) location.href = `reseau.html?i=${select.value}`; });
+  choix.addEventListener('submit', ev => ev.preventDefault());
+  let minuterie = null, numero = 0;
+  champ.addEventListener('input', () => {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(async () => {
+      const texte = champ.value.trim(), moi = ++numero;
+      if (texte.length < 2) { resultats.replaceChildren(); return; }
+      try {
+        const r = await api('/api/base/clients', { corps: { texte, taille: 12, tri: 'alpha' } });
+        if (moi !== numero) return;
+        resultats.replaceChildren(...(r.items.length ? r.items.map(c => el('li', {},
+          el('a', { href: `reseau.html?i=${c.indice}`, texte: c.nom }), c.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'inscrit' }) : null))
+          : [el('li', { classe: 'vide', texte: 'Aucun client ne correspond.' })]));
+      } catch (e) {
+        if (moi === numero) resultats.replaceChildren(el('li', { classe: 'vide', role: 'alert', texte: Commun.erreur(e, 'Recherche') }));
+      }
+    }, 250);
+  });
   if (!indice) {
-    if (select.options.length > 1) location.replace(`reseau.html?i=${select.options[1].value}`);
+    document.getElementById('sous-titre').textContent = 'Cherchez un client pour afficher son réseau, ou ouvrez-le depuis sa fiche.';
+    masquerScene();
     return;
   }
-  select.value = indice;
-  if (select.value !== indice) select.append(el('option', { value: indice, texte: 'Client affiché', selected: true }));
   let r;
   try {
     r = await api(`/api/base/reseau/${encodeURIComponent(indice)}`);
   } catch (e) {
     document.getElementById('sous-titre').textContent = Commun.erreur(e, 'Réseau');
-    scene.hidden = true;
+    masquerScene();
     return;
   }
   const depart = r.noeuds.find(n => n.depart);
@@ -131,6 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
     placer();
+  }
+  function masquerScene() {                       // l'attribut, car la propriété `hidden` n'existe pas sur un SVG
+    scene.setAttribute('hidden', '');
+    document.querySelector('.legende').hidden = true;
   }
   function svg(balise, attributs = {}, texte) {
     const n = document.createElementNS(NS, balise);

@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from . import journal
 
 ETIQUETTES = ('noms', 'recherche')
-FICHES = ('fiche', 'chaine')
+FICHES = ('fiche', 'chaine', 'reseau')
 
 
 def etiquettes(etat, session, indices):

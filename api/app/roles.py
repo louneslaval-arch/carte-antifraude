@@ -33,4 +33,6 @@ DROITS = {
     'base.resume': TOUS,
     'base.clients': frozenset({Role.ANALYSTE}),
     'base.fiche': frozenset({Role.ANALYSTE}),
+    # carte réseau : liens et liste noire, jamais pour AGENCE (règles de l'API), même si elle reçoit un jour la fiche
+    'base.reseau': frozenset({Role.ANALYSTE}),
 }

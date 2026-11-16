@@ -54,7 +54,7 @@ const Commun = (() => {
 
   function entete(courante, sombre = false) {
     const nav = el('nav', { 'aria-label': 'Navigation principale' },
-      PAGES.map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
+      PAGES.filter(([lien]) => lien !== 'reseau.html' || role() === 'ANALYSTE').map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
     const langue = el('div', { classe: 'langue', role: 'group', 'aria-label': 'Langue' },
       el('button', { type: 'button', 'aria-pressed': 'true', texte: 'Fr' }),
       el('button', { type: 'button', 'aria-pressed': 'false', disabled: true, title: 'Arabe : bientôt',

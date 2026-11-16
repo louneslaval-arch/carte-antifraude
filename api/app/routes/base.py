@@ -83,7 +83,7 @@ CARTE_ACTIVE = True                   # vue réseau rallumée le 16/11 (Lounès)
 
 
 @routeur.get('/reseau/{indice}')
-def reseau(indice: int, request: Request, session: Session = Depends(exige('base.fiche')), b=Depends(base_client)):
+def reseau(indice: int, request: Request, session: Session = Depends(exige('base.reseau')), b=Depends(base_client)):
     if not CARTE_ACTIVE:
         raise HTTPException(404, 'Carte désactivée')
-    return _servir(request, session, 'chaine', b.reseau(indice), indice)
+    return _servir(request, session, 'reseau', b.reseau(indice), indice)
