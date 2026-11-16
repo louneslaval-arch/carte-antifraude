@@ -27,6 +27,9 @@ POIDS_IDENTIFIANT = {'RIB': 'c5_poids_meme_rib', 'LOGEMENT': 'c5_poids_meme_loge
 ROLES_RIB = ('titulaire_compte', 'employe')
 ROLES_DE_DEPART = ('societe', 'employeur', 'gerant', 'dirigeant', 'nouveau_gerant')
 SIGNALEMENTS = ('CIN_PARTAGE', 'RC_PARTAGE', 'CLE_PARTAGEE')      # signalés par c2, ce ne sont pas des liens
+# rapprochement du kit selon sa nature : le rôle du barème qu'il représente (un lien, pas une identité)
+RAPPROCHEMENTS = {'dirigeant': 'dirigeant', 'emploi': 'employe', 'adresse': 'meme_siege'}
+HOMONYMIES_AUTRES = ('AF07',)                                     # employeur reconnu par son seul nom : une homonymie
 PRENOMS = set(cb.PRENOMS_CANON) | set(cb.PRENOMS_CANON.values())
 
 
@@ -62,6 +65,7 @@ def poids_role(p, code):
 
 def niveau(p, longueur, force, plafond=None):
     """Niveau d'un chemin : la force le décide, sous le maximum que permet sa longueur (et un plafond éventuel)."""
+    force = round(force, 9)                               # 0,6 × √(2/18) atteint bien 0,20
     if force < p['c5_seuil_affichage']:
         return None
     if longueur > p['c5_longueur_alerte']:
@@ -95,8 +99,8 @@ def _adresses(cx, mentions):
     lignes = []
     for m in mentions:
         cle = cb.cle_adresse(m['adresse']) if m['adresse'] else None
-        if cle:
-            lignes.append((m['id'], m['ref'], cle))
+        if cle:                                           # la ville reste dans la clé : même rue, autre ville, autre lieu
+            lignes.append((m['id'], m['ref'], f"{cle}|{cb.villes_dans(m['adresse']) or ''}"))
     cx.executemany('INSERT INTO c5_cle_adresse (mention, ref, cle) VALUES (?, ?, ?)', lignes)
 
 
@@ -105,8 +109,11 @@ def _aretes(cx, mentions):
     fiches = {m['id']: m['fiche'] for m in mentions}
     manquantes = {m['societe_mention'] for m in mentions if m['societe_mention']} - set(fiches)
     fiches.update({m['id']: m['fiche'] for m in _mentions(cx, manquantes)})
-    adresses = dict(cx.execute('SELECT mention, cle FROM c5_cle_adresse WHERE mention IN (%s)' % ', '.join(
-        '?' * len(mentions)), [m['id'] for m in mentions]).fetchall()) if mentions else {}
+    adresses, ids = {}, [m['id'] for m in mentions]
+    for i in range(0, len(ids), 400):
+        lot = ids[i:i + 400]
+        adresses.update(cx.execute(f'SELECT mention, cle FROM c5_cle_adresse WHERE mention IN ({", ".join("?" * len(lot))})',
+                                   lot).fetchall())
     lignes = []
     for m in mentions:
         if not m['fiche']:
@@ -235,18 +242,30 @@ class Contexte:
                 'JOIN c2_mention ma ON ma.id = c.mention_a JOIN c2_mention mb ON mb.id = c.mention_b '
                 'WHERE ma.fiche IS NOT NULL AND mb.fiche IS NOT NULL GROUP BY 1, 2, 3'):
             poids[(a, b, regle)] = valeur
-        self.homonymies = {}
-        for a, b, regle, niveau_, statut in cx.execute(
-                'SELECT fiche_a, fiche_b, regle, niveau, statut FROM c2_correspondance ORDER BY 1, 2, 3'):
-            if statut == 'ecarte' or regle in SIGNALEMENTS:
+        self.homonymies, self.rapprochements = {}, {}
+        for a, b, regle, nature, niveau_, statut in cx.execute(
+                'SELECT fiche_a, fiche_b, regle, nature, niveau, statut FROM c2_correspondance ORDER BY 1, 2, 3'):
+            if statut in ('ecarte', 'faible') or regle in SIGNALEMENTS:     # « faible » : hors graphe, comme le kit
                 continue
             certain = statut == 'confirme' or niveau_ == 'certain'
-            fiabilite = 1.0 if certain else (poids.get((a, b, regle)) or self.p['c5_fiabilite_homonymie'])
+            lu = poids.get((a, b, regle))
+            fiabilite = 1.0 if certain else (lu if lu is not None else self.p['c5_fiabilite_homonymie'])
+            if nature != 'identite' and regle not in HOMONYMIES_AUTRES:
+                # un rapprochement qui n'est pas une identité (dirigeant, emploi, adresse) : un lien du barème
+                lien = poids_role(self.p, RAPPROCHEMENTS.get(nature, 'inconnu')) * min(fiabilite, 1.0)
+                for x, y in ((a, b), (b, a)):
+                    actuel = self.rapprochements.get((x, y))
+                    if actuel is None or lien > actuel[0]:
+                        self.rapprochements[(x, y)] = (lien, None if certain else 'mineure', regle)
+                continue
             for x, y in ((a, b), (b, a)):
                 actuel = self.homonymies.get((x, y))
                 candidat = (min(fiabilite, 1.0), not certain, regle)
                 if actuel is None or (candidat[1], -candidat[0]) < (actuel[1], -actuel[0]):
                     self.homonymies[(x, y)] = candidat
+        self.voisins_rapproches = {}
+        for x, y in self.rapprochements:
+            self.voisins_rapproches.setdefault(x, []).append(y)
         self.voisins_homonymes = {}
         for x, y in self.homonymies:
             self.voisins_homonymes.setdefault(x, []).append(y)
@@ -259,9 +278,12 @@ class Contexte:
         return self._n[noeud]
 
     def famille(self, fiche):
+        """Nom de famille lu à part sur la CIN (champ `nom` de la pièce) ; sans CIN lue, aucun foyer n'est reconnu."""
         if fiche not in self._noms:
-            ligne = self.cx.execute('SELECT nom FROM c2_personne WHERE identifiant = ?', (fiche,)).fetchone()
-            self._noms[fiche] = _famille(ligne[0]) if ligne else set()
+            self._noms[fiche] = {mot for (nom_,) in self.cx.execute(
+                "SELECT f.texte_norm FROM c2_mention m JOIN c1_fait_retenu f ON f.ref = m.ref AND f.upstream_piece_id = "
+                "m.upstream_piece_id AND f.type = 'CIN' AND f.cle = 'nom' WHERE m.fiche = ? AND m.role = 'titulaire_cin'",
+                (fiche,)) if nom_ for mot in nom_.split() if len(mot) > 2}
         return self._noms[fiche]
 
     def liens(self, u):
@@ -285,6 +307,10 @@ class Contexte:
                 poids = p['c5_poids_foyer'] if foyer else p[POIDS_IDENTIFIANT[code]]
                 sortie.append((voisin, 1, poids, dict(type='identifiant', code=code, de=u, vers=voisin),
                                'mineure' if foyer else None, foyer, noeud))
+        for voisin in sorted(self.voisins_rapproches.get(u, ())):
+            poids, plafond, regle = self.rapprochements[(u, voisin)]
+            sortie.append((voisin, 1, poids, dict(type='rapprochement', code=regle, de=u, vers=voisin), plafond,
+                           False, None))
         for voisin in sorted(self.voisins_homonymes.get(u, ())):
             fiabilite, a_lever, regle = self.homonymies[(u, voisin)]
             sortie.append((voisin, 0, fiabilite, dict(type='homonymie', code=regle, de=u, vers=voisin),

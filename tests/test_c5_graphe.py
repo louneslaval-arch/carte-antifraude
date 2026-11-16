@@ -184,8 +184,10 @@ def test_S12_employeur_reconnu_par_son_seul_nom_mineure_au_plus(cx, jeu):
 
 def test_S18_meme_chassis_n_est_pas_un_lien(cx, jeu):
     a, b = [v['ref'] for v in jeu.verite if 'S18' in v['scenarios']]
-    assert lignes(cx, "SELECT count(*) FROM c5_arete WHERE code = 'CHASSIS'") == [(0,)]
-    assert all(e['code'] != 'CHASSIS' for r in (a, b) for ch in c5.chemins(cx, r) for e in ch['etapes'])
+    demandeur = lignes(cx, 'SELECT fiche FROM c3_demandeur WHERE ref = ?', a)[0][0]
+    k = c5.Contexte(cx)
+    k.inscrits = k.inscrits | {demandeur}                  # si l'un était inscrit, l'autre n'y serait pas relié
+    assert c5.chemins(cx, b, k) == []
 
 
 def test_dossier_sans_lien_aucun_chemin(cx, jeu):
@@ -520,3 +522,48 @@ def test_fiche_d_un_autre_dossier_qui_change_ses_aretes_suivent(jeu, tmp_path):
     assert contenu(flux) == contenu(lot)
     flux.commit()
     assert verifier.verifier(flux.execute('PRAGMA database_list').fetchone()[2]) == 0
+
+
+# ---- constats de la relecture de code ------------------------------------------------------------------------------
+
+def test_rapprochements_du_kit_qui_ne_sont_pas_des_identites_sont_des_liens(vide):
+    for i in range(1, 6):
+        inserer_mention(vide, f'm{i}', pp(i))
+    for a, b, nature, regle, niveau_, statut, poids in (
+            ('m1', 'm2', 'dirigeant', 'R01b', 'certain', 'alerte', 1.0),
+            ('m1', 'm3', 'emploi', 'R08', 'probable', 'a_verifier', 0.8),
+            ('m1', 'm4', 'identite', 'R07', 'probable', 'faible', 0.09),
+            ('m1', 'm5', 'emploi', 'AF07', 'a_verifier', 'homonymie', None)):
+        vide.execute('INSERT INTO c2_correspondance_mention (mention_a, mention_b, nature, regle, niveau, statut, poids, '
+                     "source) VALUES (?, ?, ?, ?, ?, ?, ?, 'kit')", (a, b, nature, regle, niveau_, statut, poids))
+    p = c5.parametres(vide)
+    liens = {v: (longueur, round(poids, 3), plafond, e['type'])
+             for v, longueur, poids, e, plafond, *_ in c5.Contexte(vide).liens(pp(1))}
+    assert liens == {pp(2): (1, p['c5_poids_dirigeant'], None, 'rapprochement'),
+                     pp(3): (1, round(p['c5_poids_employe'] * 0.8, 3), 'mineure', 'rapprochement'),
+                     pp(5): (0, p['c5_fiabilite_homonymie'], 'mineure', 'homonymie')}
+
+
+def test_meme_adresse_dans_deux_villes_n_est_pas_un_meme_logement(jeu, tmp_path):
+    a = dossier(jeu, 1, ('CIN', {'nom': 'ZELMOU', 'prenom': 'BAKRITA', 'cin': 'ZZ100001',
+                                 'adresse': '12 Rue Tazoula, Casablanca'}))
+    b = dossier(jeu, 2, ('CIN', {'nom': 'TAGHRIZ', 'prenom': 'LOUMIZA', 'cin': 'ZZ100002',
+                                 'adresse': '12 Rue Tazoula, Agadir'}))
+    cx = base_de(tmp_path, [a, b])
+    cx.execute("UPDATE c2_personne SET inscrit = 1 WHERE cin = 'ZZ100001'")
+    assert c5.chemins(cx, 'ZZ26T0002') == []
+
+
+def test_foyer_par_le_nom_de_famille_de_la_cin_pas_par_un_prenom_commun(jeu, tmp_path):
+    adresse = '12 Avenue Tazoula, Appartement 3, Casablanca'
+    a = dossier(jeu, 1, ('CIN', {'nom': 'ZELMOU', 'prenom': 'BAKRITA NADOUL', 'cin': 'ZZ100001', 'adresse': adresse}))
+    b = dossier(jeu, 2, ('CIN', {'nom': 'TAGHRIZ', 'prenom': 'BAKRITA NADOUL', 'cin': 'ZZ100002', 'adresse': adresse}))
+    cx = base_de(tmp_path, [a, b])
+    cx.execute("UPDATE c2_personne SET inscrit = 1 WHERE cin = 'ZZ100001'")
+    m = meilleur(cx, 'ZZ26T0002')
+    assert not m['foyer'] and m['niveau'] == 'majeure'
+
+
+def test_seuil_atteint_malgre_l_arrondi_des_flottants(vide):
+    p = c5.parametres(vide)
+    assert c5.niveau(p, 1, 0.6 * math.sqrt(2 / 18)) == 'majeure'
