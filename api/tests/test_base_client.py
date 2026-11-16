@@ -60,7 +60,7 @@ def test_resume_agrege_pour_la_direction_sans_nom_ni_chiffre_sous_cinq(avec_base
         assert r.headers['Content-Security-Policy'].startswith("default-src 'self'")
 
 
-@pytest.mark.parametrize('role', ['DIRECTION', 'AGENCE'])
+@pytest.mark.parametrize('role', ['DIRECTION', 'AGENCE', 'ADMIN'])
 def test_noms_fiches_dossiers_reseau_refuses_hors_cellule_fraude(avec_base, role):
     with avec_base() as (c, etat):
         connecte(c, etat, 'u', role)
@@ -138,29 +138,102 @@ def test_carte_reseau_servie_sans_valeur_d_identifiant_et_journalisee(avec_base,
         assert not any(m.search(r.text) for m in MOTIFS)   # ni référence, ni RIB ou identifiant, ni identifiant interne
         from conftest import tout_le_journal
         journal = tout_le_journal(etat)
-        assert 'chaine' in journal and 'noms' in journal              # consultation et tiers nommés journalisés
+        assert 'reseau' in journal and 'noms' in journal              # consultation et tiers nommés journalisés
         assert lie['nom'] not in journal
         assert c.get('/api/base/reseau/1').status_code == 404
 
 
-def test_carte_reseau_replie_les_gros_noeuds_et_garde_les_inscrits(avec_base, base_demo):
-    """Un employeur de 200 salariés ne noie pas le dessin : 12 voisins au plus par nœud, inscrits d'abord, le reste
-    compté dans `autres`."""
+def _voisins_affiches(carte):
+    """Voisins de chaque fiche dans le dessin, un nœud d'identifiant partagé valant un pas (A – RIB – B)."""
+    ident = {n['id'] for n in carte['noeuds'] if n['type'] == 'identifiant'}
+    adj = {}
+    for l in carte['liens']:
+        adj.setdefault(l['de'], set()).add(l['vers'])
+        adj.setdefault(l['vers'], set()).add(l['de'])
+    sortie = {}
+    for n in carte['noeuds']:
+        if n['type'] == 'identifiant':
+            continue
+        v = set()
+        for x in adj.get(n['id'], ()):
+            v |= (adj[x] - {n['id']}) if x in ident else {x}
+        sortie[n['id']] = v
+    return sortie
+
+
+def _clients_relies(c):
+    relies = []
+    for niveau in ('critique', 'majeure', 'mineure'):
+        page = 1
+        while True:
+            r = c.post('/api/base/clients', json={'niveau': niveau, 'taille': 200, 'page': page}).json()
+            relies += r['items']
+            if page * 200 >= r['total']:
+                break
+            page += 1
+    return relies
+
+
+def test_carte_reseau_garde_tout_inscrit_atteignable_meme_derriere_un_noeud_replie(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        inscrits = lambda carte: {n['id'] for n in carte['noeuds'] if n['inscrit']}
+        for indice in sorted(b.indice_fiche.values()):                   # toutes les fiches de la base
+            assert inscrits(b.reseau(indice)) == inscrits(b.reseau(indice, plafond=10 ** 6, limite=10 ** 6)), indice
+
+
+def test_carte_reseau_compte_exactement_ce_qui_n_est_pas_affiche(avec_base, base_demo):
+    """Pour chaque nœud déployé : voisins affichés (avec leur lien) + `autres` = tous ses voisins. Vrai aussi quand la
+    limite du nombre de nœuds s'applique."""
     with avec_base() as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
         b = etat.base_client
         cx = sqlite3.connect(base_demo)
-        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers ORDER BY n DESC LIMIT 1").fetchone()
-        assert gros[1] > 30
+        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers "
+                          'ORDER BY n DESC LIMIT 1').fetchone()
         salarie = cx.execute("SELECT de FROM c5_arete WHERE type = 'role' AND vers = ? LIMIT 1", (gros[0],)).fetchone()[0]
-        carte = c.get(f'/api/base/reseau/{b.indice_fiche[salarie]}').json()
-        noeud = next(n for n in carte['noeuds'] if n['id'] == b.indice_fiche[gros[0]])
-        voisins = [l for l in carte['liens'] if noeud['id'] in (l['de'], l['vers'])]
-        inscrits = {r[0] for r in cx.execute("SELECT de FROM c5_arete WHERE type = 'role' AND vers = ?", (gros[0],))} & b.inscrits
-        assert len(voisins) <= 13 + len(inscrits) and noeud['autres'] >= gros[1] - 13 - len(inscrits)
-        affiches = {n['id'] for n in carte['noeuds']}
-        assert all(b.indice_fiche[i] in affiches for i in inscrits)
-        assert len(carte['noeuds']) < 80
+        departs = [b.indice_fiche[salarie], b.indice_fiche[gros[0]]] + sorted(b.indice_fiche.values())
+        for depart in departs:
+            for limite in ((120, 25) if depart in departs[:2] else (120,)):
+                carte = b.reseau(depart, limite=limite)
+                complet = _voisins_affiches(b.reseau(depart, plafond=10 ** 6, limite=10 ** 6))
+                affiches = _voisins_affiches(carte)
+                presents = set(affiches)
+                for n in carte['noeuds']:
+                    if n['type'] == 'identifiant' or n['niveau'] >= 2:
+                        continue                              # seuls les nœuds déployés (niveaux 0 et 1) comptent
+                    tous = complet[n['id']]
+                    assert affiches[n['id']] == tous & presents, (depart, limite)     # voisin présent = lien dessiné
+                    assert n['autres'] == len(tous - presents), (depart, limite)      # le reste est compté
+        noeud = next(n for n in b.reseau(b.indice_fiche[salarie])['noeuds'] if n['id'] == b.indice_fiche[gros[0]])
+        assert noeud['autres'] > 150                          # l'employeur de 200 salariés est replié
+
+
+def test_carte_reseau_stable_sans_valeur_et_client_isole(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        relie = _clients_relies(c)[0]['indice']
+        assert b.reseau(relie) == b.reseau(relie)            # même dessin d'un appel à l'autre
+        carte = b.reseau(relie)
+        for n in carte['noeuds']:
+            if n['type'] == 'identifiant':
+                assert n['nom'] in ('RIB', 'LOGEMENT', 'SIEGE') and re.fullmatch(r'id\d+', n['id'])
+        tous = c.post('/api/base/clients', json={'taille': 200, 'niveau': 'aucun'}).json()['items']
+        isole = next(x['indice'] for x in tous if len(b.reseau(x['indice'])['noeuds']) == 1)
+        assert b.reseau(isole)['liens'] == []
+
+
+def test_carte_reseau_a_son_propre_droit_et_son_action_de_journal(avec_base):
+    from app.roles import DROITS, Role
+    assert DROITS['base.reseau'] == frozenset({Role.ANALYSTE})
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        relie = _clients_relies(c)[0]['indice']
+        assert c.get(f'/api/base/reseau/{relie}').status_code == 200
+        from conftest import tout_le_journal
+        assert 'reseau' in tout_le_journal(etat)
 
 
 def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
