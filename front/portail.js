@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     e.addEventListener('pointermove', ev => {
       if (!depart) return;
       if (!tire && Math.hypot(ev.clientX - depart.px, ev.clientY - depart.py) < 5) return;   // un clic reste un clic
-      if (!tire) { tire = true; e.setPointerCapture(ev.pointerId); e.classList.add('saisi'); }
+      if (!tire) { tire = true; try { e.setPointerCapture(ev.pointerId); } catch (x) { /* pointeur déjà relâché */ } e.classList.add('saisi'); }
       deplacer(i, ev.clientX - depart.x, ev.clientY - depart.y);
     });
     const lacher = () => { if (!depart) return; depart = null; if (tire) revenir(i); };

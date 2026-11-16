@@ -1,6 +1,6 @@
 'use strict';
 document.addEventListener('DOMContentLoaded', async () => {
-  const { el, api, nombre, montant, date, niveau } = Commun;
+  const { el, api, nombre, montant, date } = Commun;
   Commun.entete('base.html');
   const main = document.getElementById('contenu');
   let d;
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     chiffre(e.produit || '—', 'produit'), chiffre(montant(e.revenu_declare), 'revenu déclaré'),
     chiffre(e.verdict || '—', `verdict de la v2${e.analyse && e.analyse !== 'COMPLETE' ? ` (analyse : ${e.analyse.toLowerCase().replaceAll('_', ' ')})` : ''}`));
   const tete = el('section', { classe: 'carte' },
-    el('div', { classe: 'chemin-entete' }, niveau(e.niveau, `Lien : ${e.niveau_libelle}`),
+    el('div', { classe: 'chemin-entete' },
       e.actif ? null : el('span', { classe: 'etiquette', texte: 'archivé' }),
       el('span', { texte: `Reçu le ${date(e.recu)} · ${e.ville || 'agence non renseignée'} · ${e.csp || ''}` })),
     el('h1', { texte: `Dossier ${e.reference}` }),
@@ -26,10 +26,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     [Commun.lienFiche(p), p.role, p.demandeur ? el('span', { classe: 'etiquette', texte: 'demandeur' }) : ''])));
   const chemins = carte('Liens avec la liste noire', d.chemins.length
     ? el('div', { classe: 'pile' }, d.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit.'));
-  const pieces = carte('Pièces lues', tableau(['Pièce', 'Source', 'Lecture', 'Champs'],
-    d.pieces.map(p => [p.type, p.source === 'REANALYSE' ? 'relue' : 'amont', p.statut || '—', nombre(p.champs)])));
+  const pieces = carte('Pièces lues', tableau(['Pièce', 'Lecture', 'Champs'],
+    d.pieces.map(p => [p.type, p.statut || '—', nombre(p.champs)])));
   const revenus = carte('Revenus et charges', el('div', {},
-    d.revenus.length ? tableau(['Nature', 'Source', 'Période', 'Montant'], d.revenus.map(r => [r.nature, r.source,
+    d.revenus.length ? tableau(['Nature', 'Pièce', 'Période', 'Montant'], d.revenus.map(r => [r.nature, r.source,
       r.mois ? `${String(r.mois).padStart(2, '0')}/${r.annee}` : '—', montant(r.montant)])) : vide('Aucun revenu.'),
     d.charges.length ? tableau(['Charge', 'Période', 'Montant'], d.charges.map(c => [c.nature === 'credit_source' ? 'crédit prélevé à la source' : 'échéance de crédit',
       c.mois ? `${String(c.mois).padStart(2, '0')}/${c.annee}` : '—', montant(c.montant)])) : null));

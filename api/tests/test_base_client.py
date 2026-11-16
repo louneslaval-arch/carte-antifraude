@@ -97,6 +97,31 @@ def test_recherche_par_le_corps_filtres_pagination_et_journal_sans_requete(avec_
         assert c.post('/api/base/clients', json={'inconnu': 1}).status_code == 422
 
 
+def test_tri_de_la_liste_des_clients_au_choix(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+
+        def liste(tri):
+            return c.post('/api/base/clients', json={'taille': 200, 'tri': tri}).json()['items']
+
+        recents = [x['derniere_demande'] for x in liste('recent') if x['derniere_demande']]
+        assert recents and recents == sorted(recents, reverse=True)
+        anciens = [x['derniere_demande'] for x in liste('ancien') if x['derniere_demande']]
+        assert anciens == sorted(anciens)
+        noms = [x['nom'].upper() for x in liste('alpha')]
+        assert noms == sorted(noms)
+        inverses = [x['nom'].upper() for x in liste('alpha_inverse')]
+        assert inverses == sorted(inverses, reverse=True) and inverses[0] >= noms[-1]
+        nb = [x['dossiers'] for x in liste('dossiers')]
+        assert nb == sorted(nb, reverse=True)
+        revenus = [x['revenu'] for x in liste('revenu') if x['revenu'] is not None]
+        assert revenus == sorted(revenus, reverse=True)
+        p1 = c.post('/api/base/clients', json={'tri': 'alpha', 'page': 1, 'taille': 10}).json()['items']
+        p2 = c.post('/api/base/clients', json={'tri': 'alpha', 'page': 2, 'taille': 10}).json()['items']
+        assert p1[-1]['nom'].upper() <= p2[0]['nom'].upper()      # le tri s'applique avant la pagination
+        assert c.post('/api/base/clients', json={'tri': 'inconnu'}).status_code == 422
+
+
 def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
     with avec_base() as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
