@@ -86,10 +86,4 @@ const CONTENU_PORTAIL = {
       usages: [{ nom: 'Annonces légales et personnes citées', etat: 'déjà dans la base' }],
       donnees: [{ nom: 'Annonces légales', source: 'registre du commerce' }] },
   ],
-  prealables: [
-    { n: '1', nom: 'Historique de remboursement', texte: '36 mois de contrats et d’échéances pour mesurer le risque réel.' },
-    { n: '2', nom: 'Identité unique', texte: 'Le cœur de la base, en construction : une fiche par personne et par société.' },
-    { n: '3', nom: 'Dictionnaire d’indicateurs', texte: 'Des définitions partagées, versionnées, pour chaque chiffre.' },
-    { n: '4', nom: 'Cadre CNDP et gouvernance', texte: 'Finalités, durées de conservation, droits d’accès : la loi 09-08 d’abord.' },
-  ],
 };

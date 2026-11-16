@@ -12,10 +12,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   const e = d.entete;
   const demandeur = d.parties.find(p => p.demandeur);
-  const chiffres = el('section', { classe: 'grille grille-4' },
+  const chiffres = el('section', { classe: 'grille grille-3' },
     chiffre(e.produit || '—', 'produit'), chiffre(montant(e.revenu_declare), 'revenu déclaré'),
-    chiffre(e.verdict || '—', `verdict de la v2${e.analyse && e.analyse !== 'COMPLETE' ? ` (analyse : ${e.analyse.toLowerCase().replaceAll('_', ' ')})` : ''}`),
-    chiffre(nombre(d.incoherences.length), 'incohérences et signaux', d.incoherences.length > 0));
+    chiffre(e.verdict || '—', `verdict de la v2${e.analyse && e.analyse !== 'COMPLETE' ? ` (analyse : ${e.analyse.toLowerCase().replaceAll('_', ' ')})` : ''}`));
   const tete = el('section', { classe: 'carte' },
     el('div', { classe: 'chemin-entete' }, niveau(e.niveau, `Lien : ${e.niveau_libelle}`),
       e.actif ? null : el('span', { classe: 'etiquette', texte: 'archivé' }),
@@ -25,9 +24,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const parties = carte('Parties du dossier', tableau(['Nom', 'Rôle', ''], d.parties.map(p =>
     [Commun.lienFiche(p), p.role, p.demandeur ? el('span', { classe: 'etiquette', texte: 'demandeur' }) : ''])));
-  const incoherences = carte('Incohérences et signaux', d.incoherences.length ? tableau(['Type', 'Gravité', 'Autre dossier'],
-    d.incoherences.map(i => [i.libelle, i.gravite === 'signal' ? 'signal' : el('span', { classe: 'etiquette etiquette-rouge', texte: 'incohérence' }),
-      i.autre_dossier ? el('a', { href: `dossier.html?i=${i.autre_dossier}`, texte: 'Ouvrir' }) : '—'])) : vide('Aucune.'));
   const chemins = carte('Liens avec la liste noire', d.chemins.length
     ? el('div', { classe: 'pile' }, d.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit.'));
   const pieces = carte('Pièces lues', tableau(['Pièce', 'Source', 'Lecture', 'Champs'],
@@ -40,12 +36,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const operations = carte('Opérations du relevé', d.operations.length ? tableau(['Date', 'Type', 'Libellé', 'Débit', 'Crédit'],
     d.operations.map(o => [date(o.date_operation), o.type_operation, o.libelle, montant(o.debit), montant(o.credit)]))
     : vide('Relevé non relu : aucune opération lue.'));
-  const controles = carte('Contrôles de la v2', d.controles.length ? el('div', { classe: 'puces' }, d.controles.map(Commun.controle))
-    : vide('Aucun contrôle.'));
 
   main.replaceChildren(el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Dossier'),
     tete, chiffres, el('div', { classe: 'grille grille-2' },
-      el('div', { classe: 'pile' }, parties, chemins, incoherences, controles),
+      el('div', { classe: 'pile' }, parties, chemins),
       el('div', { classe: 'pile' }, revenus, pieces, operations)));
 
   function chiffre(v, l, accent) {
