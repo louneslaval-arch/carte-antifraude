@@ -45,10 +45,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ajouter(b, u, 'usage');
   });
 
-  document.getElementById('prealables').append(...C.prealables.map(p =>
-    el('li', { classe: p.n === '2' ? 'coeur' : '' }, el('span', { classe: 'n', texte: p.n }),
-      el('h3', { texte: p.nom }), el('p', { texte: p.texte }))));
-
   function ajouter(element, donnee, genre) {
     scene.append(element);
     ilots.push({ element, donnee, genre });

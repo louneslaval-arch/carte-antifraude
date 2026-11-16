@@ -88,12 +88,6 @@ const Commun = (() => {
   function initiales(nom) {
     return (nom || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(m => m[0]).join('').toUpperCase();
   }
-  // Contrôles de la v2 (énumération ControlOutcome) : seul ANOMALIE est un défaut ; le reste est neutre.
-  function controle(c) {
-    const anomalie = c.resultat === 'ANOMALIE';
-    return el('span', { classe: 'etiquette' + (anomalie ? ' etiquette-rouge' : ''), title: c.explication || null,
-      texte: `${c.controle} · ${(c.resultat || '—').toLowerCase().replaceAll('_', ' ')}` });
-  }
   function erreur(e, objet) {
     if (e.statut === 403) return `${objet} réservé${objet.endsWith('e') ? 'e' : ''} à la cellule fraude.`;
     if (e.statut === 404) return `${objet} introuvable.`;
@@ -134,5 +128,5 @@ const Commun = (() => {
         : el('div', { classe: 'chemin' }, el('span', { classe: 'chemin-noeud inscrit', texte: `${ch.inscrit.nom} (inscrit)` })));
   }
 
-  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, lienFiche, role, controle, erreur };
+  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, lienFiche, role, erreur };
 })();

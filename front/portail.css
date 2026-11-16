@@ -88,17 +88,6 @@ body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2)
 .ilot-usage.en-cours .numero { color: #ff8a90; }
 .ilot-usage.illumine { border-color: var(--rouge); box-shadow: 0 0 0 1px var(--rouge), 0 0 28px rgba(238, 59, 69, .35); }
 
-/* ---- bas de page ------------------------------------------------------------------------------------------------ */
-.prealables { max-width: 1180px; margin: 40px auto 0; }
-.prealables h2 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; text-align: center; margin-bottom: 18px; }
-.prealables-grille { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-.prealables-grille li { background: var(--surface-1); border: 1px solid var(--filet-1); border-radius: 16px; padding: 18px; }
-.prealables-grille .n { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
-  background: var(--surface-2); border: 1px solid var(--filet-2); font-weight: 800; font-size: 13px; }
-.prealables-grille li.coeur .n { background: var(--rouge-fonce); border-color: transparent; }
-.prealables-grille h3 { font-size: 15px; margin: 12px 0 6px; }
-.prealables-grille p { color: var(--texte-2); font-size: 13px; line-height: 1.5; margin: 0; }
-
 /* ---- panneau de détail ------------------------------------------------------------------------------------------ */
 .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 20; }
 .panneau {
@@ -130,7 +119,6 @@ body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2)
   .ilot-centre::before, .ilot-centre::after { display: none; }
   .ilot-module { border-radius: 16px; }
   .ilot-usage { border-radius: 16px; width: auto !important; height: auto !important; min-height: 96px; }
-  .prealables-grille { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ilot-flotte, .ilot-centre::before, .ilot-centre::after { animation: none; }

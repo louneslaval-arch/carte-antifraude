@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     f.dossiers.map(d => [date(d.recu), d.produit, d.role, d.demandeur ? niveau(d.niveau, d.niveau_libelle) : '—',
       d.demandeur ? (d.verdict || '—') : '—', d.incoherences ? nombre(d.incoherences) : '—',
       el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
-    cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus, charges et contrôles ne figurent pas sur cette fiche.` }) : null);
+    cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
 
   const chemins = carte('Liens avec la liste noire', f.chemins.length
     ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
@@ -124,7 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           montant(m.total_credit), montant(m.total_debit), montant(m.salaire_detecte), montant(m.echeances_credits), nombre(m.nb_operations_lues)])) : null,
       tableau(['Champ', 'Valeur', 'Origine', ''], p.faits.map(fa => [el('code', { texte: fa.cle }), court(fa.valeur), fa.origine,
         fa.statut !== 'normal' ? el('span', { classe: 'etiquette', texte: fa.statut.replaceAll('_', ' ') }) : '']))));
-    const controles = x.controles.length ? el('div', { classe: 'puces' }, x.controles.map(Commun.controle)) : vide('Aucun contrôle.');
     const lien = x.dossier ? el('p', {}, el('a', { href: `dossier.html?i=${x.dossier}`, texte: 'Ouvrir la vue du dossier' })) : null;
     if (!x.demandeur) {
       return el('div', { classe: 'pile' },
@@ -133,8 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     return el('div', { classe: 'pile' },
       el('div', {}, el('h3', { texte: 'Contexte déclaré' }), contexte, lien),
-      el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces),
-      el('div', {}, el('h3', { texte: 'Contrôles de la v2' }), controles));
+      el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces));
   }
   function periode(x) { return x.mois ? `${String(x.mois).padStart(2, '0')}/${x.annee}` : '—'; }
   function lienDossier(i) { return i ? el('a', { href: `dossier.html?i=${i}`, texte: 'Ouvrir' }) : '—'; }

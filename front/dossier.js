@@ -40,12 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const operations = carte('Opérations du relevé', d.operations.length ? tableau(['Date', 'Type', 'Libellé', 'Débit', 'Crédit'],
     d.operations.map(o => [date(o.date_operation), o.type_operation, o.libelle, montant(o.debit), montant(o.credit)]))
     : vide('Relevé non relu : aucune opération lue.'));
-  const controles = carte('Contrôles de la v2', d.controles.length ? el('div', { classe: 'puces' }, d.controles.map(Commun.controle))
-    : vide('Aucun contrôle.'));
 
   main.replaceChildren(el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Dossier'),
     tete, chiffres, el('div', { classe: 'grille grille-2' },
-      el('div', { classe: 'pile' }, parties, chemins, incoherences, controles),
+      el('div', { classe: 'pile' }, parties, chemins, incoherences),
       el('div', { classe: 'pile' }, revenus, pieces, operations)));
 
   function chiffre(v, l, accent) {
