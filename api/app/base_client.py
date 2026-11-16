@@ -539,98 +539,94 @@ class BaseClient:
             cx.close()
 
     # ---- réseau autour d'une fiche ---------------------------------------------------------------------------------
-    def reseau(self, indice, profondeur=2, limite=120, plafond=12, exploration=5000):
-        """Fiches à `profondeur` liens au plus (rôles et identifiants partagés), pour le dessin. Les nœuds
+    def _voisins(self, cx, u, cache):
+        """[(v, code, nœud d'identifiant ou None)] : rôles dans les deux sens, et fiches qui partagent un identifiant
+        porté par 30 fiches au plus (question n°106). Ordre stable."""
+        if u not in cache:
+            sortie = [(v, code, None) for v, code in cx.execute(
+                "SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? UNION "
+                "SELECT de, code FROM c5_arete WHERE type = 'role' AND vers = ?", (u, u)) if v != u]
+            for noeud, code in cx.execute("SELECT DISTINCT vers, code FROM c5_arete WHERE type = 'identifiant' "
+                                          'AND de = ?', (u,)).fetchall():
+                porteurs = [p[0] for p in cx.execute('SELECT DISTINCT de FROM c5_arete WHERE vers = ? AND de <> ?',
+                                                     (noeud, u))]
+                if len(porteurs) < 30:
+                    sortie += [(p, code, noeud) for p in porteurs]
+            cache[u] = sorted(sortie, key=lambda x: (x[0], x[1], x[2] or ''))
+        return cache[u]
+
+    def _proches_inscrits(self, cx):
+        """Pour chaque fiche, les inscrits qui lui sont reliés par un lien : calculé une fois (la base est en lecture
+        seule), pour trouver les inscrits à deux liens d'un client sans lire tout son voisinage."""
+        if not hasattr(self, '_proches'):
+            proches, cache = {}, {}
+            for x in sorted(self.inscrits):
+                for v, _, _ in self._voisins(cx, x, cache):
+                    proches.setdefault(v, set()).add(x)
+            self._proches = proches
+        return self._proches
+
+    def reseau(self, indice, limite=120, plafond=12):
+        """Le réseau d'un client à deux liens (rôles et identifiants partagés), pour le dessin. Les nœuds
         d'identifiant ne portent que leur type : jamais la valeur du RIB ni de l'adresse.
 
-        Trois temps. 1) Exploration de tout le voisinage (au plus `exploration` fiches). 2) Choix des fiches dessinées :
-        le départ, chaque inscrit atteint et les fiches qui y mènent, toujours ; puis, nœud par nœud, ses voisins dans
-        un ordre stable jusqu'à `plafond` nouveaux par nœud et `limite` fiches en tout. 3) Tous les liens entre fiches
-        dessinées sont tracés ; pour chaque nœud déployé, `autres` compte ses voisins non dessinés.
-        Un identifiant partagé par 30 fiches ou plus n'est pas un voisinage (inchangé)."""
+        Fiches dessinées : le départ ; chaque inscrit à deux liens au plus et la fiche qui y mène, toujours ; puis, nœud
+        par nœud dans un ordre stable, jusqu'à `plafond` voisins nouveaux et `limite` fiches en tout. Le départ et les
+        fiches dessinées à un lien sont déployés : tous leurs liens vers des fiches dessinées sont tracés, et `autres`
+        compte leurs voisins non dessinés. Seul le voisinage des fiches déployées est lu : le coût suit le dessin, pas
+        la taille du voisinage (un employeur de plusieurs milliers de salariés)."""
         depart = self.fiche_de.get(indice)
         if depart is None:
             return None
         cx = self.connexion()
         try:
             cache = {}
+            voisins = lambda u: self._voisins(cx, u, cache)                      # noqa: E731
+            proches = self._proches_inscrits(cx)
+            premiers = list(dict.fromkeys(v for v, _, _ in voisins(depart)))      # à un lien, ordre stable
+            distance = {depart: 0, **dict.fromkeys(premiers, 1)}
+            # inscrits à un lien ; à deux liens, avec la première fiche à un lien qui y mène
+            gardes = {depart} | {v for v in premiers if v in self.inscrits}
+            for v in premiers:
+                for x in sorted(proches.get(v, ())):
+                    if x not in distance:
+                        distance[x] = 2
+                        gardes.update((v, x))
 
-            def voisins(u):
-                """[(v, code, nœud d'identifiant ou None)] : rôles directs et fiches qui partagent un identifiant."""
-                if u not in cache:
-                    sortie = [(v, code, None) for v, code in cx.execute(
-                        "SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? UNION "
-                        "SELECT de, code FROM c5_arete WHERE type = 'role' AND vers = ?", (u, u)) if v != u]
-                    for noeud, code in cx.execute("SELECT DISTINCT vers, code FROM c5_arete WHERE type = 'identifiant' "
-                                                  'AND de = ?', (u,)).fetchall():
-                        porteurs = [p[0] for p in cx.execute('SELECT DISTINCT de FROM c5_arete WHERE vers = ? AND de <> ?',
-                                                             (noeud, u))]
-                        if len(porteurs) < 30:
-                            sortie += [(p, code, noeud) for p in porteurs]
-                    cache[u] = sorted(sortie, key=lambda x: (x[0], x[1], x[2] or ''))       # ordre stable
-                return cache[u]
-
-            # 1) exploration en largeur
-            distance, parent, ordre = {depart: 0}, {}, [depart]
-            for u in ordre:
-                if distance[u] >= profondeur or len(distance) >= exploration:
-                    continue
-                for v, _, _ in voisins(u):
-                    if v not in distance and len(distance) < exploration:
-                        distance[v] = distance[u] + 1
-                        parent[v] = u
-                        ordre.append(v)
-            # 2) fiches dessinées : inscrits atteints et leur chemin d'abord, puis le remplissage plafonné
-            gardes = {depart}
-            for v in ordre:
-                if v in self.inscrits:
-                    while v not in gardes:
-                        gardes.add(v)
-                        v = parent[v]
-            for u in ordre:
-                if u not in gardes or distance[u] >= profondeur:
-                    continue
+            def remplir(u):
                 nouveaux = 0
                 for v in dict.fromkeys(v for v, _, _ in voisins(u)):
                     if nouveaux >= plafond or len(gardes) >= limite:
-                        break
+                        return
                     if v not in gardes:
                         gardes.add(v)
+                        distance.setdefault(v, distance[u] + 1)
                         nouveaux += 1
-            # 3) liens entre fiches dessinées, et voisins non dessinés comptés
-            liens, identifiants, types_id, autres = [], {}, {}, {}
-            deployes = [u for u in ordre if u in gardes and distance[u] < profondeur]
-            for u in deployes:
+            remplir(depart)
+            for u in premiers:
+                if u in gardes:
+                    remplir(u)
+            # liens et voisins non dessinés des fiches déployées (le départ et les fiches à un lien)
+            liens, identifiants, niveau_id, autres = {}, {}, {}, {}
+            for u in [depart] + [u for u in premiers if u in gardes]:
                 autres[u] = len({v for v, _, _ in voisins(u)} - gardes)
                 for v, code, noeud in voisins(u):
                     if v not in gardes:
                         continue
+                    a, b = self.indice_fiche[u], self.indice_fiche[v]
                     if noeud:
-                        ident = identifiants.setdefault(noeud, f'id{len(identifiants)}')
-                        types_id[ident] = code
-                        liens.append(dict(de=self.indice_fiche[u], vers=ident, code=code))
-                        liens.append(dict(de=ident, vers=self.indice_fiche[v], code=code))
+                        ident = identifiants.setdefault(noeud, (f'id{len(identifiants)}', code))[0]
+                        niveau_id[ident] = max(niveau_id.get(ident, 0), distance[u], distance[v])
+                        for x, y in ((a, ident), (ident, b)):
+                            liens.setdefault((frozenset((x, y)), code), dict(de=x, vers=y, code=code))
                     else:
-                        liens.append(dict(de=self.indice_fiche[u], vers=self.indice_fiche[v],
-                                          code=LIBELLES_ROLE.get(code, code)))
-            sortie = [dict(id=self.indice_fiche[n], type='societe' if n.startswith('pm_') else 'personne',
+                        libelle = LIBELLES_ROLE.get(code, code)
+                        liens.setdefault((frozenset((a, b)), libelle), dict(de=a, vers=b, code=libelle))
+            noeuds = [dict(id=self.indice_fiche[n], type='societe' if n.startswith('pm_') else 'personne',
                            nom=self._nom(cx, n), niveau=distance[n], inscrit=n in self.inscrits, depart=n == depart,
-                           autres=autres.get(n, 0)) for n in ordre if n in gardes]
-            niveau_id = {}
-            for l in liens:
-                if l['de'] in types_id or l['vers'] in types_id:
-                    ident = l['de'] if l['de'] in types_id else l['vers']
-                    autre = l['vers'] if ident == l['de'] else l['de']
-                    n = next(x['niveau'] for x in sortie if x['id'] == autre)
-                    niveau_id[ident] = max(niveau_id.get(ident, 0), n)
-            sortie += [dict(id=i, type='identifiant', nom=types_id[i], niveau=niveau_id.get(i, 1), inscrit=False, autres=0)
-                       for i in types_id]
-            vus, uniques = set(), []
-            for lien in liens:
-                cle = (lien['de'], lien['vers'], lien['code'])
-                if cle not in vus:
-                    vus.add(cle)
-                    uniques.append(lien)
-            return dict(noeuds=sortie, liens=uniques)
+                           autres=autres.get(n, 0)) for n in sorted(gardes, key=lambda n: (distance[n], n))]
+            noeuds += [dict(id=i, type='identifiant', nom=code, niveau=niveau_id[i], inscrit=False, autres=0)
+                       for i, code in identifiants.values()]
+            return dict(noeuds=noeuds, liens=list(liens.values()))
         finally:
             cx.close()

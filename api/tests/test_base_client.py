@@ -269,7 +269,8 @@ def test_carte_reseau_ne_lit_que_les_fiches_dessinees(avec_base, base_demo):
         b.connexion = connexion
         carte = b.reseau(b.indice_fiche[gros])
         dessinees = sum(1 for n in carte['noeuds'] if n['type'] != 'identifiant')
-        assert dessinees >= 10 and len(requetes) <= 3 * dessinees + 20, (dessinees, len(requetes))
+        # quelques requêtes par fiche dessinée (son voisinage si elle est déployée, son nom), jamais une par collègue
+        assert dessinees >= 10 and len(requetes) <= 6 * dessinees + 20, (dessinees, len(requetes))
 
 
 def test_carte_reseau_stable_sans_valeur_et_client_isole(avec_base):
