@@ -68,6 +68,11 @@ def dossier(indice: int, request: Request, session: Session = Depends(exige('bas
     return _servir(request, session, 'fiche', b.dossier(indice), indice)
 
 
+CARTE_ACTIVE = False                  # carte des réseaux désactivée pour l'instant (choix de Lounès du 16/11)
+
+
 @routeur.get('/reseau/{indice}')
 def reseau(indice: int, request: Request, session: Session = Depends(exige('base.fiche')), b=Depends(base_client)):
+    if not CARTE_ACTIVE:
+        raise HTTPException(404, 'Carte désactivée')
     return _servir(request, session, 'chaine', b.reseau(indice), indice)

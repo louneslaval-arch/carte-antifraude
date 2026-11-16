@@ -244,7 +244,9 @@ class BaseClient:
             chemins.sort(key=lambda c: (self._rang(c['niveau']), -c['force']))
             return dict(indice=indice, identite=identite, alias=alias, adresses=adresses, sources=sources,
                         dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
-                        vehicules=vehicules, chemins=chemins[:5], donnees=[self._donnees_dossier(cx, ref, fiche)
+                        vehicules=vehicules, chemins=chemins[:5], charges=self._charges(cx, refs),
+                        operations=self._operations(cx, refs), incoherences=self._incoherences(cx, refs),
+                        identifiants=self._identifiants(cx, fiche), donnees=[self._donnees_dossier(cx, ref, fiche)
                                                                             for ref in refs],
                         liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
         finally:
@@ -297,6 +299,45 @@ class BaseClient:
         return dict(dossier=self.indice_dossier.get(ref), reference=ref, demandeur=bool(demandeur),
                     contexte=[dict(libelle=l, valeur=d[c]) for c, l in self.CONTEXTE if d[c] not in (None, '')],
                     pieces=sortie_pieces, controles=controles)
+
+    def _dans(self, refs):
+        return ', '.join('?' * len(refs))
+
+    def _charges(self, cx, refs):
+        if not refs:
+            return []
+        lignes = [dict(r) for r in cx.execute(
+            f'SELECT ref, nature, montant, annee, mois FROM c3_charge WHERE ref IN ({self._dans(refs)}) '
+            'ORDER BY ref, nature, annee, mois', refs)]
+        for x in lignes:
+            x['dossier'] = self.indice_dossier.get(x.pop('ref'))
+        return lignes
+
+    def _operations(self, cx, refs, limite=300):
+        if not refs:
+            return []
+        lignes = [dict(r) for r in cx.execute(
+            f'SELECT ref, date_operation, type_operation, libelle, debit, credit FROM c3_operation '
+            f'WHERE ref IN ({self._dans(refs)}) ORDER BY date_operation LIMIT {int(limite)}', refs)]
+        for x in lignes:
+            x['dossier'] = self.indice_dossier.get(x.pop('ref'))
+        return lignes
+
+    def _incoherences(self, cx, refs):
+        if not refs:
+            return []
+        return [dict(type=t, libelle=LIBELLES_INCOHERENCE.get(t, t), gravite=g, dossier=self.indice_dossier.get(ref),
+                     autre_dossier=self.indice_dossier.get(ref_b) if ref_b and ref_b != ref else None)
+                for ref, t, g, ref_b in cx.execute(
+                    f'SELECT ref, type, gravite, ref_b FROM c3_incoherence WHERE ref IN ({self._dans(refs)}) '
+                    'ORDER BY ref, type', refs)]
+
+    def _identifiants(self, cx, fiche):
+        """Identifiants portés par la fiche (CIN, RC, ICE, CNSS, affiliation, pension, INPE, châssis…) ; le RIB, masqué,
+        est dans les comptes."""
+        return [dict(type=t, valeur=v, dossier=self.indice_dossier.get(ref)) for t, v, ref in cx.execute(
+            "SELECT DISTINCT type, valeur, ref FROM c2_identifiant WHERE fiche = ? AND type <> 'RIB' ORDER BY 1, 2",
+            (fiche,))]
 
     def _liste_noire(self, cx, fiche):
         lignes = cx.execute(

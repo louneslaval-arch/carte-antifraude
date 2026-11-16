@@ -11,16 +11,24 @@ import pytest
 from conftest import RACINE, connecte
 
 STRUCTURE = os.path.join(RACINE, 'import', 'kamal_structure', 'reference', 'champs_par_type_prod.csv')
-pytestmark = pytest.mark.skipif(not os.path.exists(STRUCTURE), reason='structure de Kamal absente')
+LIVREE = os.path.join(RACINE, 'jeu_essai', 'demo', 'base_demo.sqlite.gz')
+pytestmark = pytest.mark.skipif(not os.path.exists(STRUCTURE) and not os.path.exists(LIVREE),
+                                reason='ni structure de Kamal ni base de démonstration livrée')
 MOTIFS = (re.compile(r'\bZZ\d{4,}'), re.compile(r'999\d{8,}'), re.compile(r'\b(pp|pm)_[0-9a-f]{16}\b'))
 
 
 @pytest.fixture(scope='session')
 def base_demo(tmp_path_factory):
-    sys.path.insert(0, os.path.join(RACINE, 'outils', 'demo'))
-    import construire_demo
+    """Base générée (structure de Kamal présente), sinon la base livrée dans le dépôt, décompressée."""
     chemin = str(tmp_path_factory.mktemp('demo') / 'base_demo.sqlite')
-    construire_demo.construire(chemin, n_dossiers=300, n_societes=300, graine=20261116)
+    if os.path.exists(STRUCTURE):
+        sys.path.insert(0, os.path.join(RACINE, 'outils', 'demo'))
+        import construire_demo
+        construire_demo.construire(chemin, n_dossiers=300, n_societes=300, graine=20261116)
+    else:
+        import gzip
+        with gzip.open(LIVREE, 'rb') as source, open(chemin, 'wb') as cible:
+            shutil.copyfileobj(source, cible)
     return chemin
 
 
@@ -57,7 +65,7 @@ def test_noms_fiches_dossiers_reseau_refuses_hors_cellule_fraude(avec_base, role
     with avec_base() as (c, etat):
         connecte(c, etat, 'u', role)
         assert c.post('/api/base/clients', json={}).status_code == 403
-        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1', '/api/base/reseau/1'):
+        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1'):
             assert c.get(chemin).status_code == 403, chemin
 
 
@@ -109,11 +117,12 @@ def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
         assert chemin['inscrit']['indice'] and chemin['etapes']
         d = c.get(f'/api/base/dossiers/{f["dossiers"][0]["indice"]}').json()
         assert d['entete']['reference'].startswith('ZZ') and d['pieces'] and d['parties']
-        r = c.get(f'/api/base/reseau/{lie["indice"]}').json()
-        assert any(n.get('depart') for n in r['noeuds']) and r['liens']
-        ids = [n for n in r['noeuds'] if n['type'] == 'identifiant']
-        assert all(n['nom'] in ('RIB', 'LOGEMENT', 'SIEGE') for n in ids)
-        texte = json.dumps(f) + json.dumps(r)
+        assert c.get(f'/api/base/reseau/{lie["indice"]}').status_code == 404      # carte désactivée
+        assert {'charges', 'operations', 'incoherences', 'identifiants'} <= set(f)
+        assert all(r['dossier'] for r in f['revenus'] if r['nature'] == 'verifie')
+        assert all(set(i) == {'type', 'valeur', 'dossier'} for i in f['identifiants'])
+        assert all(i['type'] != 'RIB' for i in f['identifiants'])            # le RIB reste masqué, dans les comptes
+        texte = json.dumps(f)
         assert not re.search(r'999\d{18,}', texte) and not MOTIFS[2].search(texte)   # ni RIB complet, ni identifiant interne
         assert c.get('/api/base/clients/1').status_code == 404
         assert c.get('/api/base/dossiers/abc').status_code == 422
@@ -147,3 +156,18 @@ def test_pages_servies_a_la_racine_sans_ressource_externe(avec_base):
             texte = open(os.path.join(racine, nom), encoding='utf-8').read().replace('http://www.w3.org/2000/svg', '')
             assert not re.search(r'(https?:)?//[a-z0-9.-]+\.[a-z]{2,}', texte, re.I), nom
             assert 'fraudeur' not in texte.lower(), nom
+
+
+def test_fiche_d_un_salarie_porte_ses_identifiants_charges_et_incoherences(avec_base, base_demo):
+    cx = sqlite3.connect(base_demo)
+    ref = cx.execute("SELECT i.ref FROM c3_incoherence i JOIN c3_charge c ON c.ref = i.ref "
+                     "JOIN c1_identifiant_brut b ON b.ref = i.ref AND b.type = 'CNSS' LIMIT 1").fetchone()
+    if ref is None:
+        pytest.skip('aucun dossier avec incohérence, charge et n° CNSS dans cette base')
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        fiche = next(f for f, in cx.execute('SELECT fiche FROM c3_demandeur WHERE ref = ?', ref))
+        f = c.get(f'/api/base/clients/{b.indice_fiche[fiche]}').json()
+        assert f['charges'] and f['incoherences'] and any(i['type'] == 'CNSS' for i in f['identifiants'])
+        assert all({'libelle', 'gravite', 'dossier'} <= set(i) for i in f['incoherences'])
