@@ -13,10 +13,11 @@ const CONTENU_PORTAIL = {
     x: 50, y: 50,
   },
   modules: [
-    { id: 'map', nom: 'Map antifraude', etat: 'a_venir', x: 69, y: 30,
+    { id: 'map', nom: 'Map antifraude', etat: 'actif', lien: 'reseau.html', x: 69, y: 30,
       accroche: 'Les liens entre clients et inscrits',
       contexte: 'Le réseau de chaque client : sociétés, gérants, RIB et logements partagés, jusqu’à la liste noire. '
-        + 'La carte est désactivée pour l’instant ; les liens avec la liste noire restent visibles sur chaque fiche client.',
+        + 'La vue réseau est en service : un client, ses liens à deux pas, les inscrits en rouge. La carte du Maroc et la '
+        + 'mise à jour en direct viendront avec les étapes suivantes.',
       usages: [{ nom: 'Liens avec la liste noire, à 3 liens au plus', etat: 'en cours' },
         { nom: 'Incohérences entre dossiers (même châssis, même RIB)', etat: 'déjà dans la base' }],
       donnees: [{ nom: 'Rôles dans les sociétés', source: 'registre du commerce' },

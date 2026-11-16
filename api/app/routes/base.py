@@ -79,7 +79,7 @@ def dossier(indice: int, request: Request, session: Session = Depends(exige('bas
     return _servir(request, session, 'fiche', b.dossier(indice), indice)
 
 
-CARTE_ACTIVE = False                  # carte des réseaux désactivée pour l'instant (choix de Lounès du 16/11)
+CARTE_ACTIVE = True                   # vue réseau rallumée le 16/11 (Lounès), niveaux de criticité masqués
 
 
 @routeur.get('/reseau/{indice}')

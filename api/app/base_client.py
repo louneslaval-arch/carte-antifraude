@@ -539,16 +539,19 @@ class BaseClient:
             cx.close()
 
     # ---- réseau autour d'une fiche ---------------------------------------------------------------------------------
-    def reseau(self, indice, profondeur=2, limite=120):
+    def reseau(self, indice, profondeur=2, limite=120, plafond=12):
         """Fiches à `profondeur` liens au plus (rôles et identifiants partagés), pour le dessin. Les nœuds
-        d'identifiant ne portent que leur type : jamais la valeur du RIB ni de l'adresse."""
+        d'identifiant ne portent que leur type : jamais la valeur du RIB ni de l'adresse.
+
+        Un nœud ne déploie que `plafond` voisins nouveaux (inscrits toujours compris, en premier) ; les autres sont
+        comptés dans `autres`, pour qu'un employeur de 200 salariés ne noie pas le dessin."""
         depart = self.fiche_de.get(indice)
         if depart is None:
             return None
         cx = self.connexion()
         try:
             noeuds, liens, front = {depart: 0}, [], [depart]
-            identifiants = {}
+            identifiants, autres = {}, {}
             for niveau in range(1, profondeur + 1):
                 suivant = []
                 for u in front:
@@ -563,7 +566,14 @@ class BaseClient:
                         if porteurs and len(porteurs) < 30:
                             for p in porteurs:
                                 voisins.append((p, code, noeud))
+                    nouveaux = list(dict.fromkeys(v for v, _, _ in voisins if v not in noeuds))
+                    nouveaux.sort(key=lambda v: v not in self.inscrits)          # inscrits d'abord (tri stable)
+                    gardes = {v for k, v in enumerate(nouveaux) if v in self.inscrits or k < plafond}
+                    if len(nouveaux) > len(gardes):
+                        autres[u] = len(nouveaux) - len(gardes)
                     for v, code, noeud in voisins:
+                        if v not in noeuds and v not in gardes:
+                            continue
                         if len(noeuds) >= limite and v not in noeuds:
                             continue
                         if noeud:
@@ -587,11 +597,11 @@ class BaseClient:
             sortie = []
             for n, niveau in noeuds.items():
                 if n in types_id:
-                    sortie.append(dict(id=n, type='identifiant', nom=types_id[n], niveau=niveau, inscrit=False))
+                    sortie.append(dict(id=n, type='identifiant', nom=types_id[n], niveau=niveau, inscrit=False, autres=0))
                 else:
                     sortie.append(dict(id=self.indice_fiche[n], type='societe' if n.startswith('pm_') else 'personne',
                                        nom=self._nom(cx, n), niveau=niveau, inscrit=n in self.inscrits,
-                                       depart=n == depart))
+                                       depart=n == depart, autres=autres.get(n, 0)))
             vus, uniques = set(), []
             for lien in liens:
                 cle = (lien['de'], lien['vers'], lien['code'])

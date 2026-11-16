@@ -35,7 +35,8 @@ Ces comptes n'existent que sur la machine où la démonstration tourne (base tem
   liste noire, et **toutes les données** : chaque valeur lue dans chaque pièce de chaque dossier.
 - **Dossier** (`/dossier.html?i=…`) : en-tête au format de la v2, parties, pièces, revenus et charges, opérations du
   relevé.
-- La carte des réseaux est désactivée pour l'instant.
+- **Carte antifraude** (`/reseau.html?i=…`, cellule fraude) : le réseau d'un client à deux liens (sociétés, personnes,
+  identifiants partagés), inscrits en rouge ; niveaux de criticité masqués pour l'instant.
 
 Les URL ne portent que des indices opaques, tirés au hasard à chaque démarrage : jamais un nom ni un CIN.
 

@@ -5,6 +5,7 @@ const Commun = (() => {
   const PAGES = [
     ['index.html', 'Portail'],
     ['base.html', 'Base client'],
+    ['reseau.html', 'Carte antifraude'],
   ];
 
   function el(balise, attributs = {}, ...enfants) {
