@@ -112,6 +112,7 @@ def test_refuse_une_base_qui_existe_deja(tmp_path):
 
 sys.path.insert(0, os.path.join(RACINE, 'outils'))
 SHELL = os.path.join(RACINE, 'outils', 'essai_reel_e.sh')
+GARDE_FOU = 'CARTE_DONNEES_' + 'REELLES'       # jamais écrit en entier hors de la commande destinée à Lounès
 
 
 def test_echec_apres_lecture_classe_d_erreur_seulement_jamais_de_trace(tmp_path, monkeypatch, capsys):
@@ -138,13 +139,13 @@ def test_dossier_non_fictif_refuse_sans_le_garde_fou_accepte_avec(tmp_path):
     d = dict(jeu.dossiers[0], ref='DOS' + '-0001')
     p = tmp_path / 'autre.json'
     p.write_text(json.dumps(d, ensure_ascii=False), encoding='utf-8')
-    env = {k: v for k, v in os.environ.items() if k != 'CARTE_DONNEES_REELLES'}
+    env = {k: v for k, v in os.environ.items() if k != GARDE_FOU}
     r = subprocess.run([sys.executable, SCRIPT, '--base', str(tmp_path / 'a.sqlite'), str(p)],
                        capture_output=True, text=True, env=env)
     assert r.returncode == 1 and nombre(r.stdout, 'dossiers non fictifs refusés') == 1
     assert nombre(r.stdout, 'dossiers lus') == 0 and 'DOS' not in r.stdout + r.stderr
     r = subprocess.run([sys.executable, SCRIPT, '--base', str(tmp_path / 'b.sqlite'), str(p)],
-                       capture_output=True, text=True, env=dict(env, CARTE_DONNEES_REELLES='1'))
+                       capture_output=True, text=True, env=dict(env, **{GARDE_FOU: '1'}))
     assert r.returncode == 0 and nombre(r.stdout, 'dossiers lus') == 1
 
 
@@ -152,7 +153,7 @@ def test_base_dans_le_depot_refusee_quand_les_donnees_sont_reelles(tmp_path):
     _, chemins = fichiers(tmp_path, n=1)
     base = os.path.join(RACINE, 'jeu_essai', 'sortie', 'jamais_creee.sqlite')
     r = subprocess.run([sys.executable, SCRIPT, '--base', base, *chemins], capture_output=True, text=True,
-                       env=dict(os.environ, CARTE_DONNEES_REELLES='1'))
+                       env=dict(os.environ, **{GARDE_FOU: '1'}))
     assert r.returncode == 2 and not os.path.exists(base)
 
 

@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import verifier  # noqa: E402
 from pipeline import migrer  # noqa: E402
-from pipeline.couches import c0_brut, c1_faits  # noqa: E402
+from pipeline.couches import COUCHES, c0_brut, c1_faits  # noqa: E402, F401  (c1_faits : repris par les tests)
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GARDE_FOU = 'CARTE_DONNEES_' + 'REELLES'          # sans lui, seuls les dossiers fictifs (référence en « ZZ ») sont lus
@@ -78,7 +78,8 @@ def _compter(a, reel):
             cx.rollback()
             illisibles += 1
     c0_brut.fermer_passage(cx, passage, len(a.fichiers), nouvelles)
-    c1_faits.construire_tout(cx)
+    for couche in COUCHES[1:]:                            # c1, puis les couches au-dessus : les invariants portent sur toutes
+        couche.construire_tout(cx)
     print(f'fichiers illisibles : {illisibles}')
     print(f'dossiers refusés par le miroir : {refuses}')
     print(f'dossiers non fictifs refusés : {non_fictifs}')
