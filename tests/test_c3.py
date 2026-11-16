@@ -2,6 +2,7 @@
 véhicules) et incohérences entre pièces, entre dossiers et avec le registre. Tout est fictif."""
 
 import json
+import re
 import os
 import random
 import sqlite3
@@ -343,6 +344,23 @@ def test_employeur_identifie_absent_du_registre(jeu, socle, tmp_path):
     assert incoherences(sans_socle) == []                       # sans registre chargé, rien à affirmer
 
 
+def test_deux_pieces_de_meme_type_avec_revenu_dans_un_dossier(jeu, tmp_path):
+    d = dossier(jeu, 1, cin_de(1), bulletin('10 000,00'), bulletin('10 200,00'), releve(salaire=9800.0),
+                releve(rib=RIB_B, salaire=9900.0),
+                ('ATTESTATION_TRAVAIL_SALAIRE', {'salaire_net': 10000}), ('ATTESTATION_TRAVAIL_SALAIRE', {'salaire_net': 10100}))
+    cx = base_de(tmp_path, [d])
+    assert lignes(cx, "SELECT source, count(*) FROM c3_revenu WHERE nature = 'verifie' GROUP BY 1 ORDER BY 1") == \
+        [('ATTESTATION_TRAVAIL_SALAIRE', 2), ('BULLETIN_DE_PAIE', 2), ('RELEVE_BANCAIRE', 4)]
+    assert incoherences(cx) == []
+
+
+def test_la_couche_n_ecrit_rien_sur_la_sortie(jeu, tmp_path, capfd):
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), bulletin('10 000,00'), releve(salaire=5000.0))])
+    c3.traiter(cx, 'ZZ26T0001')
+    sortie = capfd.readouterr()
+    assert sortie.out == '' and sortie.err == ''
+
+
 # ---- flux = lot, invariants ----------------------------------------------------------------------------------------
 
 def test_traiter_dans_un_ordre_au_hasard_depuis_une_base_vide_egale_le_lot(jeu, socle, tmp_path):
@@ -391,12 +409,12 @@ def test_dossier_sorti_du_miroir_plus_rien_et_l_autre_dossier_n_est_plus_en_doub
 
 
 @pytest.mark.parametrize('nom, viol', [
-    ('c3_dossier_absent_du_miroir', "UPDATE c3_dossier SET ref = 'XX26ABSENT' WHERE ref = (SELECT min(ref) FROM c3_dossier)"),
+    ('c3_dossier_absent_du_miroir', "UPDATE c3_dossier SET ref = 'ZZ26ABSENT' WHERE ref = (SELECT min(ref) FROM c3_dossier)"),
     ('c3_dossier_du_miroir_non_traite', 'DELETE FROM c3_dossier WHERE ref = (SELECT min(ref) FROM c3_dossier)'),
     ('c3_revenu_verifie_sans_piece', "UPDATE c3_revenu SET upstream_piece_id = 'absente' WHERE nature = 'verifie'"),
     ('c3_incoherence_sans_ses_deux_faits', "UPDATE c3_incoherence_locale SET upstream_piece_id_b = 'absente'"),
     ('c3_operation_non_lue', "UPDATE c3_operation SET date_operation = NULL, date_operation_brute = NULL"),
-    ('c3_ligne_sans_dossier', "UPDATE c3_compte SET ref = 'XX26ABSENT'"),
+    ('c3_ligne_sans_dossier', "UPDATE c3_compte SET ref = 'ZZ26ABSENT'"),
 ])
 def test_chaque_invariant_de_c3_devient_rouge_quand_on_le_viole(jeu, tmp_path, capsys, nom, viol):
     cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), bulletin('10 000,00'), releve(salaire=5000.0)),
@@ -409,6 +427,7 @@ def test_chaque_invariant_de_c3_devient_rouge_quand_on_le_viole(jeu, tmp_path, c
     assert verifier.verifier(chemin) == 1
     sortie = capsys.readouterr().out
     assert f'ÉCART  {nom} : ' in sortie and 'ZZ' not in sortie
+    assert all(re.fullmatch(r'(ok    |ÉCART ) [a-z0-9_]+ : \d+|invariants vérifiés : \d+', l) for l in sortie.splitlines())
 
 
 def test_la_couche_suit_c2_dans_l_ordre_des_couches():

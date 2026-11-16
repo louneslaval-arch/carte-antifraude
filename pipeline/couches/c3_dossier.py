@@ -123,17 +123,19 @@ def _en_tete(cx, ref, d):
 def _revenus_et_charges(cx, ref, pieces, faits, mois, revenu_declare):
     revenus, charges = [], []
     if revenu_declare is not None:
-        revenus.append((ref, 'declare', 'businessData', None, 'declared.monthly_income', None, None, revenu_declare, None))
+        revenus.append((ref, 'declare', 'businessData', None, 'declared.monthly_income', None, None, revenu_declare, None,
+                        'businessData'))
     for upi, type_piece in pieces:
         nombres = faits.get(upi, {})
         cle = next((c for c in REVENUS.get(type_piece, ()) if nombres.get(c, (None, None))[1] is not None), None)
         if cle:
-            revenus.append((ref, 'verifie', type_piece, upi, cle, None, None, nombres[cle][1], None))
+            revenus.append((ref, 'verifie', type_piece, upi, cle, None, None, nombres[cle][1], None, upi))
         if type_piece == 'BULLETIN_DE_PAIE' and nombres.get('credits_source', (None, None))[1] is not None:
             charges.append((ref, 'credit_source', upi, 'credits_source', None, None, nombres['credits_source'][1]))
     for upi, rang, annee, mois_, salaire, echeances, lues in mois:
         if salaire is not None:
-            revenus.append((ref, 'verifie', 'RELEVE_BANCAIRE', upi, f'mois:{rang}', annee, mois_, salaire, int(lues > 0)))
+            revenus.append((ref, 'verifie', 'RELEVE_BANCAIRE', upi, f'mois:{rang}', annee, mois_, salaire, int(lues > 0),
+                            upi))
         if echeances is not None:
             charges.append((ref, 'echeance_releve', upi, f'mois:{rang}', annee, mois_, echeances))
     return revenus, charges

@@ -55,7 +55,8 @@ CREATE TABLE c3_revenu (
     mois              INTEGER,
     montant           DOUBLE PRECISION NOT NULL,
     releve_relu       INTEGER,
-    PRIMARY KEY (ref, source, repere)
+    piece             TEXT NOT NULL,          -- pièce du revenu ; « businessData » pour le revenu déclaré
+    PRIMARY KEY (ref, piece, repere)
 );
 
 CREATE TABLE c3_charge (
