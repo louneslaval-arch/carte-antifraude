@@ -11,7 +11,7 @@ SCRIPT = os.path.join(RACINE, 'outils', 'comptages_a.py')
 
 
 def globale(tmp_path, **valeurs):
-    g = {'noeuds': [{'n': 'ZZ900001 BENALI'}], 'aretes': [], 'reseaux': [13, 3, 2], 'reseaux_bl': [1, 2],
+    g = {'noeuds': [{'n': 'ZZ900001 BENTOUKAZ'}], 'aretes': [], 'reseaux': [13, 3, 2], 'reseaux_bl': [1, 2],
          'construction': '13/11/2026'}
     g.update(valeurs)
     p = tmp_path / 'globale.json'
@@ -32,7 +32,7 @@ def test_reseaux_et_plus_grand_reseau_de_la_liste_noire(tmp_path):
 
 def test_aucune_valeur_du_fichier_dans_la_sortie(tmp_path):
     r = lancer('--globale', globale(tmp_path))
-    assert 'ZZ900001' not in r.stdout + r.stderr and 'BENALI' not in r.stdout + r.stderr
+    assert 'ZZ900001' not in r.stdout + r.stderr and 'BENTOUKAZ' not in r.stdout + r.stderr
 
 
 def test_aucun_reseau_de_la_liste_noire(tmp_path):

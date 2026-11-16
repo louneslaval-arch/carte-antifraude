@@ -317,7 +317,7 @@ _SQ_LAT_RE = re.compile('|'.join(sorted((re.escape(k) for k in _SQ_LAT), key=len
 
 def squelette(texte, a_retirer=frozenset()):
     """Squelette consonantique : voyelles, ع, و, ي et article retirés ; mêmes classes en arabe et en latin.
-    « EL IDRISSI MOHAMED » et « محمد الإدريسي » (ordre inversé) donnent DRSMHMD / MHMDDRS."""
+    « EL ZOUBAQIRI MOHAMED » et « محمد الزوباقيري » (ordre inversé) donnent ZBKRMHMD / MHMDZBKR."""
     mots = [m for m in latin_maj(texte).split() if m not in a_retirer]
     sortie, prec = [], None
     for m in mots:
@@ -390,7 +390,7 @@ def cle_nom(*parties):
 
 
 def article_colle(m):
-    """« ELMOSTAFA » → « MOSTAFA », « ELIDRISSI » → « IDRISSI » ; mais « ALAOUI », « ALAMI », « ALLALI » restent
+    """« ELMOSTAFA » → « MOSTAFA », « ELZOUBAQIRI » → « ZOUBAQIRI » ; mais « ALOUBI », « ALIMOU » restent
     entiers : ce qui suit « AL » doit garder au moins deux consonnes, sinon le A est la voyelle du ع."""
     if re.fullmatch(r'(EL|AL)[A-Z]{3,}', m):
         reste = m[2:]
@@ -400,7 +400,7 @@ def article_colle(m):
 
 
 def squelettes_nom(nom, prenom=None):
-    """Squelettes d'un nom complet dans les deux ordres (+ variante sans article collé : ELIDRISSI → IDRISSI)."""
+    """Squelettes d'un nom complet dans les deux ordres (+ variante sans article collé : ELZOUBAQIRI → ZOUBAQIRI)."""
     if prenom and nom:
         ordres = [f'{nom} {prenom}', f'{prenom} {nom}']
     else:

@@ -92,7 +92,7 @@ def nettoyer(chemin_entree):
         if len(ns) < 2:
             continue
         sq = [{cb.squelette(m) for m in cb.latin_maj(n).split() if cb.squelette(m)} for n in ns]
-        # « AZZOUZI IDRISSI » et « AZZOUZI IDRISSI ABDELALI » : même personne, un prénom en plus
+        # « QIBOUSI ZIGHOUTAB » et « QIBOUSI ZIGHOUTAB NABIL » : même personne, un prénom en plus
         proche = lambda x, y: difflib.SequenceMatcher(None, ''.join(sorted(x)), ''.join(sorted(y))).ratio() >= 0.8
         if all(sq[0] <= s or s <= sq[0] or len(sq[0] & s) >= 2 or proche(sq[0], s) for s in sq[1:]):
             cin_variantes[c] = sorted(ns)
