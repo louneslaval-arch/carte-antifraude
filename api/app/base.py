@@ -46,6 +46,7 @@ class Journal(Modele):
     action: Mapped[str] = mapped_column(String(32))
     nombre: Mapped[int] = mapped_column(Integer, default=0)
     ip: Mapped[str] = mapped_column(String(64), default='')
+    epoque: Mapped[str] = mapped_column(String(32), default='')     # base ou publication servie (provisoire)
 
 
 class JournalIndice(Modele):
