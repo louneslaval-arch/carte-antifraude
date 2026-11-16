@@ -43,6 +43,8 @@ pas aux fichiers de Kamal (dérive).
 | vue `c3_partie_dossier` | c3 | rôle de chaque fiche dans le dossier, et laquelle est le demandeur |
 | `c6_version_parametres`, vue `parametre` | paramètres | tolérances et seuils versionnés, marqués provisoires (`schema/035_parametres.sql`) ; créée dès l'étape G parce que c3 y lit ses seuils, complétée à l'étape I |
 | `ref_valeur_defaut` | référentiel | valeurs que l'amont pose par défaut (« VAB » pour l'employeur déclaré) : marquées, jamais comparées |
+| `c5_arete`, `c5_compteur`, `c5_cle_adresse`, vue `c5_noeud` | c5 | le graphe : une arête par mention de c2 (rôle dans une société, fiche qui porte un RIB, un logement ou un siège), la taille n de chaque nœud pour le coût √(2/n) (décision n°21), l'adresse normalisée de chaque mention ; la v2 ne relie pas les dossiers entre eux |
+| paramètres `c5_*` de `c6_version_parametres` | c5 | barème n°23 par rôle et par identifiant, seuils (0,20 ; 0,08 ; 0,05), longueurs (alerte 3, recherche 4), fiabilité par défaut d'une homonymie, poids du foyer : tous provisoires |
 
 <!-- DEBUT PARTIE GENEREE : outils/v2/carte_correspondance.py --ecrire ; ne pas modifier à la main -->
 

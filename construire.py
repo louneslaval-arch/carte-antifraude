@@ -54,6 +54,8 @@ def construire(base, couches=None, schema=migrer.SCHEMA, depuis=None, jusqua=Non
         if socle is not None:
             from pipeline.couches import c2_identites
             c2_identites.charger_socle(cx, socle)
+            for couche in COUCHES[COUCHES.index(c2_identites) + 1:]:    # le socle change c2 : le dessus se refait
+                couche.construire_tout(cx)
     return appliquees, [_nom(c) for c in choisies]
 
 

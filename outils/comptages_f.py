@@ -98,6 +98,8 @@ def _compter(a, reel):
     for couche in COUCHES:                                # base sans dossier : les couches se construisent vides
         couche.construire_tout(cx)
     c2_identites.charger_socle(cx, a.base_kit)
+    for couche in COUCHES[COUCHES.index(c2_identites) + 1:]:        # le socle change c2 : le dessus se refait
+        couche.construire_tout(cx)
     for libelle, sql in TOTAUX:
         print(f'{libelle} : {_affiche(cx.execute(sql).fetchone()[0])}')
     for titre, sql in GROUPES:
