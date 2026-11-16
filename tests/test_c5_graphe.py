@@ -404,3 +404,119 @@ def test_chaque_invariant_de_c5_devient_rouge_quand_on_le_viole(jeu, socle, tmp_
 
 def test_la_couche_suit_c3_dans_l_ordre_des_couches():
     assert [c.nom for c in COUCHES[:5]] == ['c0', 'c1', 'c2', 'c3', 'c5']
+
+
+# ---- comportements relevés par les tests de mutation ---------------------------------------------------------------
+
+@pytest.fixture
+def vide(tmp_path):
+    cx = sqlite3.connect(str(tmp_path / 'vide.sqlite'))
+    migrer.appliquer(cx)
+    return cx
+
+
+def test_niveau_aux_bords_exacts_des_seuils(vide):
+    p = c5.parametres(vide)
+    assert [c5.niveau(p, 2, 0.05), c5.niveau(p, 2, 0.08), c5.niveau(p, 2, 0.20)] == ['affiche', 'mineure', 'majeure']
+
+
+def test_on_s_arrete_au_premier_inscrit(vide):
+    k = GrapheFait(vide, [(pp(1), pp(2), 'role', 'gerant', 0.7), (pp(2), pp(3), 'role', 'gerant', 0.7)], {},
+                   [pp(2), pp(3)])
+    assert [m['cible'] for m in c5.chercher(k, [pp(1)])] == [pp(2)]
+
+
+def test_plafond_d_une_homonymie_au_depart_garde_le_long_du_chemin(vide):
+    k = GrapheFait(vide, [(pp(1), pp(2), 'homonymie', 'AF07', 0.9), (pp(2), pp(3), 'role', 'gerant', 0.7)], {},
+                   [pp(3)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['niveau'], m['homonymie']) == ('mineure', True)
+
+
+def test_le_meilleur_de_deux_chemins_vers_un_meme_inscrit(vide):
+    k = GrapheFait(vide, [(pp(1), pp(9), 'role', 'liquidateur', 0.06),
+                          (pp(1), pp(2), 'role', 'gerant', 0.7), (pp(2), pp(9), 'role', 'gerant', 0.7)], {}, [pp(9)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['longueur'], round(m['force'], 2), m['niveau']) == (2, 0.49, 'majeure')
+
+
+def test_dominance_n_elague_pas_un_chemin_sans_plafond(vide):
+    # pp2 atteint par une homonymie forte (plafond « mineure ») et par un rôle moins fort sans plafond : le second
+    # doit survivre et l'emporter (majeure)
+    k = GrapheFait(vide, [(pp(1), pp(2), 'homonymie', 'R07', 0.95), (pp(1), pp(2), 'role', 'gerant', 0.8),
+                          (pp(2), pp(4), 'role', 'gerant', 0.7)], {}, [pp(4)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['longueur'], round(m['force'], 2), m['niveau'], m['homonymie']) == (2, 0.56, 'majeure', False)
+
+
+def test_foyer_garde_son_drapeau_et_son_plafond_meme_a_poids_eleve(vide):
+    class Foyer(GrapheFait):
+        def liens(self, u):
+            sortie = []
+            for v, l, poids, etape, plafond, foyer, noeud in super().liens(u):
+                if etape['code'] == 'LOGEMENT':
+                    plafond, foyer = 'mineure', True
+                sortie.append((v, l, poids, etape, plafond, foyer, noeud))
+            return sortie
+    vide.execute("INSERT INTO c6_version_parametres (version, nom, valeur, provisoire) VALUES ('2099-01-01', "
+                 "'c5_poids_foyer', 0.9, 1)")
+    k = Foyer(vide, [(pp(1), pp(2), 'identifiant', 'LOGEMENT', 0.9), (pp(2), pp(3), 'role', 'gerant', 0.9)], {},
+              [pp(3)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['niveau'], m['foyer'], m['homonymie']) == ('mineure', True, False)
+
+
+def inserer_mention(cx, id_, fiche, **plus):
+    valeurs = dict(id=id_, cle_origine=id_, source='registre', type_fiche='PP', statut='normal', inscrit=0, fiche=fiche)
+    valeurs.update(plus)
+    cx.execute(f'INSERT INTO c2_mention ({", ".join(valeurs)}) VALUES ({", ".join("?" * len(valeurs))})',
+               list(valeurs.values()))
+
+
+def test_plusieurs_roles_entre_deux_fiches_le_plus_fort_compte(vide):
+    for cle, code in (('R|a', 'associe'), ('R|b', 'gerant')):
+        vide.execute("INSERT INTO c5_arete VALUES (?, 'role', ?, 's', ?, ?, ?, NULL, 'registre', NULL)",
+                     (cle, cle, pp(1), 'pm_' + '0' * 16, code))
+    assert [(v, poids) for v, _, poids, *_ in c5.Contexte(vide).liens(pp(1))] == [('pm_' + '0' * 16, 0.7)]
+
+
+def test_homonymies_de_c2_poids_preference_et_signalements_exclus(vide):
+    for i in range(1, 5):
+        inserer_mention(vide, f'm{i}', pp(i))
+    for a, b, regle, niveau_, poids in (('m1', 'm2', 'R07', 'probable', 0.6), ('m1', 'm3', 'R07', 'probable', 0.4),
+                                       ('m1', 'm3', 'R01', 'certain', 1.0), ('m1', 'm4', 'CIN_PARTAGE', 'a_verifier', None)):
+        vide.execute("INSERT INTO c2_correspondance_mention (mention_a, mention_b, nature, regle, niveau, statut, poids, "
+                     "source) VALUES (?, ?, 'identite', ?, ?, 'homonymie', ?, 'kit')", (a, b, regle, niveau_, poids))
+    liens = {v: (poids, plafond) for v, _, poids, _, plafond, *_ in c5.Contexte(vide).liens(pp(1))}
+    assert liens == {pp(2): (0.6, 'mineure'), pp(3): (1.0, None)}
+
+
+def test_noeud_sans_compteur_vaut_un_et_role_absent_vaut_inconnu(vide):
+    assert c5.Contexte(vide).n('noeud_inexistant') == 1
+    inserer_mention(vide, 's', 'pm_' + '1' * 16, type_fiche='PM')
+    inserer_mention(vide, 'p', pp(1), societe_mention='s')
+    inserer_mention(vide, 'e', pp(2), societe_mention='s', role='employe', source='registre', ref='ZZ26T0001',
+                    upstream_piece_id='eqdom_BULLETIN_DE_PAIE_0')
+    vide.execute("INSERT INTO c1_identifiant_brut VALUES ('ZZ26T0001', 'eqdom_BULLETIN_DE_PAIE_0', 'RIB', ?, NULL)",
+                 ('999' + '0' * 21,))
+    c5.construire_tout(vide)
+    assert sorted(lignes(vide, 'SELECT mention, code FROM c5_arete')) == [('e', 'employe'), ('p', 'inconnu')]
+
+
+def test_fiche_d_un_autre_dossier_qui_change_ses_aretes_suivent(jeu, tmp_path):
+    a = dossier(jeu, 1, ('CIN', {'nom': 'ZELMOU', 'prenom': 'BAKRITA', 'cin': 'ZZ100001'}),
+                ('ATTESTATION_TRAVAIL_SALAIRE', {'nom': 'ZELMOU', 'prenom': 'BAKRITA',
+                                                 'employeur': {'raison_sociale': 'TAZOULA SARL', 'ice': '999000000000015'}}))
+    autres = [dossier(jeu, n, ('CIN', {'nom': 'TAGHRIZ', 'prenom': 'LOUMIZA', 'cin': 'ZZ100001'})) for n in (2, 3)]
+    rc = dossier(jeu, 4, ('REGISTRE_COMMERCE', {'denomination_sociale': 'TAZOULA SARL', 'numero_analytique': '70001',
+                                                'ville_tribunal': 'KENITRA', 'ice': '999000000000015'}))
+    lot = base_de(tmp_path, [a, *autres, rc])
+    flux = base_de(tmp_path, [])
+    passage = c0.ouvrir_passage(flux, 'essai', 'scrutation', T0)
+    for d in [a, *autres, rc]:                           # le CIN de A change de fiche, puis la société de A
+        c0.recevoir(flux, passage, d, maintenant=T0)
+        for couche in COUCHES[1:]:
+            couche.traiter(flux, d['ref'])
+    assert contenu(flux) == contenu(lot)
+    flux.commit()
+    assert verifier.verifier(flux.execute('PRAGMA database_list').fetchone()[2]) == 0
