@@ -28,6 +28,7 @@ class Recherche(BaseModel):
     niveau: Optional[Literal['critique', 'majeure', 'mineure', 'affiche', 'hors_alerte', 'aucun']] = None
     produit: Optional[str] = Field(default=None, max_length=40)
     avec_incoherence: Optional[bool] = None
+    tri: Literal['gravite', 'recent', 'ancien', 'alpha', 'alpha_inverse', 'dossiers', 'revenu'] = 'gravite'
     page: int = Field(default=1, ge=1, le=10_000)
     taille: int = Field(default=50, ge=1, le=200)
 
@@ -42,7 +43,7 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
             b=Depends(base_client)):
     etat = request.app.state.etat
     resultat = b.rechercher(demande.texte, demande.type, demande.niveau, demande.produit, demande.avec_incoherence,
-                            demande.page, demande.taille)
+                            demande.page, demande.taille, demande.tri)
     indices = [c['indice'] for c in resultat['items']]
     quotas.etiquettes(etat, session, indices)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,

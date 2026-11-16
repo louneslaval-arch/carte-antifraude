@@ -120,7 +120,7 @@ const Commun = (() => {
       ligne.append(el('span', { classe: 'chemin-lien', texte: libelle }), lienFiche(e.vers));
     }
     return el('div', { classe: 'carte' },
-      el('div', { classe: 'chemin-entete' }, niveau(ch.niveau, ch.niveau_libelle),
+      el('div', { classe: 'chemin-entete' },
         el('span', { texte: `${ch.longueur} lien${ch.longueur > 1 ? 's' : ''} · force ${String(ch.force).replace('.', ',')}` }),
         ch.homonymie ? el('span', { classe: 'etiquette', texte: 'homonymie à lever' }) : null,
         ch.foyer ? el('span', { classe: 'etiquette', texte: 'même foyer qu’un inscrit' }) : null),

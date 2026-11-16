@@ -72,6 +72,24 @@ def masquer_groupe(lignes, cle='nombre'):
     return lignes
 
 
+def trier(lignes, tri):
+    """Ordre de la liste des clients. « gravite » : l'ordre calculé par `clients()` (niveau, incohérences, nom).
+    Les autres : la clé choisie, puis le nom ; une valeur absente (date, revenu) va toujours en fin de liste."""
+    if tri == 'gravite':
+        return lignes
+    nom = lambda c: (c['nom'] or '').upper()
+    if tri in ('alpha', 'alpha_inverse'):
+        return sorted(lignes, key=lambda c: (nom(c), c['indice']), reverse=tri == 'alpha_inverse')
+    if tri == 'dossiers':
+        return sorted(lignes, key=lambda c: (-c['dossiers'], nom(c)))
+    cle = {'recent': 'derniere_demande', 'ancien': 'derniere_demande', 'revenu': 'revenu'}[tri]
+    presents = [c for c in lignes if c[cle] is not None]
+    absents = sorted((c for c in lignes if c[cle] is None), key=nom)
+    presents.sort(key=nom)                                   # à valeur égale, ordre alphabétique (tri stable)
+    presents.sort(key=lambda c: c[cle], reverse=tri != 'ancien')
+    return presents + absents
+
+
 class BaseClient:
     def __init__(self, chemin, donnees_reelles=False):
         if not os.path.exists(chemin):
@@ -203,7 +221,8 @@ class BaseClient:
         finally:
             cx.close()
 
-    def rechercher(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1, taille=50):
+    def rechercher(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1, taille=50,
+                   tri='gravite'):
         lignes = self.clients()
         if texte:
             t = texte.strip().upper()
@@ -216,6 +235,7 @@ class BaseClient:
             lignes = [c for c in lignes if produit in c['produits']]
         if avec_incoherence:
             lignes = [c for c in lignes if c['incoherences']]
+        lignes = trier(lignes, tri)
         debut = (page - 1) * taille
         return dict(total=len(lignes), page=page, taille=taille, items=lignes[debut:debut + taille])
 

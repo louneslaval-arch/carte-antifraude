@@ -12,18 +12,16 @@
 <main>
   <p class="fil">Plateforme clients › Base client</p>
   <h1>Base client</h1>
-  <p class="sous-titre">Chaque client, ses dossiers, ses revenus vérifiés et sa distance à la liste noire. Données fictives.</p>
+  <p class="sous-titre">Chaque client, ses dossiers et ses revenus vérifiés. Données fictives.</p>
 
-  <section class="grille grille-4" aria-label="Chiffres clés">
+  <section class="grille grille-3" aria-label="Chiffres clés">
     <div class="carte chiffre"><span class="chiffre-valeur" id="c-clients">—</span><span class="chiffre-libelle">clients</span></div>
     <div class="carte chiffre"><span class="chiffre-valeur" id="c-dossiers">—</span><span class="chiffre-libelle">dossiers actifs</span></div>
-    <div class="carte chiffre chiffre-accent"><span class="chiffre-valeur" id="c-lies">—</span><span class="chiffre-libelle">dossiers liés à un inscrit (critique ou majeure)</span></div>
     <div class="carte chiffre"><span class="chiffre-valeur" id="c-inscrits">—</span><span class="chiffre-libelle">inscrits actifs sur la liste noire</span></div>
   </section>
 
-  <section class="grille grille-2" aria-label="Répartitions">
-    <div class="carte"><h2>Niveau du lien avec la liste noire</h2><div class="barres" id="r-niveaux"></div></div>
-    <div class="carte"><h2>Produits demandés</h2><div class="barres" id="r-produits"></div></div>
+  <section class="carte" aria-label="Répartition">
+    <h2>Produits demandés</h2><div class="barres" id="r-produits"></div>
   </section>
 
   <section class="carte" id="liste" aria-label="Clients" hidden>
@@ -35,11 +33,18 @@
         <select id="type"><option value="">Personnes et sociétés</option><option value="personne">Personnes</option><option value="societe">Sociétés</option></select></label>
       <label class="champ"><span class="visuellement-cache">Produit</span>
         <select id="produit"><option value="">Tous les produits</option></select></label>
-      <div class="puces" role="group" aria-label="Niveau" id="puces"></div>
+      <label class="champ"><span class="tri-libelle">Trier par</span>
+        <select id="tri">
+          <option value="recent">Demande la plus récente</option>
+          <option value="ancien">Demande la plus ancienne</option>
+          <option value="alpha">Nom, de A à Z</option>
+          <option value="alpha_inverse">Nom, de Z à A</option>
+          <option value="revenu">Revenu vérifié</option>
+        </select></label>
     </form>
     <div class="tableau-enveloppe">
       <table>
-        <thead><tr><th>Client</th><th>Niveau</th><th class="nombre">Dossiers</th><th>Produits</th>
+        <thead><tr><th>Client</th><th class="nombre">Dossiers</th><th>Produits</th>
           <th class="nombre">Revenu vérifié</th><th>Dernière demande</th><th>Ville</th></tr></thead>
         <tbody id="lignes"></tbody>
       </table>

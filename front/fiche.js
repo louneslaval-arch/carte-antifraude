@@ -1,6 +1,6 @@
 'use strict';
 document.addEventListener('DOMContentLoaded', async () => {
-  const { el, api, nombre, montant, date, niveau, initiales } = Commun;
+  const { el, api, nombre, montant, date, initiales } = Commun;
   Commun.entete('base.html');
   const main = document.getElementById('contenu');
   const indice = Commun.parametre('i');
@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   const id = f.identite;
-  const meilleur = f.chemins[0];
   const definitions = id.type === 'personne'
     ? [['CIN', id.cin], ['Date de naissance', date(id.date_naissance)], ['Adresse retenue', id.adresse]]
     : [['RC', id.rc ? `${id.rc} · ${id.tribunal || ''}` : null], ['ICE', id.ice], ['Siège', id.adresse]];
@@ -23,16 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('h1', { texte: id.nom }),
       el('div', { classe: 'puces' },
         id.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'Inscrit sur la liste noire' }) : null,
-        meilleur ? niveau(meilleur.niveau, `Lien : ${meilleur.niveau_libelle}`) : niveau(null, 'Aucun lien avec la liste noire'),
-        el('span', { classe: 'etiquette', texte: id.type === 'personne' ? 'Personne' : 'Société' }),
-        Object.entries(f.sources).map(([s, n]) => el('span', { classe: 'etiquette', texte: `mentions (${libelleSource(s)}) : ${n}` }))),
+        el('span', { classe: 'etiquette', texte: id.type === 'personne' ? 'Personne' : 'Société' })),
       el('dl', { classe: 'definitions' }, definitions.map(([k, v]) => [el('dt', { texte: k }), el('dd', { texte: v || '—' })]))),
     null);
 
   const cites = f.dossiers.filter(d => !d.demandeur).length;
   const dossiers = carte('Dossiers', f.dossiers.length ? tableau(
-    ['Reçu', 'Produit', 'Rôle', 'Niveau', 'Verdict v2', ''],
-    f.dossiers.map(d => [date(d.recu), d.produit, d.role, d.demandeur ? niveau(d.niveau, d.niveau_libelle) : '—',
+    ['Reçu', 'Produit', 'Rôle', 'Verdict v2', ''],
+    f.dossiers.map(d => [date(d.recu), d.produit, d.role,
       d.demandeur ? (d.verdict || '—') : '—',
       el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
     cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
@@ -41,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
 
   const revenusVerifies = f.revenus.filter(r => r.nature === 'verifie');
-  const revenus = carte('Revenus et charges', f.revenus.length ? tableau(['Nature', 'Source', 'Période', 'Montant', 'Dossier'],
+  const revenus = carte('Revenus et charges', f.revenus.length ? tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'],
     f.revenus.map(r => [r.nature === 'declare' ? 'déclaré' : 'vérifié', libelleSource(r.source), periode(r), montant(r.montant),
       lienDossier(r.dossier)])) : vide('Aucun revenu lu.'),
     revenusVerifies.length ? el('p', { classe: 'note', texte: `${revenusVerifies.length} montant(s) vérifié(s) sur pièce.` }) : null,
@@ -60,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const liens = f.personnes.length ? f.personnes : f.societes;
   const relations = carte(f.personnes.length ? 'Personnes de la société' : 'Sociétés', liens.length
-    ? tableau(['Nom', 'Rôle', 'Source'], liens.map(s => [s.indice ? Commun.lienFiche(s) : s.nom, s.role, libelleSource(s.source)]))
+    ? tableau(['Nom', 'Rôle'], liens.map(s => [s.indice ? Commun.lienFiche(s) : s.nom, s.role]))
     : vide('Aucune.'));
 
   const comptes = carte('Comptes et véhicules', el('div', {},
@@ -69,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const graphies = carte('Graphies et adresses', el('div', {},
     el('div', { classe: 'puces' }, f.alias.map(a => el('span', { classe: 'etiquette', lang: a.ecriture === 'arabe' ? 'ar' : null, texte: `${a.nom} · ${a.nombre}` }))),
-    f.adresses.length ? tableau(['Adresse', 'Source', 'Rôle'], f.adresses.map(a => [a.adresse, libelleSource(a.source), a.role || '—'])) : null));
+    f.adresses.length ? tableau(['Adresse', 'Rôle'], f.adresses.map(a => [a.adresse, a.role || '—'])) : null));
 
   const listeNoire = f.liste_noire.length ? carte('Inscription sur la liste noire', tableau(
     ['Libellé', 'Type de liste', 'Motif', 'Type de fraude', 'Statut', 'Première saisie', 'Inscriptions'],
@@ -103,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return { onglet, ouvrir };
   });
   const toutes = carte('Toutes les données du client',
-    el('p', { classe: 'note', texte: 'Chaque valeur lue dans chaque pièce, avec son origine : lue par l’amont, relue de façon ciblée, ou fusion des deux.' }),
+    el('p', { classe: 'note', texte: 'Chaque valeur lue dans chaque pièce de chaque dossier.' }),
     f.donnees.length ? [navigation, volets] : vide('Aucun dossier.'));
 
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Fiche client'),
@@ -112,14 +109,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   main.removeAttribute('aria-busy');
 
   function voletDossier(x) {
-    const contexte = el('dl', { classe: 'definitions' }, x.contexte.map(c => [el('dt', { texte: c.libelle }), el('dd', { texte: String(c.valeur) })]));
+    const contexte = el('dl', { classe: 'definitions' }, x.contexte.filter(c => !c.libelle.startsWith('Alertes')).map(c => [el('dt', { texte: c.libelle }), el('dd', { texte: String(c.valeur) })]));
     const pieces = x.pieces.map(p => el('details', { classe: 'piece' },
       el('summary', {}, el('strong', { texte: libelleSource(p.type) }),
-        el('span', { classe: 'note', texte: ` · ${p.source === 'REANALYSE' ? 'relue' : 'amont'} · ${p.statut || '—'} · ${p.faits.length} valeurs` })),
+        el('span', { classe: 'note', texte: ` · ${p.statut || '—'} · ${p.faits.length} valeurs` })),
       p.mois.length ? tableau(['Mois', 'Solde début', 'Solde fin', 'Crédits', 'Débits', 'Salaire repéré', 'Échéances', 'Opérations lues'],
         p.mois.map(m => [m.mois ? `${String(m.mois).padStart(2, '0')}/${m.annee}` : '—', montant(m.solde_ouverture), montant(m.solde_cloture),
           montant(m.total_credit), montant(m.total_debit), montant(m.salaire_detecte), montant(m.echeances_credits), nombre(m.nb_operations_lues)])) : null,
-      tableau(['Champ', 'Valeur', 'Origine', ''], p.faits.map(fa => [el('code', { texte: fa.cle }), court(fa.valeur), fa.origine,
+      tableau(['Champ', 'Valeur', ''], p.faits.map(fa => [el('code', { texte: fa.cle }), court(fa.valeur),
         fa.statut !== 'normal' ? el('span', { classe: 'etiquette', texte: fa.statut.replaceAll('_', ' ') }) : '']))));
     const lien = x.dossier ? el('p', {}, el('a', { href: `dossier.html?i=${x.dossier}`, texte: 'Ouvrir la vue du dossier' })) : null;
     if (!x.demandeur) {
