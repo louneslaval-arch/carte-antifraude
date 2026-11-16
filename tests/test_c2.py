@@ -219,13 +219,40 @@ def test_cin_a_lettre_parasite_rapproche_jamais_fusionne(cx, socle):
     assert all(a != b and niveau == 'probable' and statut == 'homonymie' for a, b, niveau, statut, _ in paires)
 
 
-def test_societe_sous_deux_denominations_une_seule_fiche(jeu, tmp_path):
-    rc = lambda nom: ('REGISTRE_COMMERCE', {'denomination_sociale': nom, 'numero_analytique': '70001',  # noqa: E731
-                                            'ville_tribunal': 'Tribunal de commerce de Kénitra'})
-    cx = base_de(tmp_path, [dossier(jeu, 1, rc('TAZOULA SARL')), dossier(jeu, 2, rc('ZIRMAK NEGOCE SARL'))])
+def rc_de(nom, numero='70001'):
+    return ('REGISTRE_COMMERCE', {'denomination_sociale': nom, 'numero_analytique': numero,
+                                  'ville_tribunal': 'Tribunal de commerce de Kénitra'})
+
+
+def test_societe_sous_deux_denominations_proches_une_seule_fiche(jeu, tmp_path):
+    cx = base_de(tmp_path, [dossier(jeu, 1, rc_de('TAZOULA NEGOCE SARL')), dossier(jeu, 2, rc_de('STE TAZOULA'))])
     assert lignes(cx, 'SELECT rc, tribunal FROM c2_societe') == [('70001', 'KENITRA')]
     assert un(cx, 'SELECT count(DISTINCT alias) FROM c2_alias') == 2
     assert lignes(cx, 'SELECT DISTINCT regle FROM c2_mention') == [('RC_TRIB',)]
+    assert un(cx, 'SELECT count(*) FROM c2_correspondance') == 0
+
+
+def test_meme_rc_et_tribunal_noms_sans_rapport_deux_fiches_signalees(jeu, tmp_path):
+    kit = mini_socle(tmp_path, entites=[dict(entite_id=1, cle_entite='M:70001@KENITRA', type_entite='PM',
+                                             nom_affiche='ZIRMAK NEGOCE SARL', rc_num='70001',
+                                             tribunal_code='KENITRA', statut='actif')])
+    cx = base_de(tmp_path, [dossier(jeu, 1, rc_de('TAZOULA SARL')), dossier(jeu, 2, rc_de('TAZOULA SARL')),
+                            dossier(jeu, 3, rc_de('ZIRMAK NEGOCE'))], kit)
+    assert sorted(lignes(cx, 'SELECT denomination, rc, tribunal, inscrit, nb_mentions FROM c2_societe')) == \
+        [('TAZOULA SARL', '70001', 'KENITRA', 0, 2), ('ZIRMAK NEGOCE SARL', '70001', 'KENITRA', 1, 2)]
+    assert lignes(cx, 'SELECT regle, niveau, statut FROM c2_correspondance') == [('RC_PARTAGE', 'a_verifier', 'alerte')]
+    en_lot = contenu(cx)
+    for n in (3, 1, 2):
+        c2.traiter(cx, f'ZZ26T{n:04d}')
+    assert contenu(cx) == en_lot
+    cx.commit()
+    assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
+    cx.execute('DELETE FROM "Piece"'); cx.execute('DELETE FROM "Dossier"')         # les dossiers sortent du miroir
+    for n in (1, 2, 3):
+        c1.traiter(cx, f'ZZ26T{n:04d}')
+        c2.traiter(cx, f'ZZ26T{n:04d}')
+    assert lignes(cx, 'SELECT denomination, inscrit FROM c2_societe') == [('ZIRMAK NEGOCE SARL', 1)]
+    assert un(cx, 'SELECT count(*) FROM c2_correspondance_mention') == 0
 
 
 def test_cin_partage_par_deux_noms_incompatibles_pas_de_fusion_signalement(jeu, tmp_path):

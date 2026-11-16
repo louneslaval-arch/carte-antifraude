@@ -8,8 +8,9 @@ réunit les mentions qui partagent une clé forte :
   donne deux fiches et un signalement `CIN_PARTAGE`) ; une mention sans CIN prend le CIN de la seule mention au nom compatible du même
   dossier (`nom_dans_dossier`) ; une personne du registre sans CIN prend celui du seul gérant ou associé au nom
   compatible lu dans un dossier pour la même société (`AF05` : le dossier apporte le CIN) ;
-- société : même RC et même tribunal, même ICE, même identifiant fiscal, même n° d'affiliation CNSS ; deux RC
-  différents ne sont jamais réunis par un autre identifiant ;
+- société : même RC et même tribunal (un RC porté par deux dénominations sans rapport de la même écriture donne
+  deux fiches et un signalement `RC_PARTAGE`), même ICE, même identifiant fiscal, même n° d'affiliation CNSS d'un
+  employeur ; deux RC différents ne sont jamais réunis par un autre identifiant ;
 - sinon, une fiche propre à la source (au dossier pour la v2).
 
 Tout le reste est un rapprochement, jamais une fusion : règles R01 à R11 du kit, recopiées telles quelles ; règles
@@ -129,6 +130,18 @@ def separes(a, b):
     """Deux noms portés par un même CIN désignent-ils sûrement deux personnes ? Seulement s'ils sont de la même
     écriture et incompatibles : entre le latin et l'arabe, rien ne prouve l'incompatibilité."""
     return bool(a and b) and cb.est_arabe(a) == cb.est_arabe(b) and not compatibles(a, b)
+
+
+def societes_separees(a, b):
+    """Deux dénominations portées par un même RC désignent-elles sûrement deux sociétés ? Seulement si elles sont de
+    la même écriture et sans rapport (ni mêmes mots, ni mots de l'une dans l'autre, ni graphies proches)."""
+    if not a or not b or cb.est_arabe(a) != cb.est_arabe(b):
+        return False
+    cle_a, cle_b = cb.cle_rs(a), cb.cle_rs(b)
+    if not cle_a or not cle_b or cle_a == cle_b or cb._ratio(cle_a, cle_b) >= 0.8:
+        return False
+    mots_a, mots_b = set(cle_a.split()), set(cle_b.split())
+    return not (mots_a <= mots_b or mots_b <= mots_a)
 
 
 def _mention(source, type_fiche, cle_origine, **valeurs):
@@ -348,8 +361,9 @@ def _cle_propre(m):
     return 'S:' + m['cle_origine']
 
 
-def _grappes(mentions):
-    """Mentions d'un même CIN, réparties par noms compatibles : la graphie la plus fréquente fonde la première."""
+def _grappes(mentions, separes=separes):
+    """Mentions d'une même clé (CIN, RC), réparties par noms compatibles : la graphie la plus fréquente fonde la
+    première grappe."""
     comptes = {}
     for m in mentions:
         if m['nom_norm']:
@@ -428,7 +442,26 @@ def _fermeture(cx, mentions, fiches):
 def _recalculer_societes(cx, mentions, anciennes):
     """Refait les fiches des sociétés données (déjà fermées par leurs clés fortes)."""
     parent = {m['id']: m['id'] for m in mentions}
-    rc_de = {m['id']: m['rc_cle'] for m in mentions}
+    par_rc = {}
+    for m in mentions:
+        m['rc_effectif'] = m['rc_cle']
+        if m['rc_cle']:
+            par_rc.setdefault(m['rc_cle'], []).append(m)
+    for lot in _par_lots(par_rc):
+        cx.execute(f"DELETE FROM c2_correspondance_mention WHERE regle = 'RC_PARTAGE' AND cle_valeur IN "
+                   f"({', '.join('?' * len(lot))})", lot)
+    for rc_cle, membres in sorted(par_rc.items()):        # même RC, noms sans rapport : deux fiches, signalées
+        grappes, representants = _grappes(membres, societes_separees), []
+        for rang, (fondateur, noms) in enumerate(grappes):
+            groupe = [m for m in membres if m['nom'] in noms or (rang == 0 and not m['nom_norm'])]
+            for m in groupe if rang else ():
+                m['rc_effectif'] = f'{rc_cle}#{texte_norm(fondateur)}'
+            representants.append(min(m['id'] for m in groupe))
+        for autre in representants[1:]:
+            cx.execute("INSERT INTO c2_correspondance_mention (mention_a, mention_b, nature, regle, niveau, statut, "
+                       "cle_type, cle_valeur, source) VALUES (?, ?, 'identite', 'RC_PARTAGE', 'a_verifier', 'alerte', "
+                       "'RC_TRIB', ?, 'c2')", (representants[0], autre, rc_cle))
+    rc_de = {m['id']: m['rc_effectif'] for m in mentions}
 
     def racine(x):
         while parent[x] != x:
@@ -444,11 +477,12 @@ def _recalculer_societes(cx, mentions, anciennes):
         parent[b] = a
         rc_de[a] = rc_de[a] or rc_de[b]
 
+    effectif = lambda colonne: 'rc_effectif' if colonne == 'rc_cle' else colonne  # noqa: E731
     for _, colonne, _ in CLES_SOCIETE:
         groupes = {}
         for m in mentions:
-            if m[colonne]:
-                groupes.setdefault(m[colonne], []).append(m['id'])
+            if m[effectif(colonne)]:
+                groupes.setdefault(m[effectif(colonne)], []).append(m['id'])
         for valeur in sorted(groupes):
             membres = sorted(groupes[valeur])
             for autre in membres[1:]:
@@ -460,7 +494,7 @@ def _recalculer_societes(cx, mentions, anciennes):
     for membres in composantes.values():
         cle = None
         for prefixe, colonne, _ in CLES_SOCIETE:
-            valeurs = sorted({m[colonne] for m in membres if m[colonne]})
+            valeurs = sorted({m[effectif(colonne)] for m in membres if m[effectif(colonne)]})
             if valeurs:
                 cle = f'{prefixe}:{valeurs[0]}'
                 break
