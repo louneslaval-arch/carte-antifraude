@@ -107,6 +107,8 @@
 | 103 | Journal d'audit de la base client : l'époque est l'empreinte (16 caractères) du fichier chargé ; la correspondance indice → fiche n'est gardée qu'en mémoire, donc perdue au redémarrage (colonne `journal.epoque` ajoutée par `create_all`, sans migration pour un journal existant) | provisoire : suffisant pour la démonstration ; avant tout usage réel, garder la table des indices par époque, comme la publication de la carte | Lounès | K |
 | 104 | Fiche citée seulement (salarié, employeur, vendeur) : ne montre que ce que les pièces disent d'elle (mention), jamais revenus, charges, contexte, contrôles ni chemins d'une autre partie | gardé | Lounès | — |
 | 105 | Sociétés demandeuses en double dans la base client (une fiche par la mention RC, une par les statuts, non rapprochées en c2) | à dédoublonner en c2 (RC, ICE) à la reprise de l'étape F | Lounès | F |
+| 106 | Carte réseau (vue d'un client, rallumée le 16/11) : paramètres d'affichage écrits en dur — 12 voisins nouveaux par nœud, 120 fiches au plus, exploration de 5 000 fiches, identifiant partagé par 30 fiches ou plus ignoré (et non compté dans « autres ») ; niveaux de criticité masqués comme ailleurs | gardés pour la démonstration ; à passer dans les paramètres à l'étape K (carte globale) ; décider si un identifiant très partagé doit apparaître, puisque c'est un signal | Lounès | K |
+| 107 | Carte réseau et règle « aucun chiffre sous 5 clients » : le compte « + N autres » d'un nœud est donné dans une vue nominative réservée à la cellule fraude, donc hors de la règle (relecture du gardien des données) ; si la carte s'ouvre un jour à DIRECTION (carte anonyme), revoir ce compte et toute la réponse | gardé | Lounès | J, K |
 
 ### À obtenir
 

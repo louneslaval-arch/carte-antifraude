@@ -519,3 +519,23 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   fiche complète, base client. Les essais automatiques dans le navigateur restent à écrire (étape K).
 - **Non fait, noté** : questions n°99 à 102. Code écrit avant ses tests pour cette partie (demande pressante) ; les
   tests ont suivi.
+
+## 16/11/2026 — front : corrections, retraits et vue réseau rallumée (branches `front-corrections`, fusionnée, et `etape-k-carte-reseau`)
+- **Front (fusionné dans `main` sur accord de Lounès)** : fiche citée sans les données des autres clients, tiers
+  journalisés et comptés, époque au journal, masquage secondaire ; demandes de Lounès : contrôles de la v2, quatre
+  préalables, incohérences, niveaux de criticité et origine des données retirés des pages (l'API les sert toujours) ;
+  tri de la liste des clients (`tri` : recent, ancien, alpha, alpha_inverse, dossiers, revenu ; gravite par défaut) ;
+  bulles du portail déplaçables avec retour en place. Document `docs/demande_kamal_temps_reel.md`.
+- **Vue réseau (`etape-k-carte-reseau`)** : route `/api/base/reseau/{indice}` ouverte avec son droit `base.reseau`
+  (cellule fraude) et son action de journal `reseau` ; `reseau()` en trois temps (exploration, choix des fiches,
+  liens) : tout inscrit atteignable et son chemin toujours dessinés, 12 voisins nouveaux par nœud dans un ordre
+  stable, `autres` exact (limite comprise) ; page avec recherche par nom (aucun nom préchargé), niveaux masqués,
+  écart minimal entre nœuds, lien depuis la fiche, module « Map antifraude » actif au portail.
+- **Tests** : tests d'abord, rouges pour la bonne raison (route fermée ; inscrit perdu ; lien manquant) ; 1 144
+  réussis, 2 sautés (avant : 1 138). Le test « tout inscrit gardé » et le test de comptage parcourent toutes les
+  fiches de la base de démonstration.
+- **Relectures** : `relecteur` (un bloquant : inscrit à deux liens perdu derrière un nœud replié ; liens manquants,
+  limite non comptée, liste tronquée, documents) et `gardien-donnees` (aucun bloquant ; droit propre, action de
+  journal, minimisation de la liste) : tout corrigé tests d'abord, sauf ce qui est noté.
+- **Non fait, noté** : questions n°106 et 107 ; carte globale, carte du Maroc et mise à jour en direct (étapes H à K).
+
