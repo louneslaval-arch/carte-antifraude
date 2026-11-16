@@ -439,3 +439,11 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   `tests/test_c1.py` et `outils/comptages_e.py` construisent les couches du dessus avant de vérifier les invariants.
 - **Méthode** : la couche a été écrite d'un bloc après ses tests ; `construire.py --socle` et son test dans la même
   passe ; les corrections ont suivi « test rouge, puis code ». `testeur-mutation` non lancé (n°22).
+
+## 16/11/2026 — portail : spécification (documentation seule, branche `doc-portail`)
+- Vision de Lounès pour la page d'accueil du front mise en forme dans `docs/spec_portail.md` ; aucun code (l'étape K
+  n'est pas lancée). Plan : étape J + 0,5 j (chiffres agrégés, droit « portail »), étape K en deux lots (K1 cartes
+  et vue dossier, K2 portail : 3–4 j), validé par Lounès le 16/11. Questions n°69 à 76.
+- À régler avant K2 : `docs/spec_base_client.md` absente (écrans « Base client » et « Fiche client » non
+  spécifiés) ; contraste du texte sur le rouge de la tuile centrale ; écriture arabe et `.json` du contenu refusés
+  par la garde (à autoriser par Lounès).

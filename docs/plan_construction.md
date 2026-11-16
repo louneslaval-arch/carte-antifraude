@@ -14,8 +14,8 @@
 | G | c3 dossier, revenus, comptes, véhicules | 4–5 j | à faire |
 | H | c5 graphe | 4–5 j | à faire |
 | I | c6 contrôle réseau, alertes, propagation, nuit | 4–5 j | à faire |
-| J | API temps réel | 4–5 j | à faire |
-| K | pages | 7–10 j | à faire |
+| J | API temps réel, dont les chiffres agrégés du portail | 4,5–5,5 j | à faire |
+| K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | à faire |
 | L | PostgreSQL et déploiement | 4–5 j | à faire |
 | M | jeton Tandem, notification de la v2, pseudonymisation | 3–4 j | à faire |
 | N | performance (c4) et analytique (c7) | 6–8 sem. | à faire |
@@ -157,7 +157,7 @@ Les étapes A à K ne dépendent que des fichiers que Lounès dépose dans `impo
 
 **Préalables.** Droits du rôle AGENCE tranchés (n°1) ; sens du retour vers Tandem connu (n°8).
 
-**À faire.** `docs/architecture_temps_reel.md` § 3.5 et § 6 : époques, `flux_indice`, modifications numérotées, flux d'événements, identités des nœuds vivants par les mêmes routes, routes nouvelles, rôle `TANDEM`, colonne `epoque` du journal, droits AGENCE selon la décision. Les routes échangées avec la v2 et Tandem (notification, contrôles) suivent les conventions de l'API de Kamal (noms de champs, pagination `limit` et `offset`, réponses `{items, total}`) ; les routes des analystes gardent les nôtres. FastAPI : si une montée de version est décidée (n°14), le skill officiel livré avec le paquet devient disponible, après contrôle.
+**À faire.** `docs/architecture_temps_reel.md` § 3.5 et § 6 : époques, `flux_indice`, modifications numérotées, flux d'événements, identités des nœuds vivants par les mêmes routes, routes nouvelles, rôle `TANDEM`, colonne `epoque` du journal, droits AGENCE selon la décision. Les routes échangées avec la v2 et Tandem (notification, contrôles) suivent les conventions de l'API de Kamal (noms de champs, pagination `limit` et `offset`, réponses `{items, total}`) ; les routes des analystes gardent les nôtres. FastAPI : si une montée de version est décidée (n°14), le skill officiel livré avec le paquet devient disponible, après contrôle. **Portail (ajouté le 16/11/2026)** : une route de chiffres agrégés (personnes, dossiers, date de la passe de nuit ; « < 5 » ; aucun nom) et le droit « portail » dans la table des droits (`docs/spec_portail.md` § 6, questions n°69 et 75).
 
 **Tests écrits d'abord.** Rôles sur chaque route (DIRECTION sans nom, AGENCE selon la décision, TANDEM sans nom de tiers) ; non-fuite sur les modifications, les événements et la sortie Tandem ; reprise du flux d'événements (`Last-Event-ID`) ; 409 sur une époque close ; test 10 du § 7 côté API.
 
@@ -168,6 +168,8 @@ Les étapes A à K ne dépendent que des fichiers que Lounès dépose dans `impo
 **Préalables.** Skill d'essai dans le navigateur contrôlé et installé ; décision sur une éventuelle bibliothèque de dessin copiée dans le dépôt (n°11 ; par défaut : SVG et Canvas natifs).
 
 **À faire.** `.claude/rules/pages.md` : carte globale, carte par inscrit, vue dossier ; deux vues synchronisées (Maroc, 12 régions intégrées ; réseau centré) ; curseur de force ; filtres et marquages ; bandeau d'alertes ANALYSTE ; `EventSource` ; politique de sécurité du contenu « default-src 'self' ».
+
+**Portail (lot K2, ajouté le 16/11/2026).** Page d'accueil selon `docs/spec_portail.md` : base client au centre, cinq modules, dix usages, panneau de détail, quatre préalables ; contenu dans un fichier de configuration ; aucun chiffre sous 5, aucune donnée personnelle, aucune ressource externe. Préalables : réponses aux questions n°69 à 76 ; spécification des écrans « Base client » et « Fiche client » (n°72), sans quoi la tuile centrale ouvre son panneau. Tests écrits d'abord : affichage et chiffres agrégés ; navigation vers la carte et la base client ; panneau et retour du focus ; aucun chevauchement à 1 280, 1 440 et 1 920 px, grille à 375 px ; `prefers-reduced-motion` ; aucune requête hors de l'origine. Fini quand : essais verts, captures à 1 440 et 375 px jointes.
 
 **Tests écrits d'abord.** Dans le navigateur : connexion ; arrivée en direct d'un dossier du serveur fictif ; DIRECTION sans nom ; aucune requête hors de l'origine ; rechargement sur changement d'époque.
 
