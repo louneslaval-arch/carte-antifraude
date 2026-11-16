@@ -149,3 +149,17 @@ def test_script_shell_affiche_les_comptages_et_refuse_le_depot(kit, tmp_path):
     assert r.returncode == 0 and 'invariants en écart : 0' in r.stdout and 'ZZ' not in r.stdout + r.stderr
     assert subprocess.run(['sh', shell, kit], capture_output=True, cwd=os.path.join(RACINE, 'docs')).returncode == 9
     assert subprocess.run(['sh', shell, 'absente.sqlite'], capture_output=True, cwd=str(tmp_path)).returncode == 8
+
+
+def test_invariant_en_ecart_nomme_sans_comptage(kit, tmp_path, monkeypatch, capsys):
+    import comptages_f
+    charger = comptages_f.c2_identites.charger_socle
+
+    def charger_puis_abimer(cx, chemin):
+        charger(cx, chemin)
+        cx.execute("INSERT INTO c2_perimetre (mention) VALUES ('m_absente')")
+        cx.commit()
+    monkeypatch.setattr(comptages_f.c2_identites, 'charger_socle', charger_puis_abimer)
+    assert comptages_f.main(['--base-kit', kit, '--base', str(tmp_path / 'a.sqlite')]) == 1
+    sortie = capsys.readouterr().out
+    assert 'invariants en écart : 1' in sortie and 'premier invariant en écart : c2_perimetre_non_vide' in sortie

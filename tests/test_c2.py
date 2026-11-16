@@ -1,7 +1,6 @@
 """Tests de la couche 2 (étape F) : une fiche maître par personne et par société, qui réunit la liste noire, le
 registre du commerce (socle construit par le kit) et les dossiers de la v2. Tout est fictif."""
 
-import csv
 import json
 import os
 import random
@@ -21,7 +20,6 @@ pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(STRUCTURE, 'refe
 
 import generer_dossiers as gd  # noqa: E402
 import verifier  # noqa: E402
-from pipeline import construire_base as cb  # noqa: E402
 from pipeline import migrer  # noqa: E402
 from pipeline.couches import c0_brut as c0  # noqa: E402
 from pipeline.couches import c1_faits as c1  # noqa: E402
@@ -152,9 +150,8 @@ def test_chaque_objet_du_socle_et_chaque_mention_de_c1_a_sa_mention(cx, socle):
     for source, tables in (('liste_noire', ('bl_entite',)), ('registre', ('rc_societe', 'rc_personne'))):
         attendu = sum(kit.execute(f'SELECT count(*) FROM {t}').fetchone()[0] for t in tables)
         assert un(cx, 'SELECT count(*) FROM c2_mention WHERE source = ?', source) == attendu
-    assert un(cx, "SELECT count(*) FROM c2_mention WHERE source = 'v2' AND type_fiche = 'PP'") == \
-        un(cx, 'SELECT count(*) FROM c1_mention_personne')
-    assert un(cx, "SELECT count(*) FROM c2_mention WHERE source = 'v2' AND type_fiche = 'PM'") == \
+    assert un(cx, "SELECT count(*) FROM c2_mention WHERE source = 'v2'") == \
+        un(cx, 'SELECT count(*) FROM c1_mention_personne') + \
         un(cx, "SELECT count(*) FROM c1_mention_societe WHERE role <> 'banque'")
 
 
@@ -314,6 +311,133 @@ def test_gerant_d_un_dossier_retrouve_au_registre_dans_la_meme_societe_le_dossie
     assert sorted(lignes(cx, "SELECT nom, regle, cin_effectif FROM c2_mention")) == \
         [('TAGHRIZ LOUMIZA', 'propre', None), ('TAZOULA SARL', 'RC_TRIB', None), ('ZELMOU BAKRITA', 'propre', None)]
     assert un(cx, 'SELECT count(*) FROM c2_personne') == 2 and un(cx, 'SELECT count(*) FROM c2_personne WHERE cin IS NOT NULL') == 0
+
+
+# ---- défauts relevés par la relecture de code -----------------------------------------------------------------------
+
+def pers_rc(k, nom, **plus):
+    return dict(dict(personne_id=k, cle_stable=f'RC:70001@KENITRA|N:{nom}', societe_id=1, type_personne='PP',
+                     nom_complet=nom, ecriture='latin', cin_statut='absent', role='gerant'), **plus)
+
+
+SOCIETE_RC = dict(societe_id=1, cle_societe='RC:70001@KENITRA', denomination='TAZOULA SARL', rc_num='70001',
+                  tribunal_code='KENITRA')
+
+
+def test_cin_apporte_seulement_au_meme_nom_complet_jamais_a_un_nom_court_ou_plus_long(jeu, tmp_path):
+    kit = mini_socle(tmp_path, societes=[SOCIETE_RC],
+                     personnes=[pers_rc(1, 'ZELMOU'), pers_rc(2, 'ZELMOU BAKRITA NADOUL'), pers_rc(3, 'ZELMOU BAKRITA')])
+    d = dossier(jeu, 1, ('REGISTRE_COMMERCE', {'denomination_sociale': 'TAZOULA', 'numero_analytique': '70001',
+                                               'ville_tribunal': 'KENITRA',
+                                               'gerants': [{'nom_complet': 'BAKRITA ZELMOU', 'cin': 'ZZ100001'}]}),
+                ('RELEVE_BANCAIRE', {'titulaire_compte': 'ZELMOU', 'rib': '999' + '0' * 21}),
+                ('ATTESTATION_RIB', {'titulaire_compte': 'M. ZELMOU BAKRITA', 'rib': '999' + '1' * 21}))
+    cx = base_de(tmp_path, [d], kit)
+    assert sorted(lignes(cx, "SELECT nom, regle FROM c2_mention WHERE type_fiche = 'PP' AND cin_effectif IS NOT NULL")) == \
+        [('BAKRITA ZELMOU', 'CIN'), ('M. ZELMOU BAKRITA', 'nom_dans_dossier'), ('ZELMOU BAKRITA', 'AF05')]
+    assert sorted(lignes(cx, "SELECT nom FROM c2_mention WHERE type_fiche = 'PP' AND regle = 'propre'")) == \
+        [('ZELMOU',), ('ZELMOU',), ('ZELMOU BAKRITA NADOUL',)]
+    assert lignes(cx, "SELECT i.valeur FROM c2_identifiant i JOIN c2_personne p ON p.identifiant = i.fiche WHERE "
+                      "i.type = 'RIB' AND p.cin = 'ZZ100001'") == [('999' + '1' * 21,)]
+
+
+def test_cin_a_lettre_finale_identique_dans_la_liste_noire_et_au_registre_une_fiche(jeu, tmp_path):
+    cin = 'ZZ100001' + 'A'
+    kit = mini_socle(tmp_path, societes=[SOCIETE_RC],
+                     entites=[dict(entite_id=1, cle_entite='P:' + cin, type_entite='PP', nom_affiche='ZELMOU BAKRITA',
+                                   cin=cin, statut='actif')],
+                     personnes=[pers_rc(1, 'ZELMOU BAKRITA', cin=cin, cin_norm=cin, cin_statut='lettre_finale')],
+                     correspondances=[dict(bl_entite_id=1, rc_objet='rc_personne', rc_objet_id=1, societe_id=1,
+                                           nature='identite', regle='R01', niveau='certain', statut='alerte',
+                                           cle_type='CIN')])
+    cx = base_de(tmp_path, [], kit)
+    assert lignes(cx, 'SELECT inscrit, nb_mentions FROM c2_personne') == [(1, 2)]
+    cx.commit()
+    assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
+
+
+def test_plusieurs_ice_ou_identifiants_fiscaux_dans_une_colonne_du_kit_jamais_colles(jeu, tmp_path):
+    kit = mini_socle(tmp_path, societes=[
+        dict(SOCIETE_RC, ice='999000000000015 | 999000000000023', if_num='999123 | 999456'),
+        dict(societe_id=2, cle_societe='RC:70002@KENITRA', denomination='ZIRMAK SARL', rc_num='70002',
+             tribunal_code='KENITRA', ice='999000000000031', if_num='999789')])
+    cx = base_de(tmp_path, [], kit)
+    assert sorted(lignes(cx, 'SELECT rc, ice, identifiant_fiscal FROM c2_mention')) == \
+        [('70001', None, None), ('70002', '999000000000031', '999789')]
+
+
+def test_ice_porte_par_deux_rc_ne_rattache_rien_et_se_signale(jeu, tmp_path):
+    kit = mini_socle(tmp_path, societes=[
+        dict(SOCIETE_RC, ice='999000000000015'),
+        dict(societe_id=2, cle_societe='RC:70002@KENITRA', denomination='ZIRMAK SARL', rc_num='70002',
+             tribunal_code='KENITRA', ice='999000000000015')])
+    emploi = ('ATTESTATION_TRAVAIL_SALAIRE', {'nom': 'ZELMOU', 'prenom': 'BAKRITA',
+                                              'employeur': {'raison_sociale': 'NADOUL TRANS', 'ice': '999000000000015'}})
+    for n in range(1, 8):                                   # quelle que soit la référence, donc l'empreinte
+        cx = base_de(tmp_path, [dossier(jeu, n, emploi)], kit)
+        assert sorted(lignes(cx, 'SELECT denomination, rc, nb_mentions FROM c2_societe')) == \
+            [('NADOUL TRANS', None, 1), ('TAZOULA SARL', '70001', 1), ('ZIRMAK SARL', '70002', 1)]
+        assert lignes(cx, 'SELECT DISTINCT regle, niveau, statut FROM c2_correspondance') == \
+            [('CLE_PARTAGEE', 'a_verifier', 'alerte')]
+        en_lot = contenu(cx)
+        c2.traiter(cx, f'ZZ26T{n:04d}')
+        assert contenu(cx) == en_lot
+
+
+def test_cin_partage_la_graphie_arabe_suit_son_nom_latin(jeu, tmp_path):
+    p, q = [x for x in jeu.monde.personnes if x['nom'][1] and x['prenom'][1]
+            and c2.compatibles(f"{x['nom'][0]} {x['prenom'][0]}", f"{x['prenom'][1]} {x['nom'][1]}")][:2]
+    latin = lambda x: f"{x['nom'][0]} {x['prenom'][0]}"  # noqa: E731
+    arabe = f"{q['prenom'][1]} {q['nom'][1]}"
+    assert not c2.compatibles(latin(p), arabe)
+    kit = mini_socle(tmp_path, societes=[SOCIETE_RC],
+                     personnes=[pers_rc(1, arabe, ecriture='arabe', cin='ZZ100001', cin_norm='ZZ100001',
+                                        cin_statut='valide')])
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(p['nom'][0], p['prenom'][0], 'ZZ100001')),
+                            dossier(jeu, 2, cin_de(p['nom'][0], p['prenom'][0], 'ZZ100001')),
+                            dossier(jeu, 3, cin_de(q['nom'][0], q['prenom'][0], 'ZZ100001'))], kit)
+    assert sorted(lignes(cx, 'SELECT nom, nb_mentions FROM c2_personne')) == sorted([(latin(p), 2), (latin(q), 2)])
+
+
+def test_rc_jamais_fabrique_a_partir_d_un_nombre_a_virgule_ou_d_une_date():
+    assert [c2._rc(x) for x in ('70001', 70001, '70001.0', 70001.0, '70 001', '70.001', '12.05.2020', '12', None)] == \
+        ['70001', '70001', '70001', '70001', '70001', '70001', None, None, None]
+
+
+def test_societe_titulaire_d_un_compte_est_une_societe(jeu, tmp_path):
+    d = dossier(jeu, 1, rc_de('TAZOULA NEGOCE SARL'),
+                ('RELEVE_BANCAIRE', {'titulaire_compte': 'STE TAZOULA NEGOCE SARL', 'type_titulaire': 'PM',
+                                     'rib': '999' + '0' * 21}))
+    cx = base_de(tmp_path, [d])
+    assert un(cx, 'SELECT count(*) FROM c2_personne') == 0
+    assert lignes(cx, "SELECT type_fiche, role FROM c2_mention WHERE role = 'titulaire_compte'") == [('PM', 'titulaire_compte')]
+    assert lignes(cx, "SELECT count(*) FROM c2_identifiant WHERE type = 'RIB' AND fiche LIKE 'pm_%'") == [(1,)]
+    cx.commit()
+    assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
+
+
+def test_socle_au_schema_incomplet_rien_n_est_efface(jeu, socle, tmp_path):
+    cx = base_de(tmp_path, jeu.dossiers[:10], socle)
+    cx.commit()
+    avant = contenu(cx)
+    mauvais = str(tmp_path / 'mauvais.sqlite')
+    con = sqlite3.connect(mauvais)
+    con.executescript('CREATE TABLE bl_entite (entite_id, cle_entite, type_entite); CREATE TABLE bl_inscription '
+                      '(num_seq, entite_id, nom, prenom); CREATE TABLE rc_societe (societe_id); CREATE TABLE '
+                      "rc_personne (personne_id); CREATE TABLE correspondance_retenue (x); "
+                      "INSERT INTO bl_entite VALUES (1, 'P#1', 'PP');")
+    con.close()
+    with pytest.raises(Exception):
+        c2.charger_socle(cx, mauvais)
+    cx.commit()
+    assert contenu(cx) == avant
+
+
+def test_societe_inscrite_sans_rc_meme_raison_sociale_qu_une_societe_d_un_dossier(jeu, tmp_path):
+    kit = mini_socle(tmp_path, entites=[dict(entite_id=1, cle_entite='M#1', type_entite='PM',
+                                             nom_affiche='TAZOULA NEGOCE SARL', statut='actif')])
+    cx = base_de(tmp_path, [dossier(jeu, 1, rc_de('Sté TAZOULA NEGOCE'))], kit)
+    assert lignes(cx, 'SELECT regle, niveau, statut FROM c2_correspondance') == [('AF02d', 'a_verifier', 'homonymie')]
 
 
 def test_mention_gabarit_sans_fiche(cx):
@@ -553,7 +677,7 @@ def test_employeurs_selon_le_referentiel_de_kamal_ice_et_graphies(jeu, tmp_path)
     ('c2_mention_de_c1_absente', "DELETE FROM c2_mention WHERE id = (SELECT min(id) FROM c2_mention WHERE source = 'v2')"),
     ('c2_mention_v2_sans_c1', 'DELETE FROM c1_mention_societe ; DELETE FROM c1_mention_personne'),
     ('c2_rapprochement_certain_non_fusionne', "UPDATE c2_correspondance_mention SET niveau = 'certain', nature = "
-                                              "'identite' WHERE regle = 'R07'"),
+                                              "'identite', cle_type = 'CIN' WHERE regle = 'R07'"),
     ('c2_inscrit_sans_mention', "UPDATE c2_mention SET cle_origine = 'x:' || cle_origine WHERE source = 'liste_noire'"),
     ('c2_perimetre_non_vide', "INSERT INTO c2_perimetre (mention) VALUES ('m_absente')"),
     ('c2_mention_sans_fiche_en_base', "DELETE FROM c2_personne WHERE identifiant = (SELECT min(identifiant) FROM c2_personne)"),
@@ -589,4 +713,3 @@ def test_construire_charge_le_socle_en_une_commande(socle, tmp_path, capsys):
 def test_la_couche_suit_c1_dans_l_ordre_des_couches():
     from pipeline.couches import COUCHES
     assert [c.nom for c in COUCHES[:3]] == ['c0', 'c1', 'c2']
-    assert csv and cb                                                       # modules du kit importables

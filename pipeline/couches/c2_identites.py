@@ -44,6 +44,7 @@ COLONNES = ('id', 'cle_origine', 'source', 'type_fiche', 'ref', 'upstream_piece_
 CLES_SOCIETE = (('RC', 'rc_cle', 'RC_TRIB'), ('ICE', 'ice', 'ICE'), ('IF', 'identifiant_fiscal', 'IF'),
                 ('AFF', 'affiliation_cnss', 'AFFILIATION'))
 DECISIONS = ('meme_personne', 'homonyme_ecarte')
+TITULAIRE_SOCIETE = ('PM', 'MORALE', 'PERSONNE MORALE')   # `type_titulaire` d'un relevé ou d'une attestation de RIB
 LOT = 400                                                 # taille des listes passées à une requête
 
 # Règles sur le périmètre : (nature, règle, niveau, statut, type de clé, jointure sur l'inscrit `s`, filtre sur `p`)
@@ -90,7 +91,14 @@ def _chiffres(x, minimum):
 def _rc(x):
     if x in (None, ''):
         return None
-    numero, _, statut = cb.normalise_rc(re.sub(r'(?<=\d)[\s.](?=\d)', '', str(x)))
+    if isinstance(x, float):
+        x = int(x) if x == int(x) else None
+    s = re.sub(r'\.0+$', '', str(x).strip()) if x is not None else ''
+    if re.fullmatch(r'\d{1,3}(?:[ .]\d{3})+', s):          # « 70 001 », « 70.001 » : séparateurs de milliers seulement
+        s = re.sub(r'[ .]', '', s)
+    if not re.fullmatch(r'[A-Za-z]{0,3} ?\d+(?:/\d+)?', s):   # jamais un numéro fabriqué en recollant autre chose
+        return None
+    numero, _, statut = cb.normalise_rc(s)
     # un RC à 1 ou 2 chiffres n'identifie pas une société (règles de méthode, `docs/decisions.md`)
     return numero if statut == 'rc' and numero and len(numero.lstrip('0')) >= 3 else None
 
@@ -100,11 +108,34 @@ def _ice(x):
     return s if s and len(s) == 15 else None
 
 
-def _cin(x):
+def _cin(x, lettre_finale=False):
+    """CIN valide hors gabarit. Dans le socle, un CIN à lettre finale est aussi une clé : le kit en fait un
+    rapprochement « certain » quand il est écrit à l'identique des deux côtés (R01)."""
     if not x:
         return None
     norme, statut = cb.normalise_cin(x)
-    return norme if statut == 'valide' and norme not in GABARITS else None
+    admis = ('valide', 'lettre_finale') if lettre_finale else ('valide',)
+    return norme if statut in admis and norme not in GABARITS else None
+
+
+def _une_valeur(x):
+    """La valeur d'une colonne du kit, sauf s'il y en a plusieurs (« a | b ») : jamais de clé recollée."""
+    return None if isinstance(x, str) and '|' in x else x
+
+
+def memes_noms(a, b):
+    """Deux noms complets désignent-ils la même personne, assez sûrement pour lui apporter un CIN ? Mêmes mots (deux
+    au moins) : ni un nom d'un seul mot, ni un nom inclus dans un autre."""
+    if not a or not b:
+        return False
+    arabe_a, arabe_b = cb.est_arabe(a), cb.est_arabe(b)
+    if arabe_a and arabe_b:
+        mots = sorted(cb.ar_simple(a).split())
+        return len(mots) >= 2 and mots == sorted(cb.ar_simple(b).split())
+    if arabe_a != arabe_b:
+        return len(a.split()) >= 2 and len(b.split()) >= 2 and compatibles(a, b)
+    cle = cb.cle_nom(a)
+    return bool(cle) and cle == cb.cle_nom(b)
 
 
 @functools.lru_cache(maxsize=200_000)
@@ -197,9 +228,13 @@ def _mentions_v2(cx, ref=None):
                      affiliation_cnss=_chiffres(affiliation, 5) if role == 'employeur' else None)
         societes[(ref_, upi, role)] = m
         mentions.append(m)
-    for ref_, upi, type_piece, role, rang, nom_, cin, naissance, parts, adresse, statut in cx.execute(
+    for ref_, upi, type_piece, role, rang, nom_, cin, naissance, parts, adresse, statut, qualite in cx.execute(
             'SELECT ref, upstream_piece_id, type_piece, role, rang, nom_complet, cin, date_naissance, parts_sociales, '
-            'adresse, statut FROM c1_mention_personne' + ou, parametres).fetchall():
+            'adresse, statut, qualite FROM c1_mention_personne' + ou, parametres).fetchall():
+        if role == 'titulaire_compte' and (qualite or '').strip().upper() in TITULAIRE_SOCIETE:
+            mentions.append(_mention('v2', 'PM', f'v2:{ref_}:{upi}:PM:{role}', ref=ref_, upstream_piece_id=upi,
+                                     type_piece=type_piece, role=role, rang=rang, nom=nom_, adresse=adresse))
+            continue
         societe = societes.get((ref_, upi, SOCIETE_DU_ROLE.get(role)))
         mentions.append(_mention(
             'v2', 'PP', f'v2:{ref_}:{upi}:PP:{role}:{rang}', ref=ref_, upstream_piece_id=upi, type_piece=type_piece,
@@ -223,7 +258,11 @@ def _existe(con, table):
 
 def charger_socle(cx, chemin_base_kit):
     """Recopie la liste noire et le registre de la base du kit : liste noire dans la structure de `BlacklistEntry`,
-    mentions du socle, rapprochements et décisions du kit. Puis reconstruit les fiches."""
+    mentions du socle, rapprochements et décisions du kit. Puis reconstruit les fiches. Tout ou rien."""
+    _tout_ou_rien(cx, _charger_socle, chemin_base_kit)
+
+
+def _charger_socle(cx, chemin_base_kit):
     kit = sqlite3.connect(f'file:{chemin_base_kit}?mode=ro', uri=True)
     try:
         entites = _dicts(kit, 'SELECT * FROM bl_entite ORDER BY entite_id')
@@ -258,9 +297,10 @@ def charger_socle(cx, chemin_base_kit):
              e['ice'], e['if_num'], e['date_naissance'], e['adresse'], e['employeur'], statut,
              e['date_reference'], e['types_fraude'], e['nb_inscriptions'], e['premiere_saisie'], e['derniere_saisie']))
         m = _mention('liste_noire', e['type_entite'], 'bl:' + e['cle_entite'], nom=e['nom_affiche'],
-                     cin=None if morale else _cin(e['cin']), date_naissance=e['date_naissance'], adresse=e['adresse'],
+                     cin=None if morale else _cin(e['cin'], True), date_naissance=e['date_naissance'], adresse=e['adresse'],
                      rc=_rc(e['rc_num']) if morale else None, tribunal=e['tribunal_code'] if morale else None,
-                     ice=_ice(e['ice']) if morale else None, identifiant_fiscal=_chiffres(e['if_num'], 4) if morale else None,
+                     ice=_ice(_une_valeur(e['ice'])) if morale else None,
+                     identifiant_fiscal=_chiffres(_une_valeur(e['if_num']), 4) if morale else None,
                      inscrit=int(actif))
         par_entite[e['entite_id']] = m
         mentions.append(m)
@@ -269,14 +309,15 @@ def charger_socle(cx, chemin_base_kit):
         conflit = re.search(r'#\d+$', s['cle_societe'] or '')        # même RC, noms incompatibles : séparés par le kit
         m = _mention('registre', 'PM', 'rcs:' + s['cle_societe'], nom=s['denomination'], rc=rc, tribunal=tribunal,
                      rc_cle=f'{rc}|{tribunal}{conflit.group(0)}' if rc and tribunal and conflit else None,
-                     ice=_ice(s['ice']), identifiant_fiscal=_chiffres(s['if_num'], 4), adresse=s['siege'], role='societe')
+                     ice=_ice(_une_valeur(s['ice'])), identifiant_fiscal=_chiffres(_une_valeur(s['if_num']), 4),
+                     adresse=s['siege'], role='societe')
         par_societe[s['societe_id']] = m
         mentions.append(m)
     for p in personnes:
         societe = par_societe.get(p['societe_id'])
         physique = p['type_personne'] != 'PM'
         m = _mention('registre', 'PP' if physique else 'PM', 'rcp:' + p['cle_stable'], nom=p['nom_complet'],
-                     cin=_cin(p['cin_norm']) if physique and p['cin_statut'] == 'valide' else None,
+                     cin=_cin(p['cin_norm'], True) if physique else None,
                      date_naissance=p['date_naissance'], adresse=p['adresse'], role=p['role'],
                      parts=_texte(p['parts']) if isinstance(p['parts'], str) else p['parts'] and str(p['parts']),
                      societe_mention=societe and societe['id'], societe_cle=societe and societe['rc_cle'])
@@ -299,7 +340,6 @@ def charger_socle(cx, chemin_base_kit):
             couple = ('bl:' + d['cle_bl'], ('rcs:' if d['rc_objet'] == 'rc_societe' else 'rcp:') + d['cle_rc'])
             _ecrire_decision(cx, _id_mention(couple[0]), _id_mention(couple[1]), d['decision'], d['analyste'],
                              d['date_decision'], d['justification'], remplacer=False)
-    cx.commit()
 
 
 def _ecrire_decision(cx, mention_a, mention_b, decision, analyste, date_decision, justification, remplacer=True):
@@ -349,7 +389,7 @@ def _cin_effectif(cx, m, cache):
         return None, 'propre'
     if cle not in cache:
         cache[cle] = cx.execute(sql, (cle[1],)).fetchall()
-    cins = {cin for cin, autre in cache[cle] if compatibles(m['nom'], autre)}
+    cins = {cin for cin, autre in cache[cle] if memes_noms(m['nom'], autre)}
     return (cins.pop(), regle) if len(cins) == 1 else (None, 'propre')
 
 
@@ -361,7 +401,7 @@ def _cle_propre(m):
     return 'S:' + m['cle_origine']
 
 
-def _grappes(mentions, separes=separes):
+def _grappes(mentions, separes=separes, proches=None):
     """Mentions d'une même clé (CIN, RC), réparties par noms compatibles : la graphie la plus fréquente fonde la
     première grappe."""
     comptes = {}
@@ -370,10 +410,13 @@ def _grappes(mentions, separes=separes):
             comptes[m['nom']] = comptes.get(m['nom'], 0) + 1
     grappes = []                                          # [(nom fondateur, {noms})]
     for nom_ in sorted(comptes, key=lambda n: (-comptes[n], n)):
-        for fondateur, noms in grappes:
-            if not separes(nom_, fondateur):
-                noms.add(nom_)
-                break
+        admises = [g for g in grappes if not separes(nom_, g[0])]
+        # d'abord la grappe d'un nom reconnu compatible (une graphie arabe suit son nom latin), sinon la première
+        voulue = next((g for g in admises if proches and any(n != nom_ and proches(nom_, n) and
+                                                             cb.est_arabe(n) != cb.est_arabe(nom_) for n in g[1])),
+                      admises[0] if admises else None)
+        if voulue:
+            voulue[1].add(nom_)
         else:
             grappes.append((nom_, {nom_}))
     return grappes or [(None, set())]
@@ -400,7 +443,7 @@ def _recalculer_personnes(cx, a_evaluer, cins):
         cx.execute(f"DELETE FROM c2_correspondance_mention WHERE regle = 'CIN_PARTAGE' AND cle_valeur IN "
                    f"({', '.join('?' * len(lot))})", lot)
     for cin, mentions in sorted(par_cin.items()):
-        grappes, representants = _grappes(mentions), []
+        grappes, representants = _grappes(mentions, proches=compatibles), []
         for rang, (fondateur, noms) in enumerate(grappes):
             cle = f'CIN:{cin}' if rang == 0 else f'CIN:{cin}#{texte_norm(fondateur)}'
             membres = [m for m in mentions if m['nom'] in noms or (rang == 0 and not m['nom_norm'])]
@@ -478,13 +521,29 @@ def _recalculer_societes(cx, mentions, anciennes):
         rc_de[a] = rc_de[a] or rc_de[b]
 
     effectif = lambda colonne: 'rc_effectif' if colonne == 'rc_cle' else colonne  # noqa: E731
-    for _, colonne, _ in CLES_SOCIETE:
+    autres = [f'{prefixe}:{m[colonne]}' for prefixe, colonne, _ in CLES_SOCIETE[1:] for m in mentions if m[colonne]]
+    for lot in _par_lots(autres):
+        cx.execute(f"DELETE FROM c2_correspondance_mention WHERE regle = 'CLE_PARTAGEE' AND cle_valeur IN "
+                   f"({', '.join('?' * len(lot))})", lot)
+    for prefixe, colonne, _ in CLES_SOCIETE:
         groupes = {}
         for m in mentions:
             if m[effectif(colonne)]:
                 groupes.setdefault(m[effectif(colonne)], []).append(m['id'])
         for valeur in sorted(groupes):
             membres = sorted(groupes[valeur])
+            par_rc_ = {}
+            for i in membres:
+                if rc_de[racine(i)]:
+                    par_rc_.setdefault(rc_de[racine(i)], i)
+            if colonne != 'rc_cle' and len(par_rc_) > 1:    # un ICE porté par deux RC ne rattache rien : signalé
+                premiers = [par_rc_[k] for k in sorted(par_rc_)]
+                for autre in premiers[1:]:
+                    cx.execute("INSERT INTO c2_correspondance_mention (mention_a, mention_b, nature, regle, niveau, "
+                               "statut, cle_type, cle_valeur, source) VALUES (?, ?, 'identite', 'CLE_PARTAGEE', "
+                               "'a_verifier', 'alerte', ?, ?, 'c2') ON CONFLICT (mention_a, mention_b, regle) "
+                               "DO NOTHING", (premiers[0], autre, prefixe, f'{prefixe}:{valeur}'))
+                continue
             for autre in membres[1:]:
                 unir(membres[0], autre)
     composantes = {}
@@ -614,11 +673,18 @@ def _traiter(cx, ref):
     _regles(cx, ref)
 
 
-def traiter(cx, ref):
-    _traiter(cx, ref)
+def _tout_ou_rien(cx, action, *arguments):
+    try:
+        action(cx, *arguments)
+    except BaseException:
+        cx.rollback()                                     # rien d'à moitié écrit, périmètre compris
+        raise
     cx.commit()
+
+
+def traiter(cx, ref):
+    _tout_ou_rien(cx, _traiter, ref)
 
 
 def construire_tout(cx):
-    _construire(cx)
-    cx.commit()
+    _tout_ou_rien(cx, _construire)

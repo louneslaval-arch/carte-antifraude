@@ -106,9 +106,13 @@ def _compter(a, reel):
             print(f'  {nom} : {n}')
     cx.commit()
     cx.close()
-    with contextlib.redirect_stdout(io.StringIO()):
+    with contextlib.redirect_stdout(io.StringIO()) as sortie:
         ecart = verifier.verifier(a.base)
     print(f'invariants en écart : {1 if ecart else 0}')
+    for ligne in sortie.getvalue().splitlines():          # le nom seulement : ni le comptage ni une valeur
+        nom = re.fullmatch(r'ÉCART\s+([a-z0-9_]+) : .*', ligne)
+        if nom:
+            print(f'premier invariant en écart : {nom.group(1)}')
     return 1 if ecart else 0
 
 

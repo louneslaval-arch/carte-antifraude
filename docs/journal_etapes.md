@@ -419,16 +419,22 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   et au changement de clé d'une fiche. Décisions du kit reprises.
 - **Liste noire** dans la structure de `BlacklistEntry` (`ref_liste_noire`) ; inscrit retiré visible, hors des liens ;
   employeurs selon `Employeur` (vue `c2_employeur`) ; `ref_regle_survie`.
-- **Invariants** de c2 (9), chacun montré rouge par un test. `construire.py --socle` charge la base du kit.
+- **Invariants** de c2 (9), chacun montré rouge par un test ; « certain non fusionné » limité au CIN et au RC + tribunal
+  entre fiches de même type (n°63). `construire.py --socle` charge la base du kit.
 - **Mesure** sur le grand jeu fictif (61 000 sociétés, 250 000 mentions), avant les dernières corrections : 10,6 s
   en lot, 157 ms par dossier au fil de l'eau.
 - **Essai réel** : `outils/comptages_f.py`, `outils/essai_reel_f.sh` (aucun chiffre de 1 à 4, seuil sur les fiches
   distinctes, petits groupes réunis, kit non fictif refusé sans le garde-fou). **Pas encore lancé.**
 - **Relectures** : gardien des données et vérificateur de spécification rendus et traités (décision perdue au
   changement de clé, inscrit retiré, RC court, règle des moins de 5, garde-fou, nom et libellés) ; relecture de code
-  interrompue par la limite d'usage, rapport non reçu à l'écriture de cette entrée.
+  rendue le 16/11 (flux = lot tenu sur 3 500 tirages d'arrivées, relectures et retraits) et traitée, tests d'abord :
+  CIN apporté par le nom seulement aux mêmes mots (deux au moins) ; CIN à lettre finale du socle admis comme clé ;
+  plusieurs ICE dans une colonne du kit jamais recollés ; clé portée par deux RC signalée sans rattacher
+  (`CLE_PARTAGEE`) ; graphie arabe d'un CIN partagé rangée avec son nom latin ; RC jamais fabriqué (« 70001.0 ») ;
+  société titulaire d'un compte rangée en société ; `charger_socle`, `traiter` et `construire_tout` tout ou rien ;
+  l'essai réel nomme l'invariant en écart. Questions n°63 à 68.
 - **Reste à faire pour que l'étape soit conforme** (questions n°49 à 62) : dossiers `af_*` ; reste des règles AF ;
-  rapport d'écart ; dates des adresses et des rôles ; identifiant de fiche opaque avant le graphe et l'API.
+  rapport d'écart ; dates des adresses et des rôles ; identifiant de fiche opaque et stable avant le graphe et l'API.
 - **Hors de la couche, signalé** : `c1_faits.py` (adresse du relevé portée par la mention du titulaire, testée) ;
   `tests/test_c1.py` et `outils/comptages_e.py` construisent les couches du dessus avant de vérifier les invariants.
 - **Méthode** : la couche a été écrite d'un bloc après ses tests ; `construire.py --socle` et son test dans la même
