@@ -1,0 +1,138 @@
+/* Portail : la seule page en scène de nuit. Les écrans de travail restent clairs (commun.css). */
+body.portail {
+  --nuit: #060710;
+  --surface-1: #0E0F1A;
+  --surface-2: #151726;
+  --filet-1: rgba(255, 255, 255, .10);
+  --filet-2: rgba(255, 255, 255, .22);
+  --texte: #ffffff;
+  --texte-2: rgba(255, 255, 255, .66);
+  background: var(--nuit);
+  color: var(--texte);
+}
+body.portail .entete { background: rgba(6, 7, 16, .85); border-bottom-color: var(--filet-1); backdrop-filter: blur(8px); }
+body.portail .marque-sous, body.portail .entete-droite { color: var(--texte-2); }
+body.portail .entete nav a { color: var(--texte-2); }
+body.portail .entete nav a:hover { background: var(--surface-2); color: var(--texte); }
+body.portail .entete nav a[aria-current="page"] { background: var(--surface-2); color: var(--texte); }
+body.portail .langue { border-color: var(--filet-2); }
+body.portail .langue button[aria-pressed="true"] { background: var(--texte); color: var(--nuit); }
+body.portail .role { background: var(--surface-2); color: var(--texte); }
+body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2); }
+
+.portail-main { max-width: 1240px; padding: 28px 24px 56px; }
+.portail-titre { text-align: center; max-width: 760px; margin: 0 auto 12px; }
+.portail-titre h1 { font-size: clamp(30px, 4vw, 46px); font-weight: 800; letter-spacing: -.03em; line-height: 1.05; margin: 10px 0; }
+.portail-titre p { color: var(--texte-2); line-height: 1.55; margin: 0 0 14px; }
+.portail-legende { list-style: none; padding: 0; margin: 0; display: flex; justify-content: center; gap: 18px; font-size: 13px; color: var(--texte-2); }
+.pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
+.pastille-actif { background: var(--rouge); box-shadow: 0 0 0 3px rgba(238, 59, 69, .25); }
+.pastille-venir { border: 1.5px solid var(--filet-2); }
+.pastille-usage { background: var(--surface-2); border: 1px solid var(--filet-2); }
+
+/* ---- scène ------------------------------------------------------------------------------------------------------ */
+.scene { position: relative; max-width: 1180px; height: 760px; margin: 8px auto 0; }
+.courbes { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.courbe { fill: none; stroke: var(--filet-2); stroke-width: 1.2; transition: stroke .25s; }
+.courbe-usage { stroke: var(--filet-1); stroke-dasharray: 3 6; }
+.courbe.active { stroke: var(--rouge); stroke-width: 1.6; }
+.courbe-flux { fill: none; stroke: var(--rouge); stroke-width: 2.2; stroke-linecap: round; opacity: 0; }
+.courbe-flux.anime { animation: flux 1.2s ease-in-out forwards; }
+@keyframes flux { 0% { opacity: 0; stroke-dashoffset: var(--longueur); } 15% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; stroke-dashoffset: 0; } }
+
+.ilot {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
+  border: 1px solid var(--filet-2); background: var(--surface-1); color: var(--texte);
+  font: inherit; cursor: pointer; text-align: center;
+  transition: border-color .25s, box-shadow .25s, background .25s;
+}
+.ilot-flotte { animation: flotter var(--duree, 8s) ease-in-out var(--retard, 0s) infinite alternate; }
+@keyframes flotter { from { translate: 0 calc(var(--amplitude, 6px) * -1); } to { translate: 0 var(--amplitude, 6px); } }
+.ilot:hover, .ilot:focus-visible { scale: 1.05; border-color: var(--rouge); }
+.ilot:focus-visible { outline: 3px solid var(--rouge); outline-offset: 4px; }
+
+.ilot-centre {
+  width: 270px; padding: 26px 22px; border-radius: 26px; background: var(--rouge-fonce); border-color: transparent;
+  box-shadow: 0 20px 60px rgba(201, 38, 47, .35); z-index: 3;
+}
+.ilot-centre::before, .ilot-centre::after {
+  content: ""; position: absolute; inset: -18px; border-radius: 40px; border: 1px solid rgba(238, 59, 69, .35);
+  animation: respirer 5s ease-in-out infinite; pointer-events: none;
+}
+.ilot-centre::after { inset: -40px; border-radius: 56px; border-color: rgba(238, 59, 69, .16); animation-delay: 2.5s; }
+@keyframes respirer { 0%, 100% { opacity: .35; scale: .97; } 50% { opacity: 1; scale: 1.03; } }
+.ilot-centre .ilot-nom { font-size: 26px; font-weight: 800; letter-spacing: -.02em; }
+.ilot-centre .ilot-accroche { color: rgba(255, 255, 255, .9); font-size: 13px; margin-top: 4px; }
+.centre-chiffres { display: flex; justify-content: center; gap: 18px; margin-top: 16px; }
+.centre-chiffres div { display: flex; flex-direction: column; }
+.centre-chiffres strong { font-size: 22px; font-weight: 800; }
+.centre-chiffres span { font-size: 11px; color: rgba(255, 255, 255, .9); }
+.centre-maj { font-size: 11px; color: rgba(255, 255, 255, .85); margin-top: 10px; }
+
+.ilot-module { padding: 12px 18px; border-radius: 999px; background: var(--surface-2); min-width: 170px; z-index: 2; }
+.ilot-module .ilot-nom { font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ilot-module .ilot-accroche { color: var(--texte-2); font-size: 12px; margin-top: 2px; }
+.ilot-module.etat-a_venir, .ilot-module.etat-libre { background: transparent; }
+.ilot-module.etat-libre { border-style: dashed; }
+.point-actif { width: 8px; height: 8px; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(238, 59, 69, .25); }
+.ilot-module .etat { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--texte-2); margin-top: 4px; }
+
+.ilot-usage {
+  border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 10px; background: var(--surface-1); z-index: 1;
+}
+.ilot-usage .numero { font-size: 11px; color: var(--texte-2); font-variant-numeric: tabular-nums; }
+.ilot-usage .ilot-nom { font-weight: 800; font-size: 13px; line-height: 1.15; margin: 2px 0; }
+.ilot-usage .ilot-accroche { color: var(--texte-2); font-size: 10.5px; line-height: 1.25; }
+.ilot-usage.en-cours { border-color: var(--rouge); background: #1a0d14; }
+.ilot-usage.en-cours .numero { color: #ff8a90; }
+.ilot-usage.illumine { border-color: var(--rouge); box-shadow: 0 0 0 1px var(--rouge), 0 0 28px rgba(238, 59, 69, .35); }
+
+/* ---- bas de page ------------------------------------------------------------------------------------------------ */
+.prealables { max-width: 1180px; margin: 40px auto 0; }
+.prealables h2 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; text-align: center; margin-bottom: 18px; }
+.prealables-grille { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.prealables-grille li { background: var(--surface-1); border: 1px solid var(--filet-1); border-radius: 16px; padding: 18px; }
+.prealables-grille .n { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--surface-2); border: 1px solid var(--filet-2); font-weight: 800; font-size: 13px; }
+.prealables-grille li.coeur .n { background: var(--rouge-fonce); border-color: transparent; }
+.prealables-grille h3 { font-size: 15px; margin: 12px 0 6px; }
+.prealables-grille p { color: var(--texte-2); font-size: 13px; line-height: 1.5; margin: 0; }
+
+/* ---- panneau de détail ------------------------------------------------------------------------------------------ */
+.voile { position: fixed; inset: 0; background: rgba(0, 0, 0, .5); z-index: 20; }
+.panneau {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100%); z-index: 21; overflow-y: auto;
+  background: var(--surface-1); border-left: 1px solid var(--filet-2); padding: 28px 28px 40px;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, .5);
+}
+.panneau:focus { outline: none; }
+.panneau-fermer { position: absolute; top: 14px; right: 16px; width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--filet-2); background: transparent; color: var(--texte); font-size: 22px; cursor: pointer; }
+.panneau-etat { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #ff8a90; margin: 0 0 6px; }
+.panneau h2 { font-size: 26px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 6px; }
+.panneau h3 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--texte-2); margin: 22px 0 8px; }
+.panneau-accroche { color: var(--texte-2); margin: 0 0 16px; }
+.panneau-contexte { background: var(--surface-2); border: 1px solid var(--filet-1); border-radius: 12px; padding: 14px; line-height: 1.55; font-size: 14px; }
+.panneau-liste { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.panneau-liste li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--filet-1); }
+.panneau-liste .marque-etat { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; align-self: flex-start; }
+.panneau-liste .marque-etat.en-cours { background: var(--rouge-fonce); }
+.panneau-liste .source { color: var(--texte-2); font-size: 12px; text-align: right; }
+.panneau a.bouton-portail { display: inline-block; margin-top: 22px; padding: 10px 16px; border-radius: 10px; background: var(--rouge-fonce); color: #fff; font-weight: 700; }
+
+/* ---- petits écrans : une grille, sans courbes ni flottement ------------------------------------------------------ */
+@media (max-width: 900px) {
+  .scene { height: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .courbes { display: none; }
+  .ilot { position: static; transform: none; translate: none !important; animation: none !important; width: auto; min-width: 0; }
+  .ilot-centre { grid-column: 1 / -1; width: auto; }
+  .ilot-centre::before, .ilot-centre::after { display: none; }
+  .ilot-module { border-radius: 16px; }
+  .ilot-usage { border-radius: 16px; width: auto !important; height: auto !important; min-height: 96px; }
+  .prealables-grille { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ilot-flotte, .ilot-centre::before, .ilot-centre::after { animation: none; }
+  .courbe-flux.anime { animation: none; }
+}

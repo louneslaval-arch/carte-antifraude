@@ -28,4 +28,9 @@ DROITS = {
     'chaines': frozenset({Role.ANALYSTE}),
     'stats': TOUS,
     'admin': frozenset({Role.ADMIN}),
+    # base client : chiffres agrégés pour tous ; noms, fiches, dossiers et réseau pour la cellule fraude seulement
+    # (AGENCE : décision n°1 en attente, questions ouvertes)
+    'base.resume': TOUS,
+    'base.clients': frozenset({Role.ANALYSTE}),
+    'base.fiche': frozenset({Role.ANALYSTE}),
 }

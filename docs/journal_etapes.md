@@ -499,3 +499,23 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   après le chargement du socle ; `tests/test_c3.py` aussi.
 - **Incident** : disque plein (1,3 Go libres) pendant une mesure ; fichiers temporaires de la séance supprimés.
 - **Non fait, noté** : questions n°89 à 98.
+
+## 16/11/2026 — front avancé : base client et portail (branche `etape-k-front`)
+- **Demande de Lounès** : une base client remplie de données fictives proches des dossiers de l'antifraude et un
+  front visuel, pour une revue par une data engineer ; la carte antifraude passe au second plan (désactivée) ; un
+  dépôt GitHub privé, que Lounès crée et pousse lui-même.
+- **Base de démonstration** : `outils/demo/construire_demo.py` (1 500 dossiers v2 générés au format de Kamal, liste
+  noire et registre fictifs, couches c0 à c5) → `jeu_essai/demo/base_demo.sqlite.gz` (20 Mo), versionnée pour qui
+  n'a pas la structure de Kamal.
+- **API** : `api/app/base_client.py`, `api/app/routes/base.py` : résumé agrégé (tous les rôles, rien sous 5), recherche
+  par le corps d'une requête POST, fiche complète (chaque valeur de chaque pièce, contexte déclaré, relevés,
+  contrôles de la v2, liste noire, registre), dossier, réseau ; indices opaques tirés au hasard à chaque chargement ;
+  base non fictive refusée sans le garde-fou ; en-têtes de sécurité (`default-src 'self'`) ; pages servies à la racine.
+- **Pages** (`front/`, aucune bibliothèque ni ressource externe) : portail (scène de nuit, îlots, courbes, flottement,
+  illumination, panneau de détail, grille sous 900 px, mouvement réduit), connexion, base client, fiche client,
+  dossier ; carte désactivée. `api/lancer_demo.sh` : démonstration locale avec deux comptes.
+- **Essais** : 9 tests d'API (rôles, non-fuite, indices, refus d'une base non fictive, aucune ressource externe) ;
+  vérifié à la main dans le navigateur : portail sans chevauchement à 1 280, 1 440 et 1 920 px, grille à 375 px,
+  fiche complète, base client. Les essais automatiques dans le navigateur restent à écrire (étape K).
+- **Non fait, noté** : questions n°99 à 102. Code écrit avant ses tests pour cette partie (demande pressante) ; les
+  tests ont suivi.

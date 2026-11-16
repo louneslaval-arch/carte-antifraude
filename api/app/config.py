@@ -31,6 +31,8 @@ class Reglages:
     cookie_securise: bool = True
     flux_v2_secret: Optional[str] = None         # secret partagé de la notification de la v2 (route inactive sans lui)
     flux_base: Optional[str] = None              # base du temps réel où la notification met le dossier en file
+    base_client: Optional[str] = None            # base des couches c0 à c5 (lecture seule) pour les pages
+    front: Optional[str] = None                  # dossier des pages servies à la racine (aucune ressource externe)
 
 
 def _texte(env, nom):
@@ -69,7 +71,9 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
         origine=_texte(env, 'CARTE_ORIGINE'),
         cookie_securise=env.get('CARTE_COOKIE_NON_SECURISE') != '1',
         flux_v2_secret=_texte(env, 'CARTE_FLUX_V2_SECRET'),
-        flux_base=_texte(env, 'CARTE_FLUX_BASE'))
+        flux_base=_texte(env, 'CARTE_FLUX_BASE'),
+        base_client=_texte(env, 'CARTE_BASE_CLIENT'),
+        front=_texte(env, 'CARTE_FRONT'))
     if lus['flux_v2_secret'] and len(lus['flux_v2_secret']) < 32:
         raise ReglageInvalide('CARTE_FLUX_V2_SECRET trop court (32 caractères au moins)')
     # une variable absente garde la valeur par défaut de Reglages : chaque défaut n'est écrit qu'une fois

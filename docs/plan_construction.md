@@ -15,7 +15,7 @@
 | H | c5 graphe | 4–5 j | partiel (16/11) : graphe et chemins ; restent graphe vivant, chemins stockés, positions, dessin du kit, rapport d'écart (questions n°89 à 98) |
 | I | c6 contrôle réseau, alertes, propagation, nuit | 4–5 j | à faire |
 | J | API temps réel, dont les chiffres agrégés du portail | 4,5–5,5 j | à faire |
-| K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | à faire |
+| K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | avancé (16/11) : portail, base client, fiche complète, dossier, sur base fictive ; carte désactivée ; essais dans le navigateur à écrire |
 | L | PostgreSQL et déploiement | 4–5 j | à faire |
 | M | jeton Tandem, notification de la v2, pseudonymisation | 3–4 j | à faire |
 | N | performance (c4) et analytique (c7) | 6–8 sem. | à faire |
