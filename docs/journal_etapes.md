@@ -406,3 +406,30 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   (n°22). Tests et code des deux premiers enregistrements écrits dans la même passe ; les corrections ont suivi
   « test rouge, puis code ».
 - **Tests** : 945 réussis, 2 sautés (avant l'étape : 754) ; `verifier_tout.sh` vert.
+
+## 16/11/2026 — étape F, c2 : identités (branche `etape-f-c2`) — partielle
+- **Couche** : `schema/030_c2.sql`, `pipeline/couches/c2_identites.py`. Mentions (`c2_mention`) de trois sources :
+  liste noire et registre recopiés de la base du kit par `charger_socle` (le kit n'est pas modifié), pièces de la
+  v2 depuis c1. Fiches (`c2_personne`, `c2_societe`) fonction des mentions : même CIN ; même RC + tribunal, ICE,
+  identifiant fiscal, affiliation CNSS d'un employeur ; sinon fiche propre. `traiter(ref)` = `construire_tout()`.
+- **Signalements sans fusion** : CIN porté par deux noms incompatibles (`CIN_PARTAGE`) ; même RC + tribunal sous deux
+  dénominations sans rapport (`RC_PARTAGE`, décision n°25 de Lounès) ; règles R01 à R11 recopiées du kit ; AF01n,
+  AF02b, AF02d, AF07 en SQL sur la vue `perimetre`.
+- **Décisions d'analyste** (`c2_decision`) attachées aux couples de mentions : elles survivent aux reconstructions
+  et au changement de clé d'une fiche. Décisions du kit reprises.
+- **Liste noire** dans la structure de `BlacklistEntry` (`ref_liste_noire`) ; inscrit retiré visible, hors des liens ;
+  employeurs selon `Employeur` (vue `c2_employeur`) ; `ref_regle_survie`.
+- **Invariants** de c2 (9), chacun montré rouge par un test. `construire.py --socle` charge la base du kit.
+- **Mesure** sur le grand jeu fictif (61 000 sociétés, 250 000 mentions), avant les dernières corrections : 10,6 s
+  en lot, 157 ms par dossier au fil de l'eau.
+- **Essai réel** : `outils/comptages_f.py`, `outils/essai_reel_f.sh` (aucun chiffre de 1 à 4, seuil sur les fiches
+  distinctes, petits groupes réunis, kit non fictif refusé sans le garde-fou). **Pas encore lancé.**
+- **Relectures** : gardien des données et vérificateur de spécification rendus et traités (décision perdue au
+  changement de clé, inscrit retiré, RC court, règle des moins de 5, garde-fou, nom et libellés) ; relecture de code
+  interrompue par la limite d'usage, rapport non reçu à l'écriture de cette entrée.
+- **Reste à faire pour que l'étape soit conforme** (questions n°49 à 62) : dossiers `af_*` ; reste des règles AF ;
+  rapport d'écart ; dates des adresses et des rôles ; identifiant de fiche opaque avant le graphe et l'API.
+- **Hors de la couche, signalé** : `c1_faits.py` (adresse du relevé portée par la mention du titulaire, testée) ;
+  `tests/test_c1.py` et `outils/comptages_e.py` construisent les couches du dessus avant de vérifier les invariants.
+- **Méthode** : la couche a été écrite d'un bloc après ses tests ; `construire.py --socle` et son test dans la même
+  passe ; les corrections ont suivi « test rouge, puis code ». `testeur-mutation` non lancé (n°22).

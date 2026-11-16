@@ -10,7 +10,7 @@
 | C | générateur et serveur v2 fictifs, au format exact des types de Kamal | 2–3 j | fait (13/11) |
 | D | c0 : versions brutes, miroir de la v2, collecteur | 2–3 j | fait (13/11) ; PostgreSQL non vérifié |
 | E | c1 pièces et faits | 4–5 j | fait (13/11) ; comptages réels à rapporter par Lounès (182, 160, 252, 2, 9) |
-| F | c2 identités | 5–7 j | à faire |
+| F | c2 identités | 5–7 j | partiel (16/11) : fiches, rapprochements, décisions ; restent les dossiers `af_*`, le reste des règles AF, le rapport d'écart ; comptages réels à rapporter |
 | G | c3 dossier, revenus, comptes, véhicules | 4–5 j | à faire |
 | H | c5 graphe | 4–5 j | à faire |
 | I | c6 contrôle réseau, alertes, propagation, nuit | 4–5 j | à faire |
