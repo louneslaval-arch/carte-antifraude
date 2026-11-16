@@ -73,11 +73,11 @@ def test_quota_d_etiquettes_compte_les_indices_nouveaux(client_avec):
 # ---- fiche -------------------------------------------------------------------------------------------------------
 def test_fiche_d_un_inscrit(client, etat, publication):
     connecte(client, etat, 'ana', 'ANALYSTE')
-    i = indice_de(publication, 'E:9')                      # FASSI YOUSSEF, CIN ZZ900008 (kit)
+    i = indice_de(publication, 'E:9')                      # QIBOUSI YOUSSEF, CIN ZZ900008 (kit)
     r = client.get(f'/api/carte/noeud/{i}')
     assert r.status_code == 200 and r.headers['cache-control'] == 'no-store'
     f = r.json()
-    assert (f['nom'], f['cin'], f['type'], f['certain']) == ('FASSI YOUSSEF', 'ZZ900008', 'inscrit_personne', True)
+    assert (f['nom'], f['cin'], f['type'], f['certain']) == ('QIBOUSI YOUSSEF', 'ZZ900008', 'inscrit_personne', True)
     voisins = {l['indice'] for l in f['liens']}
     assert voisins == {indice_de(publication, 'S:1'), indice_de(publication, 'S:4')}
     assert all(set(l) == {'indice', 'libelle', 'style', 'force'} for l in f['liens'])
@@ -111,7 +111,7 @@ def test_quota_de_fiches(client_avec):
 
 
 # ---- recherche ---------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize('q, ref', [('ZZ900008', 'E:9'), ('zz 900008', 'E:9'), ('fassi', 'E:9'),
+@pytest.mark.parametrize('q, ref', [('ZZ900008', 'E:9'), ('zz 900008', 'E:9'), ('qibousi', 'E:9'),
                                     ('999001', 'S:1'), ('ATLAS', 'S:1')])
 def test_recherche_par_cin_rc_ou_nom(client, etat, publication, q, ref):
     connecte(client, etat, 'ana', 'ANALYSTE')
@@ -125,9 +125,9 @@ def test_recherche_par_cin_rc_ou_nom(client, etat, publication, q, ref):
 def test_recherche_journalisee_sans_la_requete(client, etat):
     connecte(client, etat, 'ana', 'ANALYSTE')
     n = len(client.post('/api/carte/recherche', json={'q': 'ZZ900008'}).json()['resultats'])
-    client.post('/api/carte/recherche', json={'q': 'FASSI'})
+    client.post('/api/carte/recherche', json={'q': 'QIBOUSI'})
     contenu = tout_le_journal(etat)
-    assert 'ZZ900008' not in contenu and 'FASSI' not in contenu and '900008' not in contenu
+    assert 'ZZ900008' not in contenu and 'QIBOUSI' not in contenu and '900008' not in contenu
     assert lignes(etat, 'recherche')[0][2] == n
 
 
@@ -145,7 +145,7 @@ def test_recherche_de_nom_de_moins_de_trois_lettres_refusee(client, etat):
 @pytest.mark.parametrize('role', ['AGENCE', 'DIRECTION', 'ADMIN'])
 def test_recherche_reservee_a_l_analyste(client, etat, role):
     connecte(client, etat, 'u', role)
-    assert client.post('/api/carte/recherche', json={'q': 'FASSI'}).status_code == 403
+    assert client.post('/api/carte/recherche', json={'q': 'QIBOUSI'}).status_code == 403
 
 
 def test_recherche_compte_dans_le_quota_d_etiquettes(client_avec, publication):

@@ -34,7 +34,7 @@ def test_connexion_invalide_sans_la_valeur_saisie(client):
 
 def test_erreur_interne_generique_et_rien_dans_les_journaux_techniques(env, monkeypatch, caplog):
     def panne(*_a):
-        raise KeyError(f'{CIN} FASSI YOUSSEF')
+        raise KeyError(f'{CIN} QIBOUSI YOUSSEF')
     monkeypatch.setattr(identites, 'fiche', panne)
     app = creer_app(lire_reglages(env))
     with TestClient(app, base_url='https://testserver', raise_server_exceptions=False) as c:
@@ -42,7 +42,7 @@ def test_erreur_interne_generique_et_rien_dans_les_journaux_techniques(env, monk
         with caplog.at_level(logging.DEBUG):
             r = c.get('/api/carte/noeud/0')
     assert r.status_code == 500 and r.json() == {'detail': 'Erreur interne'}
-    assert CIN not in caplog.text and 'FASSI' not in caplog.text
+    assert CIN not in caplog.text and 'QIBOUSI' not in caplog.text
     assert 'KeyError' in caplog.text and '/api/carte/noeud' in caplog.text
 
 

@@ -211,7 +211,7 @@ def test_libelle_de_role_connu_passe_en_couche1(libelle):
     assert pc.role_couche1(libelle) == libelle
 
 
-@pytest.mark.parametrize('libelle', ['gérant TAZI', 'associé de FASSI', 'TAZI', 'محمد', 'gérant (ZZ900001)',
+@pytest.mark.parametrize('libelle', ['gérant ZIGHOUTAB', 'associé de QIBOUSI', 'ZIGHOUTAB', 'محمد', 'gérant (ZZ900001)',
                                      'associé (33.3 %) X', ' gérant', 'GÉRANT', 'mandataire', '', None])
 def test_libelle_inconnu_ou_porteur_d_identite_reste_en_couche2(libelle):
     assert pc.role_couche1(libelle) == ''
