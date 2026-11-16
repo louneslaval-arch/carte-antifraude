@@ -21,10 +21,9 @@
     <div class="carte chiffre"><span class="chiffre-valeur" id="c-inscrits">—</span><span class="chiffre-libelle">inscrits actifs sur la liste noire</span></div>
   </section>
 
-  <section class="grille grille-3" aria-label="Répartitions">
+  <section class="grille grille-2" aria-label="Répartitions">
     <div class="carte"><h2>Niveau du lien avec la liste noire</h2><div class="barres" id="r-niveaux"></div></div>
     <div class="carte"><h2>Produits demandés</h2><div class="barres" id="r-produits"></div></div>
-    <div class="carte"><h2>Incohérences relevées</h2><div class="barres" id="r-incoherences"></div></div>
   </section>
 
   <section class="carte" id="liste" aria-label="Clients" hidden>
@@ -37,12 +36,11 @@
       <label class="champ"><span class="visuellement-cache">Produit</span>
         <select id="produit"><option value="">Tous les produits</option></select></label>
       <div class="puces" role="group" aria-label="Niveau" id="puces"></div>
-      <label class="puce"><input type="checkbox" id="incoherence"> avec incohérence</label>
     </form>
     <div class="tableau-enveloppe">
       <table>
         <thead><tr><th>Client</th><th>Niveau</th><th class="nombre">Dossiers</th><th>Produits</th>
-          <th class="nombre">Revenu vérifié</th><th class="nombre">Incohérences</th><th>Dernière demande</th><th>Ville</th></tr></thead>
+          <th class="nombre">Revenu vérifié</th><th>Dernière demande</th><th>Ville</th></tr></thead>
         <tbody id="lignes"></tbody>
       </table>
     </div>

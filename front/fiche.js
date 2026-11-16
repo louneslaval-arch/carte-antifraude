@@ -31,9 +31,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const cites = f.dossiers.filter(d => !d.demandeur).length;
   const dossiers = carte('Dossiers', f.dossiers.length ? tableau(
-    ['Reçu', 'Produit', 'Rôle', 'Niveau', 'Verdict v2', 'Incohérences', ''],
+    ['Reçu', 'Produit', 'Rôle', 'Niveau', 'Verdict v2', ''],
     f.dossiers.map(d => [date(d.recu), d.produit, d.role, d.demandeur ? niveau(d.niveau, d.niveau_libelle) : '—',
-      d.demandeur ? (d.verdict || '—') : '—', d.incoherences ? nombre(d.incoherences) : '—',
+      d.demandeur ? (d.verdict || '—') : '—',
       el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
     cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
 
@@ -49,9 +49,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       c.nature === 'credit_source' ? 'crédit prélevé à la source' : 'échéance de crédit', periode(c), montant(c.montant),
       lienDossier(c.dossier)])) : null);
 
-  const incoherences = carte('Incohérences et signaux', f.incoherences.length ? tableau(['Type', 'Gravité', 'Dossier', 'Autre dossier'],
-    f.incoherences.map(i => [i.libelle, i.gravite === 'signal' ? 'signal' : el('span', { classe: 'etiquette etiquette-rouge', texte: 'incohérence' }),
-      lienDossier(i.dossier), lienDossier(i.autre_dossier)])) : vide('Aucune incohérence dans ses dossiers.'));
 
   const identifiants = carte('Identifiants', f.identifiants.length ? tableau(['Type', 'Valeur', 'Dossier'],
     f.identifiants.map(x => [x.type, x.valeur, lienDossier(x.dossier)])) : vide('Aucun identifiant lu (le RIB, masqué, est dans les comptes).'));
@@ -110,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     f.donnees.length ? [navigation, volets] : vide('Aucun dossier.'));
 
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Fiche client'),
-    tete, el('div', { classe: 'grille grille-2' }, el('div', { classe: 'pile' }, dossiers, chemins, incoherences, listeNoire, registre),
+    tete, el('div', { classe: 'grille grille-2' }, el('div', { classe: 'pile' }, dossiers, chemins, listeNoire, registre),
       el('div', { classe: 'pile' }, revenus, identifiants, relations, comptes, graphies)), operations, toutes].filter(Boolean));
   main.removeAttribute('aria-busy');
 
