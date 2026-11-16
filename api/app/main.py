@@ -11,7 +11,8 @@ from .config import Reglages
 from .debit import Debit
 from .erreurs import attraper_tout, validation
 from .graphe import charger
-from .routes import admin, auth, carte, chaines, flux, stats
+from .base_client import BaseClient
+from .routes import admin, auth, base, carte, chaines, flux, stats
 
 VERSION = '0.3.0'
 
@@ -25,6 +26,7 @@ class Etat:
         journal.purger(self.base, reglages.journal_jours)        # conservation : aussi à chaque rechargement
         self.debit = Debit(reglages)
         self.publication = charger(reglages.publication, reglages.donnees_reelles) if reglages.publication else None
+        self.base_client = BaseClient(reglages.base_client, reglages.donnees_reelles) if reglages.base_client else None
 
 
 def creer_app(reglages: Reglages) -> FastAPI:
@@ -45,6 +47,11 @@ def creer_app(reglages: Reglages) -> FastAPI:
     async def pas_de_cache(request, call_next):
         reponse = await call_next(request)
         reponse.headers.setdefault('Cache-Control', 'no-store')     # identités : jamais en cache
+        # aucune ressource externe : ni script, ni style, ni police, ni image d'ailleurs
+        reponse.headers.setdefault('Content-Security-Policy', "default-src 'self'; img-src 'self' data:; "
+                                   "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'")
+        reponse.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        reponse.headers.setdefault('Referrer-Policy', 'no-referrer')
         return reponse
 
     @app.middleware('http')
@@ -59,6 +66,9 @@ def creer_app(reglages: Reglages) -> FastAPI:
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type'])
 
     app.include_router(auth.routeur)
-    for module in (carte, chaines, stats, admin, flux):
+    for module in (carte, chaines, stats, admin, flux, base):
         app.include_router(module.routeur)
+    if reglages.front:                                              # pages statiques, sans donnée : à la racine
+        from fastapi.staticfiles import StaticFiles
+        app.mount('/', StaticFiles(directory=reglages.front, html=True), name='front')
     return app

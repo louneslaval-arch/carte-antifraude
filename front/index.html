@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EQDOM · Plateforme clients</title>
+<link rel="stylesheet" href="commun.css">
+<link rel="stylesheet" href="portail.css">
+<script src="commun.js" defer></script>
+<script src="contenu.js" defer></script>
+<script src="portail.js" defer></script>
+</head>
+<body class="portail">
+<main class="portail-main">
+  <section class="portail-titre">
+    <h1 id="titre"></h1>
+    <p id="introduction"></p>
+    <ul class="portail-legende" aria-label="Légende">
+      <li><span class="pastille pastille-actif"></span>module actif</li>
+      <li><span class="pastille pastille-venir"></span>module à venir</li>
+      <li><span class="pastille pastille-usage"></span>usage</li>
+    </ul>
+  </section>
+  <section class="scene" id="scene" aria-label="La base client, ses modules et ses usages">
+    <svg class="courbes" id="courbes" aria-hidden="true"></svg>
+  </section>
+  <section class="prealables" aria-labelledby="titre-prealables">
+    <h2 id="titre-prealables">Les quatre préalables</h2>
+    <ol class="prealables-grille" id="prealables"></ol>
+  </section>
+</main>
+<div class="voile" id="voile" hidden></div>
+<aside class="panneau" id="panneau" role="dialog" aria-modal="true" aria-labelledby="panneau-titre" hidden tabindex="-1">
+  <button class="panneau-fermer" id="fermer" type="button" aria-label="Fermer">×</button>
+  <p class="panneau-etat" id="panneau-etat"></p>
+  <h2 id="panneau-titre"></h2>
+  <p class="panneau-accroche" id="panneau-accroche"></p>
+  <div class="panneau-contexte" id="panneau-contexte"></div>
+  <h3>Usages</h3>
+  <ul class="panneau-liste" id="panneau-usages"></ul>
+  <h3>Données nécessaires</h3>
+  <ul class="panneau-liste" id="panneau-donnees"></ul>
+  <p id="panneau-lien"></p>
+</aside>
+</body>
+</html>

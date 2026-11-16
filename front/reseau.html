@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte antifraude · EQDOM Plateforme clients</title>
+<link rel="stylesheet" href="commun.css">
+<script src="commun.js" defer></script>
+<script src="reseau.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="fil">Plateforme clients › Carte antifraude</p>
+  <h1 id="titre">Carte antifraude</h1>
+  <p class="sous-titre" id="sous-titre">Le réseau d'un client à deux liens : sociétés, personnes, identifiants partagés, inscrits.</p>
+  <div class="filtres" id="choix" hidden>
+    <label class="champ"><span class="visuellement-cache">Client à afficher</span>
+      <select id="client"><option value="">Choisir un client lié à la liste noire…</option></select></label>
+  </div>
+  <div class="legende" aria-hidden="true">
+    <span class="l-depart">client</span><span class="l-inscrit">inscrit sur la liste noire</span>
+    <span>personne</span><span class="l-societe">société</span><span class="l-identifiant">identifiant partagé (RIB, logement, siège)</span>
+  </div>
+  <svg class="reseau-scene" id="scene" role="img" aria-label="Réseau du client"></svg>
+  <p class="note">Cliquez sur une personne ou une société pour ouvrir sa fiche ; faites glisser un nœud pour le déplacer.</p>
+</main>
+</body>
+</html>

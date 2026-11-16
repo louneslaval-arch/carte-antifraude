@@ -100,6 +100,10 @@
 | 96 | Rapprochements du kit qui ne sont pas des identités (R01b dirigeant, R08 emploi, R09 adresse) : un lien du barème (1 lien, poids du rôle × fiabilité, plafond « mineure » s'il n'est pas certain) ; « faible » : hors graphe ; AF07 (employeur reconnu par son nom) : une homonymie | gardé | Lounès | — |
 | 97 | Foyer : même nom de famille lu sur la CIN, au même logement (ville comprise) ; sans CIN lue, aucun foyer reconnu ; ni conjoint déclaré, ni téléphone fixe, ni immeuble | gardé | Lounès | I |
 | 98 | Déclencheurs de c5 (`c5_a_refaire`, relevé des fiches de c2 qui changent) écrits pour SQLite ; nœuds d'identifiant en empreinte sans clé secrète (un RIB se retrouve par énumération, comme le CIN de la n°54) | porter à l'étape L ; empreinte à clé avec la n°54, avant l'étape I | Lounès | I, L |
+| 99 | Front avancé avant les étapes I et J (demande de Lounès du 16/11, pour une revue par une data engineer) : base client, fiche client complète, dossier, portail ; carte des réseaux désactivée ; routes de lecture sur la base (`api/app/routes/base.py`) hors du plan de l'étape J | gardé ; l'étape K reprendra ces pages, l'étape J les routes temps réel | Lounès | J, K |
+| 100 | Base fictive de démonstration versionnée compressée (`jeu_essai/demo/base_demo.sqlite.gz`, 20 Mo) : la garde des données ne lit pas l'intérieur d'une archive ; la base est générée (fictive par construction) et l'API refuse une base dont un CIN n'est pas fictif | la régénérer par `outils/demo/construire_demo.py` à chaque changement de couche | Lounès | — |
+| 101 | Comptes de démonstration à mots de passe connus (`analyste-demo`, `direction-demo`), recréés à chaque lancement local | démonstration locale seulement ; jamais sur un serveur partagé | Lounès | L |
+| 102 | Fiche client : un analyste voit toutes les valeurs de toutes les pièces (RIB masqué sauf 4 chiffres) ; AGENCE et DIRECTION n'ont que le résumé agrégé (n°1 en attente) ; pas de quota spécifique au volume d'une fiche complète | gardé | Lounès, conformité | J |
 
 ### À obtenir
 
