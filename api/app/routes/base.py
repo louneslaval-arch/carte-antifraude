@@ -45,16 +45,26 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
                             demande.page, demande.taille)
     indices = [c['indice'] for c in resultat['items']]
     quotas.etiquettes(etat, session, indices)
-    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip)
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,
+                   epoque=b.epoque)
     return resultat
 
 
 def _servir(request, session, action, objet, indice):
+    """Une fiche ou un dossier : la consultation compte au quota de fiches ; chaque tiers nommé dans la réponse
+    compte au quota d'étiquettes et entre dans le journal (action « noms »), avec l'époque de la base."""
     if objet is None:
         raise HTTPException(404, 'Introuvable')
     etat = request.app.state.etat
+    b = etat.base_client
+    tiers = b.fiches_nommees(objet) - {indice}
     quotas.fiches(etat, session)
-    journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip)
+    quotas.etiquettes(etat, session, tiers)
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip,
+                   epoque=b.epoque)
+    if tiers:
+        journal.ecrire(etat.base, session.utilisateur, session.role.value, 'noms', tiers, ip=session.ip,
+                       epoque=b.epoque)
     return objet
 
 

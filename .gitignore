@@ -63,3 +63,4 @@ import/
 # Réautorisés : réglages partagés de Claude Code, fichiers des skills
 !.claude/settings.json
 !.claude/skills/**/*.json
+*.sqlite.partiel

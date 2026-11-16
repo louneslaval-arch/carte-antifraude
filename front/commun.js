@@ -6,7 +6,6 @@ const Commun = (() => {
     ['index.html', 'Portail'],
     ['base.html', 'Base client'],
   ];
-  const LETTRE_ARABE = String.fromCharCode(0x639);   // l'interrupteur de langue (arabe : bientôt)
 
   function el(balise, attributs = {}, ...enfants) {
     const n = document.createElement(balise);
@@ -57,8 +56,8 @@ const Commun = (() => {
       PAGES.map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
     const langue = el('div', { classe: 'langue', role: 'group', 'aria-label': 'Langue' },
       el('button', { type: 'button', 'aria-pressed': 'true', texte: 'Fr' }),
-      el('button', { type: 'button', 'aria-pressed': 'false', disabled: true, title: 'Arabe : bientôt', lang: 'ar',
-        'aria-label': 'Arabe (bientôt)' }, LETTRE_ARABE));
+      el('button', { type: 'button', 'aria-pressed': 'false', disabled: true, title: 'Arabe : bientôt',
+        'aria-label': 'Arabe (bientôt)', texte: 'AR' }));
     const r = role();
     const droite = el('div', { classe: 'entete-droite' }, langue,
       r ? el('span', { classe: 'role', texte: r.toLowerCase() }) : el('a', { href: 'connexion.html', texte: 'Se connecter' }),
@@ -88,6 +87,18 @@ const Commun = (() => {
   }
   function initiales(nom) {
     return (nom || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(m => m[0]).join('').toUpperCase();
+  }
+  // Contrôles de la v2 (énumération ControlOutcome) : seul ANOMALIE est un défaut ; le reste est neutre.
+  function controle(c) {
+    const anomalie = c.resultat === 'ANOMALIE';
+    return el('span', { classe: 'etiquette' + (anomalie ? ' etiquette-rouge' : ''), title: c.explication || null,
+      texte: `${c.controle} · ${(c.resultat || '—').toLowerCase().replaceAll('_', ' ')}` });
+  }
+  function erreur(e, objet) {
+    if (e.statut === 403) return `${objet} réservé${objet.endsWith('e') ? 'e' : ''} à la cellule fraude.`;
+    if (e.statut === 404) return `${objet} introuvable.`;
+    if (e.statut === 429) return 'Trop de consultations pour l’heure : réessayez dans quelques minutes.';
+    return 'La base client ne répond pas. Réessayez.';
   }
   function parametre(nom) { return new URLSearchParams(location.search).get(nom); }
   function barres(conteneur, lignes, cle = 'valeur', classe = () => '') {
@@ -123,5 +134,5 @@ const Commun = (() => {
         : el('div', { classe: 'chemin' }, el('span', { classe: 'chemin-noeud inscrit', texte: `${ch.inscrit.nom} (inscrit)` })));
   }
 
-  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, lienFiche, role };
+  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, lienFiche, role, controle, erreur };
 })();

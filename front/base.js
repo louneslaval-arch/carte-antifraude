@@ -2,13 +2,17 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const { el, api, nombre, montant, date, niveau } = Commun;
   Commun.entete('base.html');
-  const resume = await api('/api/base/resume');
+  let resume;
+  try {
+    resume = await api('/api/base/resume');
+  } catch (e) {
+    document.querySelector('main').prepend(el('p', { classe: 'carte', role: 'alert', texte: messageErreur(e) }));
+    return;
+  }
   document.getElementById('c-clients').textContent = nombre(resume.clients);
   document.getElementById('c-dossiers').textContent = nombre(resume.dossiers);
   document.getElementById('c-inscrits').textContent = nombre(resume.inscrits);
-  const lies = resume.niveaux.filter(n => ['critique', 'majeure'].includes(n.niveau))
-    .reduce((s, n) => (typeof n.nombre === 'number' && typeof s === 'number' ? s + n.nombre : '< 5'), 0);
-  document.getElementById('c-lies').textContent = nombre(lies);
+  document.getElementById('c-lies').textContent = nombre(resume.dossiers_lies);   // dossiers actifs, calculé par l'API
   Commun.barres(document.getElementById('r-niveaux'), resume.niveaux, 'niveau', l => `niveau-${l.niveau}`);
   Commun.barres(document.getElementById('r-produits'), resume.produits.slice(0, 6));
   Commun.barres(document.getElementById('r-incoherences'), resume.incoherences);
@@ -32,18 +36,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   const relancer = () => { clearTimeout(minuterie); minuterie = setTimeout(() => { etat.page = 1; charger(); }, 250); };
   for (const id of ['texte', 'type', 'produit', 'incoherence']) document.getElementById(id).addEventListener('input', relancer);
   document.getElementById('filtres').addEventListener('submit', ev => ev.preventDefault());
-  document.getElementById('precedent').addEventListener('click', () => { etat.page -= 1; charger(); });
-  document.getElementById('suivant').addEventListener('click', () => { etat.page += 1; charger(); });
+  const precedent = document.getElementById('precedent'), suivant = document.getElementById('suivant');
+  precedent.addEventListener('click', () => { if (etat.page > 1) { etat.page -= 1; charger(); } });
+  suivant.addEventListener('click', () => { etat.page += 1; charger(); });
+  let numero = 0;                                   // seule la réponse à la dernière demande s'affiche
 
   async function charger() {
+    const moi = ++numero;
+    precedent.disabled = suivant.disabled = true;
     const corps = { page: etat.page, taille: etat.taille };
     const texte = document.getElementById('texte').value.trim();
     if (texte) corps.texte = texte;
     for (const id of ['type', 'produit']) { const v = document.getElementById(id).value; if (v) corps[id] = v; }
     if (etat.niveau) corps.niveau = etat.niveau;
     if (document.getElementById('incoherence').checked) corps.avec_incoherence = true;
-    const r = await api('/api/base/clients', { corps });
     const tbody = document.getElementById('lignes');
+    let r;
+    try {
+      r = await api('/api/base/clients', { corps });
+    } catch (e) {
+      if (moi !== numero) return;
+      tbody.replaceChildren(el('tr', {}, el('td', { colspan: 8, classe: 'vide', role: 'alert', texte: messageErreur(e) })));
+      document.getElementById('compte').textContent = '';
+      precedent.disabled = etat.page <= 1;
+      return;
+    }
+    if (moi !== numero) return;
     if (!r.items.length) {
       tbody.replaceChildren(el('tr', {}, el('td', { colspan: 8, classe: 'vide', texte: 'Aucun client ne correspond.' })));
     } else {
@@ -69,4 +87,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('suivant').disabled = fin >= r.total;
   }
   charger();
+
+  function messageErreur(e) {
+    if (e.statut === 429) return 'Trop de demandes pour l’heure : réessayez dans quelques minutes.';
+    if (e.statut === 503) return 'La base client n’est pas chargée.';
+    return 'La base client ne répond pas. Réessayez.';
+  }
 });

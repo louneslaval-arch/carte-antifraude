@@ -9,7 +9,11 @@ PORT="${1:-8720}"
 TEMP="${TMPDIR:-/tmp}/carte-demo"
 BASE="$RACINE/jeu_essai/demo/base_demo.sqlite"
 PY="$RACINE/.venv/bin/python"
-if [ ! -f "$BASE" ] && [ -f "$BASE.gz" ]; then gunzip -k "$BASE.gz"; fi    # la base livrée dans le dépôt est compressée
+# La base livrée dans le dépôt est compressée : décompressée vers un fichier temporaire puis renommée (une coupure ne
+# laisse pas de base tronquée), et de nouveau quand le .gz est plus récent (après un git pull).
+if [ -f "$BASE.gz" ] && { [ ! -f "$BASE" ] || [ "$BASE.gz" -nt "$BASE" ]; }; then
+  gunzip -c "$BASE.gz" > "$BASE.partiel" && mv "$BASE.partiel" "$BASE"
+fi
 [ -f "$BASE" ] || { echo "base de démonstration absente : $PY outils/demo/construire_demo.py --sortie jeu_essai/demo/base_demo.sqlite"; exit 2; }
 rm -rf "$TEMP" && mkdir -p "$TEMP"
 export CARTE_CLE_JWT="$("$PY" -c 'import secrets; print(secrets.token_urlsafe(48))')"
@@ -28,4 +32,4 @@ for identifiant, role in (('analyste-demo', 'ANALYSTE'), ('direction-demo', 'DIR
     comptes.creer(base, identifiant, role, f'{identifiant}-2026')
 PYTHON
 echo "Démonstration : http://127.0.0.1:$PORT/  ·  comptes analyste-demo / analyste-demo-2026, direction-demo / direction-demo-2026"
-exec "$PY" -m uvicorn --app-dir "$RACINE/api" app.serveur:app --host 127.0.0.1 --port "$PORT"
+exec "$PY" -m uvicorn --app-dir "$RACINE/api" app.serveur:app --host 127.0.0.1 --port "$PORT" --no-access-log   # les URL portent des indices : pas de journal d'accès
