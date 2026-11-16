@@ -20,16 +20,19 @@ import json
 import re
 
 from pipeline import construire_base as cb
+from pipeline.couches import c2_identites as c2
 from pipeline.normalisation.valeurs import montant, texte_norm
 
 nom = 'c3'
 TABLES = ('c3_dossier', 'c3_revenu', 'c3_charge', 'c3_compte', 'c3_operation', 'c3_vehicule', 'c3_cle_dossier',
           'c3_incoherence_locale')
 EN_TETE = ('id', 'personType', 'csp', 'productType', 'paymentMode', 'clientName', 'agence', 'canal', 'category',
-           'verdict', 'verdictProvisional', 'analysisStatus', 'actif', 'businessReceivedAt', 'createdAt', 'updatedAt')
+           'categoryRule', 'categoryReason', 'verdict', 'verdictProvisional', 'analysisStatus', 'alertsMinor',
+           'alertsMajor', 'alertsCritical', 'commentaireScore', 'commentaireAlerte', 'matrixVersion', 'actif',
+           'businessReceivedAt', 'resultsReceivedAt', 'createdAt', 'updatedAt')
 # clés canoniques (moteur) du revenu d'une pièce, par ordre de préférence
 REVENUS = {
-    'BULLETIN_DE_PAIE': ('remuneration.salaire_net', 'salaire_net'),
+    'BULLETIN_DE_PAIE': ('remuneration.salaire_net', 'salaire_net', 'salaire_net_mensuel'),
     'ATTESTATION_TRAVAIL_SALAIRE': ('salaire_net', 'salaire_net_mensuel', 'remuneration.salaire_net', 'salaire'),
     'ATTESTATION_PENSION': ('montant_pension_net', 'montant_pension_mensuel'),
 }
@@ -50,14 +53,22 @@ _DEBUT = re.compile(r'^(?:VIREMENT|VIR|PRELEVEMENT|PRLV|PAIEMENT|CHEQUE|CHQ|RETR
 
 
 def type_operation(libelle):
-    """Type d'une opération d'après son libellé : virement, prelevement, carte, cheque, especes, frais ou autre."""
-    mots = set((texte_norm(libelle) or '').split())
-    return next((type_ for type_, signes in _TYPES if mots & signes), 'autre')
+    """Type d'une opération d'après son libellé : virement, prelevement, carte, cheque, especes, frais ou autre. Le
+    premier mot l'emporte (« VIREMENT … TVA » est un virement), sinon le premier mot reconnu."""
+    mots = (texte_norm(libelle) or '').split()
+    for mot in mots:
+        type_ = next((type_ for type_, signes in _TYPES if mot in signes), None)
+        if type_:
+            return type_
+    return 'autre'
 
 
 def contrepartie(libelle):
     """Ce qui suit le mot d'opération dans le libellé (« VIREMENT RECU DE … ») : un indice, jamais une identité."""
-    reste = _DEBUT.sub('', texte_norm(libelle) or '').strip()
+    texte = texte_norm(libelle) or ''
+    if not _DEBUT.match(texte):                           # sans mot d'opération, rien ne dit qui est en face
+        return None
+    reste = re.sub(r'^(?:\d[\d*X]*\s+)+', '', _DEBUT.sub('', texte).strip())   # numéro de carte ou de chèque retiré
     return reste or None
 
 
@@ -106,23 +117,26 @@ def _en_tete(cx, ref, d):
     defaut = employeur is not None and cx.execute(
         "SELECT 1 FROM ref_valeur_defaut WHERE champ = 'employeur_declare' AND valeur = ?",
         (employeur.upper(),)).fetchone() is not None
-    connu = contexte.get('known_client')
+    connu, production = contexte.get('known_client'), contexte.get('in_production')
     jour = _jour(d['businessReceivedAt'], d['createdAt'])
     cx.execute(
         f'INSERT INTO c3_dossier (ref, {", ".join(chr(34) + c + chr(34) for c in EN_TETE)}, en_cours, jour, '
-        'cin_declare, nom_declare, adresse_declaree, employeur_declare, employeur_declare_defaut, revenu_declare, '
-        f'organisme_pension_declare, client_connu, agence_code, agence_ville) VALUES ({", ".join("?" * (len(EN_TETE) + 13))})',
+        'civil_cin, civil_full_name, civil_address, declared_employer, employeur_par_defaut, declared_monthly_income, '
+        'declared_pension_organism, known_client, in_production, agency_code, agency_city) '
+        f'VALUES ({", ".join("?" * (len(EN_TETE) + 14))})',
         (ref, *(d[c] for c in EN_TETE), int(d['analysisStatus'] != 'COMPLETE'), jour,
          cb.normalise_cin(civil.get('cin'))[0] if _texte(civil.get('cin')) else None, _texte(civil.get('full_name')),
          _texte(civil.get('address')), employeur, int(defaut), montant(declare.get('monthly_income')),
          _texte(declare.get('pension_organism')), None if connu is None else int(bool(connu)),
+         None if production is None else int(bool(production)),
          _texte(agence.get('code')), _texte(agence.get('city'))))
-    return jour, _texte(civil.get('address')), montant(declare.get('monthly_income'))
+    return (jour, _texte(civil.get('address')), montant(declare.get('monthly_income')),
+            cb.normalise_cin(civil.get('cin'))[0] if _texte(civil.get('cin')) else None)
 
 
 def _revenus_et_charges(cx, ref, pieces, faits, mois, revenu_declare):
     revenus, charges = [], []
-    if revenu_declare is not None:
+    if revenu_declare:                                    # un revenu déclaré nul ou absent n'est pas un revenu
         revenus.append((ref, 'declare', 'businessData', None, 'declared.monthly_income', None, None, revenu_declare, None,
                         'businessData'))
     for upi, type_piece in pieces:
@@ -141,7 +155,7 @@ def _revenus_et_charges(cx, ref, pieces, faits, mois, revenu_declare):
     return revenus, charges
 
 
-def _incoherences(cx, ref, revenus, personnes):
+def _incoherences(cx, ref, revenus, personnes, physique, cin_declare):
     trouvees = []
     tolerance = _parametre(cx, 'c3_tolerance_salaire')
     par_releve = {}
@@ -153,14 +167,22 @@ def _incoherences(cx, ref, revenus, personnes):
             ecarts = sorted((abs(m[7] - bulletin[7]), m[4]) for m in lignes)
             if ecarts[0][0] > tolerance * bulletin[7] + EPSILON:      # aucun mois du relevé dans la tolérance
                 trouvees.append((ref, 'salaire_bulletin_releve', bulletin[3], bulletin[4], upi, ecarts[0][1]))
-    cin = next(((upi, cb.cle_adresse(adresse)) for upi, type_piece, role, rang, adresse in personnes
-                if role == 'titulaire_cin' and rang == 0 and adresse), None)
-    if cin and cin[1]:
-        for upi, type_piece, role, rang, adresse in personnes:
-            if (role, None) in ADRESSES_COMPAREES or (role, type_piece) in ADRESSES_COMPAREES:
-                cle = cb.cle_adresse(adresse) if adresse else None
-                if cle and cle != cin[1]:
-                    trouvees.append((ref, 'adresse_cin_differente', cin[0], 'adresse', upi, 'adresse'))
+    # adresse : seulement pour une personne physique, la carte du demandeur (CIN déclaré, sinon la première), et
+    # les pièces à son nom (quittance, relevé d'un titulaire personne physique)
+    cartes = [p for p in personnes if p[2] == 'titulaire_cin']
+    carte = next((p for p in cartes if cin_declare and p[6] == cin_declare), None) or \
+        (None if cin_declare and any(p[6] for p in cartes) else next((p for p in cartes if p[3] == 0), None))
+    adresse_cin = cb.cle_adresse(carte[4]) if physique and carte and carte[4] else None
+    if adresse_cin:
+        for upi, type_piece, role, rang, adresse, nom_, cin, qualite in personnes:
+            comparee = (role, None) in ADRESSES_COMPAREES or (role, type_piece) in ADRESSES_COMPAREES
+            if not comparee or (qualite or '').strip().upper() in ('PM', 'MORALE', 'PERSONNE MORALE'):
+                continue
+            if not c2.memes_noms(nom_, carte[5]):         # la pièce est-elle bien au nom du demandeur ?
+                continue
+            cle = cb.cle_adresse(adresse) if adresse else None
+            if cle and cle != adresse_cin:
+                trouvees.append((ref, 'adresse_cin_differente', carte[0], 'adresse', upi, 'adresse'))
     return sorted(set(trouvees))
 
 
@@ -172,7 +194,8 @@ def _traiter(cx, ref):
     ligne = curseur.fetchone()
     if ligne is None:
         return
-    jour, adresse_declaree, revenu_declare = _en_tete(cx, ref, dict(zip(EN_TETE + ('businessData',), ligne)))
+    entete = dict(zip(EN_TETE + ('businessData',), ligne))
+    jour, adresse_declaree, revenu_declare, cin_declare = _en_tete(cx, ref, entete)
     pieces = cx.execute('SELECT upstream_piece_id, type FROM c1_piece WHERE ref = ? ORDER BY 1', (ref,)).fetchall()
     faits = {}                                            # {pièce: {clé canonique: (valeur, nombre)}}
     for upi, cle, valeur, nombre in cx.execute(
@@ -180,9 +203,9 @@ def _traiter(cx, ref):
         faits.setdefault(upi, {})[cle] = (valeur, nombre)
     mois = cx.execute('SELECT upstream_piece_id, rang, annee, mois, salaire_detecte, echeances_credits, '
                       'nb_operations_lues FROM c1_releve_mois WHERE ref = ? ORDER BY 1, 2', (ref,)).fetchall()
-    personnes = cx.execute('SELECT upstream_piece_id, type_piece, role, rang, adresse FROM c1_mention_personne '
-                           'WHERE ref = ? ORDER BY 1, 3, 4', (ref,)).fetchall()
-    identifiants = cx.execute('SELECT upstream_piece_id, type, valeur FROM c1_identifiant_brut WHERE ref = ? '
+    personnes = cx.execute('SELECT upstream_piece_id, type_piece, role, rang, adresse, nom_complet, cin, qualite '
+                           'FROM c1_mention_personne WHERE ref = ? ORDER BY 1, 3, 4', (ref,)).fetchall()
+    identifiants = cx.execute('SELECT upstream_piece_id, type, valeur, porteur FROM c1_identifiant_brut WHERE ref = ? '
                               'ORDER BY 1, 2, 3', (ref,)).fetchall()
     types = dict(pieces)
 
@@ -194,8 +217,8 @@ def _traiter(cx, ref):
                               (ref,)).fetchall())
     titulaires = dict(cx.execute("SELECT upstream_piece_id, nom_complet FROM c1_mention_personne WHERE ref = ? AND "
                                  "role = 'titulaire_compte'", (ref,)).fetchall())
-    _inserer(cx, 'c3_compte', [(ref, upi, types.get(upi, ''), valeur, banques.get(upi), titulaires.get(upi))
-                               for upi, type_, valeur in identifiants if type_ == 'RIB'])
+    _inserer(cx, 'c3_compte', [(ref, upi, types.get(upi, ''), valeur, banques.get(upi), titulaires.get(upi) or porteur)
+                               for upi, type_, valeur, porteur in identifiants if type_ == 'RIB'])
     _inserer(cx, 'c3_operation', [
         (ref, upi, rang_mois, rang, date, brute, libelle, debit, credit, type_operation(libelle), contrepartie(libelle))
         for upi, rang_mois, rang, date, brute, libelle, debit, credit in cx.execute(
@@ -208,20 +231,21 @@ def _traiter(cx, ref):
             lus = faits.get(upi, {})
             texte = {champ: next((lus[c][0] for c in cles if lus.get(c, (None,))[0]), None)
                      for champ, cles in VEHICULE.items()}
-            propre = {type_: valeur for u, type_, valeur in identifiants if u == upi}
+            propre = {type_: valeur for u, type_, valeur, _ in identifiants if u == upi}
             vehicules.append((ref, upi, type_piece, propre.get('CHASSIS'), propre.get('IMMATRICULATION'),
                               texte['marque'], texte['modele'], texte['etat'], lus.get('prix_ttc', (None, None))[1]))
     _inserer(cx, 'c3_vehicule', vehicules)
 
     cles = {}
-    for upi, type_, valeur in identifiants:
+    for upi, type_, valeur, _ in identifiants:
         if type_ in ('RIB', 'CHASSIS'):
             cles.setdefault((type_, valeur), upi)
     adresse = cb.cle_adresse(adresse_declaree) if adresse_declaree else None
     if adresse:
         cles[('ADRESSE', adresse)] = None
     _inserer(cx, 'c3_cle_dossier', [(ref, type_, valeur, upi, jour) for (type_, valeur), upi in sorted(cles.items())])
-    _inserer(cx, 'c3_incoherence_locale', _incoherences(cx, ref, revenus, personnes))
+    _inserer(cx, 'c3_incoherence_locale', _incoherences(cx, ref, revenus, personnes,
+                                                        entete['personType'] == 'PP', cin_declare))
 
 
 # ---- lot et fil de l'eau -------------------------------------------------------------------------------------------

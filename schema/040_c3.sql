@@ -17,25 +17,36 @@ CREATE TABLE c3_dossier (
     agence               TEXT,
     canal                TEXT,
     category             TEXT,
+    "categoryRule"       INTEGER,
+    "categoryReason"     TEXT,
     verdict              TEXT,
     "verdictProvisional" INTEGER,
     "analysisStatus"     TEXT,
+    "alertsMinor"        INTEGER,
+    "alertsMajor"        INTEGER,
+    "alertsCritical"     INTEGER,
+    "commentaireScore"   TEXT,
+    "commentaireAlerte"  INTEGER,
+    "matrixVersion"      TEXT,
+    "resultsReceivedAt"  TEXT,
     actif                INTEGER,
     "businessReceivedAt" TEXT,
     "createdAt"          TEXT,
     "updatedAt"          TEXT NOT NULL,
     en_cours             INTEGER NOT NULL CHECK (en_cours IN (0, 1)),   -- analyse non terminée : ni contrôle ni alerte
     jour                 INTEGER,                                       -- jours depuis le 01/01/1970 (réception)
-    cin_declare          TEXT,
-    nom_declare          TEXT,
-    adresse_declaree     TEXT,
-    employeur_declare    TEXT,
-    employeur_declare_defaut INTEGER NOT NULL CHECK (employeur_declare_defaut IN (0, 1)),
-    revenu_declare       DOUBLE PRECISION,
-    organisme_pension_declare TEXT,
-    client_connu         INTEGER,
-    agence_code          TEXT,
-    agence_ville         TEXT,
+    -- contexte `businessData`, sous ses clés (chemin pointé écrit avec un tiret bas, question n°16)
+    civil_cin            TEXT,
+    civil_full_name      TEXT,
+    civil_address        TEXT,
+    declared_employer    TEXT,
+    employeur_par_defaut INTEGER NOT NULL CHECK (employeur_par_defaut IN (0, 1)),   -- « VAB » : jamais comparé
+    declared_monthly_income DOUBLE PRECISION,
+    declared_pension_organism TEXT,
+    known_client         INTEGER,
+    in_production        INTEGER,
+    agency_code          TEXT,
+    agency_city          TEXT,
     montant_demande      DOUBLE PRECISION,
     duree_mois           INTEGER,
     apport               DOUBLE PRECISION,
@@ -137,7 +148,7 @@ CREATE TABLE c3_incoherence_locale (
 CREATE VIEW c3_partie_dossier AS
 SELECT m.ref, m.fiche, m.type_fiche, m.role,
        max(CASE WHEN d."personType" = 'PM' THEN CASE WHEN m.type_fiche = 'PM' AND m.role = 'societe' THEN 1 ELSE 0 END
-                WHEN d.cin_declare IS NOT NULL THEN CASE WHEN m.cin_effectif = d.cin_declare THEN 1 ELSE 0 END
+                WHEN d.civil_cin IS NOT NULL THEN CASE WHEN m.cin_effectif = d.civil_cin THEN 1 ELSE 0 END
                 WHEN m.role = 'titulaire_cin' AND m.rang = 0 THEN 1 ELSE 0 END) AS demandeur,
        count(*) AS nb_mentions
 FROM c2_mention m JOIN c3_dossier d ON d.ref = m.ref

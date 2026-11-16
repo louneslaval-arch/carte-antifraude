@@ -141,7 +141,9 @@ def incoherences(cx, ref=None):
 
 def test_en_tete_au_format_du_modele_dossier_de_kamal(cx, jeu):
     colonnes = ('ref', 'id', 'personType', 'csp', 'productType', 'paymentMode', 'clientName', 'agence', 'canal',
-                'category', 'verdict', 'analysisStatus', 'businessReceivedAt', 'updatedAt')
+                'category', 'categoryRule', 'categoryReason', 'verdict', 'verdictProvisional', 'analysisStatus',
+                'alertsMinor', 'alertsMajor', 'alertsCritical', 'commentaireScore', 'commentaireAlerte',
+                'matrixVersion', 'businessReceivedAt', 'resultsReceivedAt', 'createdAt', 'updatedAt')
     liste = ', '.join(f'"{c}"' for c in colonnes)
     assert lignes(cx, f'SELECT {liste} FROM c3_dossier ORDER BY ref') == \
         lignes(cx, f'SELECT {liste} FROM "Dossier" ORDER BY ref')
@@ -152,7 +154,7 @@ def test_en_tete_au_format_du_modele_dossier_de_kamal(cx, jeu):
 
 def test_contexte_declare_lu_et_valeur_par_defaut_marquee_jamais_comparee(cx, jeu):
     d = jeu.dossiers[0]
-    assert lignes(cx, 'SELECT cin_declare, employeur_declare, employeur_declare_defaut, revenu_declare, agence_code '
+    assert lignes(cx, 'SELECT civil_cin, declared_employer, employeur_par_defaut, declared_monthly_income, agency_code '
                       'FROM c3_dossier WHERE ref = ?', d['ref']) == \
         [(d['businessData']['civil']['cin'], 'VAB', 1, 35110.75, 'AG07')]
     assert un(cx, "SELECT count(*) FROM ref_valeur_defaut WHERE champ = 'employeur_declare' AND valeur = 'VAB'") == 1
@@ -161,7 +163,7 @@ def test_contexte_declare_lu_et_valeur_par_defaut_marquee_jamais_comparee(cx, je
 
 def test_T11_contexte_partiel_d_une_societe_sans_plantage(cx, jeu):
     ref = next(v['ref'] for v in jeu.verite if 'T11' in v['pieges'])
-    assert lignes(cx, 'SELECT "personType", cin_declare, employeur_declare, employeur_declare_defaut, revenu_declare '
+    assert lignes(cx, 'SELECT "personType", civil_cin, declared_employer, employeur_par_defaut, declared_monthly_income '
                       'FROM c3_dossier WHERE ref = ?', ref) == [('PM', None, None, 0, None)]
     assert un(cx, "SELECT count(*) FROM c3_revenu WHERE ref = ? AND nature = 'declare'", ref) == 0
 
@@ -214,11 +216,50 @@ def test_T01_operations_lues_avec_type_et_contrepartie(jeu, tmp_path):
          ('2026-07-28', 'prelevement', 'ECHEANCE CREDIT', 1500.0, None)]
 
 
+def test_contexte_sous_les_noms_de_kamal_et_valeur_nulle_non_retenue(jeu, tmp_path):
+    d = dossier(jeu, 1, cin_de(1))
+    d['businessData'].update(known_client=True, in_production=False,
+                             declared=dict(employer='TAZOULA SARL', monthly_income=0, pension_organism='CAISSE ZIRMAK'))
+    cx = base_de(tmp_path, [d])
+    assert lignes(cx, 'SELECT civil_cin, civil_full_name, declared_employer, declared_monthly_income, '
+                      'declared_pension_organism, known_client, in_production FROM c3_dossier') == \
+        [('ZZ100001', 'ZELMOU BAKRITA', 'TAZOULA SARL', 0.0, 'CAISSE ZIRMAK', 1, 0)]
+    assert un(cx, "SELECT count(*) FROM c3_revenu WHERE nature = 'declare'") == 0      # un revenu nul n'en est pas un
+
+
+def test_salaire_net_mensuel_seul_sur_un_bulletin(jeu, tmp_path):
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), ('BULLETIN_DE_PAIE', {'salaire_net_mensuel': '8 000,00'}))])
+    assert lignes(cx, "SELECT repere, montant FROM c3_revenu WHERE source = 'BULLETIN_DE_PAIE'") == \
+        [('salaire_net_mensuel', 8000.0)]
+
+
+def test_titulaire_du_compte_d_un_bulletin_lu_dans_son_porteur(jeu, tmp_path):
+    cx = base_de(tmp_path, [dossier(jeu, 1, cin_de(1), ('BULLETIN_DE_PAIE', {'nom': 'ZELMOU', 'rib': RIB_A}))])
+    assert lignes(cx, 'SELECT type_piece, titulaire FROM c3_compte') == [('BULLETIN_DE_PAIE', 'ZELMOU')]
+
+
+def test_adresse_comparee_seulement_pour_le_demandeur_et_ses_propres_pieces(jeu, tmp_path):
+    autre_adresse = '45 RUE ZIRMAK IMM 2'
+    tiers = dossier(jeu, 1, cin_de(1, '12 Avenue Tazoula, Appartement 3'),
+                    ('DOMICILIATION', {'titulaire': 'TAGHRIZ LOUMIZA', 'adresse': autre_adresse}))
+    societe = dossier(jeu, 2, cin_de(2, '12 Avenue Tazoula, Appartement 3'),
+                      ('RELEVE_BANCAIRE', {'titulaire_compte': 'TAZOULA NEGOCE SARL', 'type_titulaire': 'PM',
+                                           'adresse': autre_adresse}), personType='PM')
+    deux_cin = dossier(jeu, 3, ('CIN', {'cartes': [
+        {'nom': 'TAGHRIZ', 'prenom': 'LOUMIZA', 'cin': 'ZZ199999', 'adresse': autre_adresse},
+        {'nom': 'ZELMOU', 'prenom': 'BAKRITA', 'cin': 'ZZ100003', 'adresse': '12 Avenue Tazoula, Appartement 3'}]}),
+        ('DOMICILIATION', {'titulaire': 'ZELMOU BAKRITA', 'adresse': '12 AV TAZOULA APT 3'}))
+    cx = base_de(tmp_path, [tiers, societe, deux_cin])
+    assert un(cx, "SELECT count(*) FROM c3_incoherence WHERE type = 'adresse_cin_differente'") == 0
+
+
 def test_types_d_operation_d_apres_le_libelle():
     assert [c3.type_operation(x) for x in (
         'VIR RECU DE ZIRMAK', 'PRLV ASSURANCE', 'PAIEMENT CARTE 1234 TAZOULA', 'CHEQUE 123', 'RETRAIT GAB',
-        'VERSEMENT ESPECES', 'FRAIS DE TENUE DE COMPTE', 'ZIRMAK', None)] == \
-        ['virement', 'prelevement', 'carte', 'cheque', 'especes', 'especes', 'frais', 'autre', 'autre']
+        'VERSEMENT ESPECES', 'FRAIS DE TENUE DE COMPTE', 'ZIRMAK', None, 'VIREMENT RECU DE STE TVA CONSEIL')] == \
+        ['virement', 'prelevement', 'carte', 'cheque', 'especes', 'especes', 'frais', 'autre', 'autre', 'virement']
+    assert [c3.contrepartie(x) for x in ('ZIRMAK', 'PAIEMENT CARTE 1234 TAZOULA', 'VIR RECU DE ZIRMAK')] == \
+        [None, 'TAZOULA', 'ZIRMAK']
 
 
 def test_T02_releve_non_relu_ni_operation_ni_incoherence_de_flux(jeu, tmp_path):
