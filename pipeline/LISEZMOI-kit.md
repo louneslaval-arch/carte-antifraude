@@ -68,16 +68,16 @@ L'export ne porte quasiment pas de CIN : 412 sur 465 000 personnes citées. On p
 
 ### Nettoyage renforcé des noms (02/11/2026)
 
-Relecture des 64 000 nœuds de la carte globale : des phrases juridiques restaient lues comme des noms (« [arabe] », « [arabe] », « [arabe] »), parfois présentes dans deux sociétés, donc faux ponts ; des entrées collaient deux personnes (« [arabe] ») ; des CIN mal rattachés fusionnaient deux personnes différentes (« LAURENT MAJERUS / [arabe] »). `chaines_dessin.nettoyer_nom` s'applique au chargement, sans reconstruire la base :
+Relecture des 64 000 nœuds de la carte globale : des phrases juridiques restaient lues comme des noms (« [exemple retiré] », « [exemple retiré] », « [exemple retiré] »), parfois présentes dans deux sociétés, donc faux ponts ; des entrées collaient deux personnes (« [exemple retiré] ») ; des CIN mal rattachés fusionnaient deux personnes différentes (« [exemple retiré] »). `chaines_dessin.nettoyer_nom` s'applique au chargement, sans reconstruire la base :
 
 - vocabulaire juridique supplémentaire (`STOP_SUPPLEMENT`), reconnu aussi derrière un préfixe [arabe] (« [arabe] », « [arabe] ») ; le nom est coupé au premier mot juridique s'il reste au moins deux mots devant (« [arabe] » → « [arabe] »), sinon écarté ; « [arabe] », « [arabe] », « [arabe] » restent des noms ;
 - entrée qui enchaîne deux personnes par « [arabe] » + prénom courant → écartée (1 060 entrées) ;
-- adresses lues comme un nom (KSAR, DOUAR, IMM, RESIDENCE…) → écartées ; adresse collée à une dénomination retirée à l'affichage (« MITAK CONSEIL BD MOHAMED VI IMM » → « MITAK CONSEIL ») ;
+- adresses lues comme un nom ([exemples retirés]) → écartées ; adresse collée à une dénomination retirée à l'affichage (« [exemple retiré] » → « [exemple retiré] ») ;
 - même CIN mais noms incompatibles → pas de pont (voir ci-dessus).
 
 Au total 3 132 entrées écartées au lieu de 257. Les 122 inscrits reliés et les 16 300 réseaux sont inchangés ; le plus grand réseau de la liste noire passe de 23 à 17 nœuds.
 
-`exclusions_carte.json` : noms à ne jamais dessiner (variantes et motif), appliqués au chargement ; les mentions restent dans la base. Une entrée au 02/11/2026.
+`exclusions_carte.json` : noms à ne jamais dessiner (variantes et motif), appliqués au chargement ; les mentions restent dans la base. Des entrées au 02/11/2026.
 
 ### Dossiers de l'antifraude (11/11/2026)
 
@@ -249,7 +249,7 @@ SELECT * FROM v_qualite_rc;
 4. **Période** : l'export couvre surtout les annonces de 2022 à 2026. Une société sans annonce récente n'apparaît pas.
 5. **Nom du déposant** : certaines annonces portent le nom du cabinet ou du domiciliataire à la place de celui de la société ; la chaîne le signale (« nom du déposant de l'annonce ? »), le RC reste juste.
 6. **Poids et seuils** fixés à dire d'expert : à recalibrer en rejouant des fraudes confirmées.
-7. **Doublons dans la liste noire** : quelques inscrits retombent sur la même personne du registre (CIN à un chiffre près, ou deux CIN différents) ; la carte et l'Excel le signalent (« même personne au registre que … »). La clé « employeur » ignore les lettres isolées : « K.SC RENT CAR » et « N SC RENT CAR » se confondent.
+7. **Doublons dans la liste noire** : quelques inscrits retombent sur la même personne du registre ([exemples retirés]) ; la carte et l'Excel le signalent (« [exemple retiré] »). La clé « [exemple retiré] » ignore les lettres isolées : « [exemple retiré] » et « [exemple retiré] » se confondent.
 
 ## 8. Contenu du dossier
 
