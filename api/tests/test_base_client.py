@@ -210,6 +210,68 @@ def test_carte_reseau_compte_exactement_ce_qui_n_est_pas_affiche(avec_base, base
         assert noeud['autres'] > 150                          # l'employeur de 200 salariés est replié
 
 
+def _voisins_sql(cx, fiche, cache):
+    """Voisinage d'une fiche recalculé en SQL, sans passer par `reseau()` : rôles dans les deux sens, et fiches qui
+    partagent un identifiant porté par 30 fiches au plus, elle comprise."""
+    if fiche not in cache:
+        v = {r[0] for r in cx.execute("SELECT vers FROM c5_arete WHERE type = 'role' AND de = ? UNION "
+                                      "SELECT de FROM c5_arete WHERE type = 'role' AND vers = ?", (fiche, fiche))}
+        for (noeud,) in cx.execute("SELECT DISTINCT vers FROM c5_arete WHERE type = 'identifiant' AND de = ?",
+                                   (fiche,)).fetchall():
+            porteurs = {r[0] for r in cx.execute('SELECT DISTINCT de FROM c5_arete WHERE vers = ?', (noeud,))}
+            if len(porteurs) <= 30:
+                v |= porteurs
+        cache[fiche] = v - {fiche}
+    return cache[fiche]
+
+
+def test_carte_reseau_coherente_avec_un_voisinage_recalcule_sur_toutes_les_fiches(avec_base, base_demo):
+    """Pour chaque fiche, avec les réglages par défaut et avec de tout petits plafonds : aucun lien vers une fiche
+    absente du dessin ; distances justes ; tout inscrit à deux liens au plus dessiné ; pour chaque nœud déployé,
+    voisins dessinés avec leur lien et `autres` exact, d'après le voisinage recalculé en SQL."""
+    with avec_base() as (c, etat):
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        cache = {}
+        for fiche, indice in sorted(b.indice_fiche.items()):
+            n1 = _voisins_sql(cx, fiche, cache)
+            atteints = {fiche} | n1 | {x for v in n1 for x in _voisins_sql(cx, v, cache)}
+            for reglage in ({}, {'plafond': 2, 'limite': 6}):
+                carte = b.reseau(indice, **reglage)
+                fiches = {b.fiche_de[n['id']]: n for n in carte['noeuds'] if n['type'] != 'identifiant'}
+                ids = {n['id'] for n in carte['noeuds']}
+                assert all(l['de'] in ids and l['vers'] in ids for l in carte['liens']), (indice, reglage)
+                assert {f for f, n in fiches.items() if n['inscrit']} == atteints & b.inscrits, (indice, reglage)
+                affiches = _voisins_affiches(carte)
+                for f, n in fiches.items():
+                    assert n['niveau'] == (0 if f == fiche else 1 if f in n1 else 2), (indice, reglage)
+                    if n['niveau'] <= 1:
+                        tous = _voisins_sql(cx, f, cache)
+                        assert {b.fiche_de[i] for i in affiches[n['id']]} == tous & set(fiches), (indice, reglage)
+                        assert n['autres'] == len(tous - set(fiches)), (indice, reglage)
+
+
+def test_carte_reseau_ne_lit_que_les_fiches_dessinees(avec_base, base_demo):
+    """Le coût d'une carte suit ce qu'elle dessine, pas la taille du voisinage : depuis l'employeur de 200 salariés, le
+    voisinage de chaque salarié n'est pas lu (en données réelles, un employeur peut en déclarer des milliers)."""
+    with avec_base() as (c, etat):
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers "
+                          'ORDER BY n DESC LIMIT 1').fetchone()[0]
+        b.reseau(b.indice_fiche[gros])                     # premier appel : ce qui se calcule une fois est fait
+        requetes, ouvrir = [], b.connexion
+
+        def connexion():
+            cx2 = ouvrir()
+            cx2.set_trace_callback(requetes.append)
+            return cx2
+        b.connexion = connexion
+        carte = b.reseau(b.indice_fiche[gros])
+        dessinees = sum(1 for n in carte['noeuds'] if n['type'] != 'identifiant')
+        assert dessinees >= 10 and len(requetes) <= 3 * dessinees + 20, (dessinees, len(requetes))
+
+
 def test_carte_reseau_stable_sans_valeur_et_client_isole(avec_base):
     with avec_base() as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
