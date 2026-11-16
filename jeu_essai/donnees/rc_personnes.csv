@@ -1,0 +1,13 @@
+annonce_id,role,nom_complet,nom,prenom,cin,parts,date_naissance,nationalite,adresse
+EX-0001,gerant,Mehdi TAZI,,,,,,marocaine,
+EX-0001,associe,Youssef FASSI,,,ZZ900008,500,,marocaine,
+EX-0001,associe,Mehdi TAZI,,,,500,,marocaine,
+EX-0002,cedant,يوسف الفاسي,,,ZZ900008,500,,,
+EX-0002,cessionnaire,محمد الإدريسي,,,,500,,,
+EX-0003,المسير,محمد الإدريسي,,,,,,,
+EX-0003,شريك,كريم بنعلي,,,,,,,
+EX-0004,Gérant,M. FASSI Youssef,,,ZZ900008,,,,
+EX-0004,associé,,BENALI,Karim,ZZ 900002,,,,
+EX-0005,gerant,Samir OUAZZANI,,,ZZ900006,,1985-04-12,,
+EX-0006,gerant,Hamid EXEMPLE,,,,,,,
+EX-0007,gerant,Mehdi TAZI,,,,,,,

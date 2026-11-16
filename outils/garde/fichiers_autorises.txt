@@ -1,0 +1,9 @@
+# Fichiers de types normalement refusés, admis dans le dépôt. Motifs glob depuis la racine, un par ligne.
+# À compléter à l'étape A pour reference/ (référentiels et structure de Kamal), après contrôle.
+jeu_essai/donnees/*.csv
+pipeline/tests/attendu_*.json
+jeu_essai/v2/attendu_*.json
+api/**/schemas/*.json
+.claude/settings.json
+.claude/skills/**/*.json
+deploiement/.env.exemple

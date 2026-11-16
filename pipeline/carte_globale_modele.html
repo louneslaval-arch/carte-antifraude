@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte globale du registre</title>
+<style>
+:root {
+  --fond: #f4f6f8; --carte: #ffffff; --texte: #17202a; --doux: #5b6773; --trait: #d5dbe1; --ligne: #9aa5b1;
+  --accent: #1f5f8b; --accent-doux: #e3eef6; --alerte: #b42318; --alerte-doux: #fde8e6; --pont: #b06d00;
+  --dossier: #1a7f5a; --dossier-doux: #dcf3ea; --deux: #6b46c1; --deux-doux: #ebe4fa; --plateau: #ece4d0; --plateau-bord: #cbbfa3; --plateau-bas: #b5a88a; --ville: #8a7b5a; --cote: #e2e6ea; --cote-bas: #b9c0c8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #5c6978;
+    --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+    --dossier: #5fd0a0; --dossier-doux: #12382b; --deux: #b79cf5; --deux-doux: #2c2150; --plateau: #2b3341; --plateau-bord: #4a5668; --plateau-bas: #141a22; --ville: #a9b4c2; --cote: #222a35; --cote-bas: #10151c;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #5c6978;
+  --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+  --dossier: #5fd0a0; --dossier-doux: #12382b; --deux: #b79cf5; --deux-doux: #2c2150; --plateau: #2b3341; --plateau-bord: #4a5668; --plateau-bas: #141a22; --ville: #a9b4c2; --cote: #222a35; --cote-bas: #10151c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--fond); color: var(--texte);
+  font: 13.5px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", Arial, sans-serif; overflow: hidden; }
+#page { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 14px; background: var(--carte); border-bottom: 1px solid var(--trait); }
+header h1 { font-size: 16px; margin: 0 10px 0 0; letter-spacing: -.01em; }
+.chiffre { font-size: 12px; color: var(--doux); white-space: nowrap; }
+.chiffre b { color: var(--texte); font-size: 14px; }
+.chiffre.rouge b { color: var(--alerte); }
+#outils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-left: auto; font-size: 12.5px; color: var(--doux); }
+#outils label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+#outils label.principal { background: var(--alerte-doux); color: var(--alerte); font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+#outils input[type="search"] { padding: 5px 8px; border: 1px solid var(--trait); border-radius: 6px; background: var(--fond); color: var(--texte); font: inherit; width: 210px; }
+#outils button { border: 1px solid var(--trait); background: var(--fond); color: var(--texte); border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
+#outils button.actif { background: var(--accent-doux); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+#vue3d { display: none; align-items: center; gap: 8px; }
+#vue3d.visible { display: inline-flex; }
+#vue3d input[type="range"] { width: 90px; }
+main { position: relative; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+canvas.saisi { cursor: grabbing; }
+#legende { position: absolute; left: 12px; bottom: 12px; background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 10px; font-size: 11.5px; color: var(--doux); display: grid; gap: 4px; max-width: 380px; }
+#legende span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.pt { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 2px solid var(--ligne); background: var(--carte); flex: none; }
+.pt.carre { border-radius: 2px; }
+.pt.inscrit { background: var(--alerte); border-color: var(--alerte); }
+.pt.bl { border-color: var(--alerte); background: var(--alerte-doux); }
+.tr { width: 24px; height: 0; border-top: 2px solid var(--ligne); display: inline-block; }
+.tr.cert { border-top: 3px solid var(--accent); }
+.tr.rap { border-top: 2px dashed var(--accent); }
+.tr.ancien { border-top: 2px dotted var(--doux); }
+.tr.arc { border-top: 2px solid var(--pont); }
+#panneau { position: absolute; right: 12px; top: 12px; width: 360px; max-height: calc(100% - 24px); overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+#panneau h2 { font-size: 15px; margin: 0 0 4px; }
+#panneau .ligne { color: var(--doux); margin: 2px 0; }
+#panneau .rouge { color: var(--alerte); font-weight: 600; }
+#panneau a { color: var(--accent); }
+#panneau ul { margin: 6px 0 0; padding-left: 18px; }
+#panneau li { margin: 3px 0; }
+#panneau li b { cursor: pointer; color: var(--accent); }
+.lat { color: var(--doux); font-weight: 400; font-size: .92em; }
+#panneau .fermer { float: right; border: 0; background: none; color: var(--doux); font-size: 16px; cursor: pointer; }
+#panneau button.petit { border: 1px solid var(--trait); background: var(--fond); color: var(--texte); border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 12px; cursor: pointer; margin-top: 6px; margin-right: 6px; }
+#info { position: absolute; pointer-events: none; background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 6px 9px; font-size: 12px; display: none; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+#info b { display: block; }
+#info .doux { color: var(--doux); }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.badge.certain { background: var(--accent-doux); color: var(--accent); }
+#definitions { position: absolute; left: 12px; top: 48px; width: 440px; max-height: calc(100% - 70px); overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; font-size: 12.5px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+#definitions h2 { font-size: 15px; margin: 0 0 6px; }
+#definitions dl { margin: 0; }
+#definitions dt { font-weight: 600; margin-top: 7px; }
+#definitions dd { margin: 1px 0 0; color: var(--doux); }
+#definitions .fermer { float: right; border: 0; background: none; color: var(--doux); font-size: 16px; cursor: pointer; }
+#aide { position: absolute; left: 12px; top: 12px; font-size: 11.5px; color: var(--doux); background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; padding: 6px 10px; max-width: 70%; }
+@media (max-width: 900px) { #panneau { width: calc(100% - 24px); max-height: 50%; top: auto; bottom: 12px; } #legende, #aide { display: none; } }
+</style>
+</head>
+<body>
+<div id="page">
+<header>
+  <h1>Carte globale · registre du commerce × liste noire</h1>
+  <span id="chiffres"></span>
+  <div id="outils">
+    <input type="search" id="recherche" placeholder="Nom, société, RC, CIN…" aria-label="Rechercher">
+    <button id="btn-vue" title="Place chaque société à la ville de son siège (sinon de son tribunal), chaque personne à la ville la plus fréquente de ses sociétés, sur une carte du Maroc en relief. Ce qui n'a pas de ville connue est rangé dans la zone à droite de la carte.">Carte du Maroc 3D</button>
+    <span id="vue3d">
+      <label title="Inclinaison de la carte : 0 = vue à plat, 75 = vue rasante.">inclinaison <input type="range" id="pente" min="0" max="75" value="52"></label>
+      <label title="Rotation de la carte autour de la verticale.">rotation <input type="range" id="rotation" min="-180" max="180" value="0"></label>
+      <button id="btn-plat" title="Remet l'inclinaison et la rotation à zéro (vue à plat, nord en haut).">À plat</button>
+    </span>
+    <label title="Affiche entre parenthèses l'écriture latine des noms arabes : écriture apprise dans la base quand la même personne a été publiée dans les deux écritures (محمد الادريسي → MOHAMED IDRISSI), sinon translittération par règles (ش → CH, خ → KH, ق → K, و → OU). Ce n'est pas une traduction."><input type="checkbox" id="f-lat"> translittération</label>
+    <label title="Origine des personnes et des sociétés. Registre : lues dans les annonces légales (export de Kamal). Dossiers : lues dans les pièces des dossiers de l'antifraude (CIN, statuts, extrait RC). Les deux : société retrouvée par RC + tribunal, personne par son CIN ou par son nom dans la même société.">origine <select id="f-orig"><option value="">toutes</option><option value="d">dossiers (seuls ou communs)</option><option value="dd">dossiers seuls</option><option value="rd">communs registre + dossiers</option><option value="r">registre seul</option></select></label>
+    <label class="principal" title="Ne garde que ce qui est à moins de N arêtes d'un élément de la liste noire (personne inscrite, société inscrite, employeur déclaré, personne du registre aussi inscrite)."><input type="checkbox" id="f-bl"> liste noire seulement</label>
+    <label title="Nombre maximal d'arêtes entre un élément de la liste noire et ce qui est affiché. 4 = le périmètre du dessin (inscrit – société – personne – société – personne). ∞ = tout le réseau qui contient un inscrit.">à <select id="f-rayon"><option value="2">2</option><option value="4" selected>4</option><option value="6">6</option><option value="99">∞</option></select> arêtes d'un inscrit</label>
+    <label title="Départ certain : l'inscrit est relié au registre par son CIN (même numéro de carte d'identité), ou la société inscrite par son numéro RC et son tribunal. Sinon le départ est probable : même nom plus un élément qui confirme, à valider par un analyste."><input type="checkbox" id="f-cert"> départs certains seulement</label>
+    <label title="Rôle terminé : parts cédées (ancien associé) ou gérance reprise par un autre gérant nommé ensuite (ancien gérant), d'après la dernière annonce qui cite la personne dans la société."><input type="checkbox" id="f-anc"> masquer les rôles terminés</label>
+    <label title="Ne garde que les personnes du registre présentes dans au moins ce nombre de sociétés. 3 ou 5 fait ressortir les personnes qui relient beaucoup de sociétés (intermédiaires, prête-noms possibles).">sociétés reliées ≥ <select id="f-ns"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label>
+    <label title="Force d'un lien = poids du rôle (gérant 0,7 ; associé 0,3 à 0,7 selon les parts ; liquidateur 0,5 ; ancien rôle 0,3 à 0,5) × fiabilité de l'annonce × rareté de la taille de la société. Pour un départ : poids du rapprochement (1 pour un CIN).">force ≥ <input type="range" id="seuil" min="0" max="100" value="0" style="width:80px"><span id="seuil-v">tout</span></label>
+    <button id="recentrer">Tout voir</button>
+    <button id="btn-def" aria-expanded="false">Définitions</button>
+  </div>
+</header>
+<main>
+  <canvas id="toile" aria-label="Carte de tous les liens du registre"></canvas>
+  <div id="aide"></div>
+  <div id="legende">
+    <span><i class="pt inscrit"></i> personne inscrite en liste noire</span>
+    <span><i class="pt bl carre"></i> société inscrite ou employeur déclaré</span>
+    <span><i class="pt bl"></i> personne du registre aussi inscrite</span>
+    <span><i class="pt carre"></i> société du registre</span>
+    <span><i class="pt"></i> personne du registre de Kamal (2 sociétés ou plus)</span>
+    <span><i class="pt" style="border-color:var(--dossier);background:var(--dossier-doux)"></i> vient des dossiers de l'antifraude seulement</span>
+    <span><i class="pt" style="border-color:var(--deux);background:var(--deux-doux)"></i> présent au registre et dans un dossier</span>
+    <span><i class="tr cert"></i> lien certain (CIN, RC + tribunal)</span>
+    <span><i class="tr rap"></i> lien probable, à valider</span>
+    <span><i class="tr"></i> rôle publié &nbsp; <i class="tr ancien"></i> rôle terminé</span>
+    <span id="leg-arc" style="display:none"><i class="tr arc"></i> lien entre deux villes (arc)</span>
+    <span id="leg-fin">Réseaux de la liste noire en haut à gauche, puis les autres du plus gros au plus petit.</span>
+  </div>
+  <div id="panneau" style="display:none"></div>
+  <div id="definitions" style="display:none">
+    <button class="fermer" aria-label="Fermer" onclick="document.getElementById('definitions').style.display='none'">×</button>
+    <h2>Définitions</h2>
+    <dl>
+      <dt>Personne inscrite (point de départ)</dt><dd>Personne physique de la liste noire EQDOM du 03/08/2026 retrouvée dans une annonce légale.</dd>
+      <dt>Départ certain</dt><dd>L'inscrit est relié au registre par son CIN (même numéro de carte d'identité dans l'annonce), ou la société inscrite par son numéro RC et son tribunal. Trait bleu plein.</dd>
+      <dt>Départ probable</dt><dd>Même nom (après passage arabe ↔ latin) plus un élément qui confirme : la société est elle-même inscrite, même ville, ou employeur déclaré. À valider par un analyste. Trait bleu pointillé.</dd>
+      <dt>Société inscrite</dt><dd>Société de la liste noire retrouvée au registre (même RC et tribunal, ou même raison sociale et ville). Carré rouge.</dd>
+      <dt>Employeur déclaré</dt><dd>Société du registre dont le nom correspond à l'employeur déclaré par un inscrit dans la liste noire. Carré rouge.</dd>
+      <dt>Personne du registre aussi inscrite</dt><dd>Personne citée dans une annonce et qui est elle-même dans la liste noire. Cercle rouge.</dd>
+      <dt>Personne du registre</dt><dd>Gérant, associé, liquidateur… cité dans les annonces. Seules les personnes présentes dans au moins deux sociétés sont dessinées, car elles seules relient des sociétés entre elles ; une même personne dans deux sociétés est reconnue par son CIN, ou par le même nom et la même ville du siège quand le nom est rare ou qu'un indice le confirme (même adresse, même cabinet, associé commun).</dd>
+      <dt>Origine (couleur)</dt><dd>Gris : personne ou société lue dans les annonces légales du registre (export de Kamal). Vert : lue seulement dans les pièces d'un dossier de l'antifraude (CIN, statuts, extrait RC), avec une identité sûre (CIN pour une personne, RC + tribunal pour une société). Violet : présente des deux côtés (société retrouvée par RC + tribunal ; personne par le même CIN, ou par son nom dans la même société : le dossier apporte alors son CIN). Rouge : liste noire, quelle que soit l'origine ; un liseré vert ou violet l'entoure quand l'élément vient aussi d'un dossier.</dd>
+      <dt>Rôle publié</dt><dd>Rôle de la personne dans la société d'après la dernière annonce qui la cite, avec la date : gérant, associé (et ses parts), liquidateur, cessionnaire…</dd>
+      <dt>Rôle terminé</dt><dd>Parts cédées (ancien associé) ou gérance reprise par un autre gérant nommé ensuite (ancien gérant). Trait pointillé gris.</dd>
+      <dt>Annonce mélangée</dt><dd>Rôle lu dans un bloc qui mêle deux annonces : compte pour moitié dans la force.</dd>
+      <dt>Force d'un lien</dt><dd>Poids du rôle (gérant 0,7 ; associé 0,3 à 0,7 selon les parts ; liquidateur 0,5 ; ancien rôle 0,3 à 0,5) × fiabilité de l'annonce × rareté de la taille de la société. Pour un départ : poids du rapprochement (1 pour un CIN).</dd>
+      <dt>Réseau</dt><dd>Ensemble de sociétés et de personnes reliées entre elles de proche en proche. Dans la vue réseau, ceux qui contiennent un élément de la liste noire sont rangés en haut à gauche, puis les autres du plus gros au plus petit.</dd>
+      <dt>Arête</dt><dd>Un lien entre deux nœuds. « À 4 arêtes d'un inscrit » : inscrit – société – personne – société – personne, le périmètre du dessin.</dd>
+      <dt>Taille du point</dt><dd>Nombre de liens du nœud.</dd>
+      <dt>Carte du Maroc (vue 3D)</dt><dd>Chaque société est placée à la ville de son siège (sinon à celle de son tribunal), chaque personne du registre à la ville la plus fréquente de ses sociétés, chaque inscrit à la ville de la personne du registre à laquelle il est relié (sinon à la ville saisie dans la liste noire). Dans une ville, les nœuds d'un même réseau restent groupés. Le disque d'une ville grandit avec son nombre de nœuds (plafonné : Casablanca sature) et les disques voisins sont écartés pour ne pas se recouvrir : la position est donc approximative autour des grandes agglomérations. Les liens entre deux villes différentes sont dessinés en arc. Ce qui n'a aucune ville connue est rangé dans la zone grise à droite de la carte.</dd>
+      <dt>Relief</dt><dd>La carte est un plateau incliné (inclinaison et rotation réglables, ou clic droit / Maj + glisser) ; les éléments de la liste noire sont dressés sur une épingle pour rester visibles au-dessus de la masse. Un clic sur un élément ne laisse que son réseau sur la carte (ses villes, ses arcs) ; un clic dans le vide ramène tout.</dd>
+    </dl>
+  </div>
+  <div id="info"></div>
+</main>
+</div>
+<script>
+const D = /*__DONNEES__*/null;
+const $ = (s) => document.querySelector(s);
+const cv = $('#toile'), ctx = cv.getContext('2d');
+const N = D.noeuds, A = D.aretes, NB = N.length, G = D.geo || null;
+const parId = new Map(N.map((n, i) => [n.id, i]));
+const adj = Array.from({ length: NB }, () => []);
+A.forEach((a, k) => { adj[a.a].push(k); adj[a.b].push(k); });
+const compBl = new Set(D.reseaux_bl);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+let C = {};
+function lireCouleurs() { C = { ligne: css('--ligne'), accent: css('--accent'), alerte: css('--alerte'), alerteDoux: css('--alerte-doux'), pont: css('--pont'), doux: css('--doux'), carte: css('--carte'), texte: css('--texte'), fond: css('--fond'), accentDoux: css('--accent-doux'), dossier: css('--dossier'), dossierDoux: css('--dossier-doux'), deux: css('--deux'), deuxDoux: css('--deux-doux'), plateau: css('--plateau'), plateauBord: css('--plateau-bord'), plateauBas: css('--plateau-bas'), ville: css('--ville'), cote: css('--cote'), coteBas: css('--cote-bas') }; }
+lireCouleurs();
+// coordonnées monde selon la vue : réseau (x, y) ou carte du Maroc (mx, my)
+const XR = new Float64Array(NB), YR = new Float64Array(NB), XM = new Float64Array(NB), YM = new Float64Array(NB);
+for (let i = 0; i < NB; i++) { XR[i] = N[i].x; YR[i] = N[i].y; XM[i] = N[i].mx ?? N[i].x; YM[i] = N[i].my ?? N[i].y; }
+const XM0 = Float64Array.from(XM), YM0 = Float64Array.from(YM);   // positions Maroc d'origine (avant étalement)
+let X = XR, Y = YR;
+const etat = { k: 1, tx: 0, ty: 0, choisi: -1, survol: -1, isole: -1, seuil: 0, mode: 'reseau', pente: 0, yaw: 0, cp: 1, sp: 0, lat: false };
+let visN = new Uint8Array(NB), visA = [];
+// positions écran du dernier dessin : SXg/SYg au sol (pour les liens), SX/SY du point (haut de l'épingle)
+const SXg = new Float32Array(NB), SYg = new Float32Array(NB), SX = new Float32Array(NB), SY = new Float32Array(NB);
+const maroc = () => etat.mode === 'maroc';
+
+function angles() { etat.cp = Math.cos(etat.pente); etat.sp = Math.sin(etat.pente); }
+// projection : rotation autour de la verticale, puis inclinaison du plan (orthographique). z vers le haut.
+function proj(x, y, z) {
+  const cy = Math.cos(etat.yaw), sy = Math.sin(etat.yaw);
+  const xr = x * cy - y * sy, yr = x * sy + y * cy;
+  return [xr * etat.k + etat.tx, (yr * etat.cp - (z || 0) * etat.sp) * etat.k + etat.ty];
+}
+function deproj(px, py) {
+  const xr = (px - etat.tx) / etat.k, yr = (py - etat.ty) / (etat.k * etat.cp);
+  const cy = Math.cos(etat.yaw), sy = Math.sin(etat.yaw);
+  return [xr * cy + yr * sy, -xr * sy + yr * cy];
+}
+
+function filtrer() {
+  const forig = $('#f-orig').value; const fbl = $('#f-bl').checked, fcert = $('#f-cert').checked, fanc = $('#f-anc').checked, ns = +$('#f-ns').value;
+  const okA = new Uint8Array(A.length);
+  A.forEach((a, k) => { okA[k] = (a.force >= etat.seuil && !(fanc && a.style.includes('ancien'))) ? 1 : 0; });
+  // liste noire seulement : nœuds à moins de « rayon » arêtes d'un élément de la liste noire
+  let dist = null;
+  if (fbl) {
+    const rayon = +$('#f-rayon').value; dist = new Int16Array(NB).fill(-1); let file = [];
+    for (let i = 0; i < NB; i++) if (N[i].bl) { dist[i] = 0; file.push(i); }
+    for (let d = 0; d < rayon && file.length; d++) { const suiv = []; for (const i of file) for (const e of adj[i]) { if (!okA[e]) continue; const j = A[e].a === i ? A[e].b : A[e].a; if (dist[j] < 0) { dist[j] = d + 1; suiv.push(j); } } file = suiv; }
+  }
+  visN = new Uint8Array(NB);
+  for (let i = 0; i < NB; i++) {
+    const n = N[i];
+    if (fbl && dist[i] < 0) continue;
+    if (etat.isole >= 0 && n.c !== etat.isole) continue;
+    if (n.t === 'personne' && !n.bl && (n.ns || 1) < ns) continue;
+    if (forig && n.t !== 'inscrit' && !(forig === 'd' ? (n.o === 'd' || n.o === 'rd') : forig === 'dd' ? n.o === 'd' : n.o === forig)) continue;
+    if (n.t === 'inscrit' && fcert && !n.certain) continue;
+    visN[i] = 1;
+  }
+  // départs certains seulement : on ne garde que les réseaux où subsiste un inscrit
+  if (fcert) {
+    const comps = new Set(); for (let i = 0; i < NB; i++) if (visN[i] && N[i].t === 'inscrit') comps.add(N[i].c);
+    for (let i = 0; i < NB; i++) if (visN[i] && !comps.has(N[i].c)) visN[i] = 0;
+  }
+  visA = [];
+  A.forEach((a, k) => { if (okA[k] && visN[a.a] && visN[a.b]) visA.push(k); });
+  // une société ou une personne sans plus aucun lien visible n'est gardée que si elle est de la liste noire
+  const deg = new Uint16Array(NB); for (const k of visA) { deg[A[k].a]++; deg[A[k].b]++; }
+  for (let i = 0; i < NB; i++) if (visN[i] && !deg[i] && (!N[i].bl || (forig && N[i].t === 'inscrit'))) visN[i] = 0;
+  etaler(); chiffres(); dessiner();
+}
+// vue Maroc, réseau isolé : les nœuds du réseau, serrés dans le disque de leur ville, sont étalés sur le disque pour être lisibles
+function etaler() {
+  XM.set(XM0); YM.set(YM0);
+  if (!G || !maroc() || etat.isole < 0) return;
+  const grp = new Map();
+  for (let i = 0; i < NB; i++) if (visN[i]) { const v = N[i].ville || '__cote__'; if (!grp.has(v)) grp.set(v, []); grp.get(v).push(i); }
+  for (const [v, ids] of grp) {
+    if (ids.length < 2) continue;
+    const ville = v === '__cote__' ? G.cote : G.villes.find((w) => w.code === v); if (!ville) continue;
+    let cx = 0, cy = 0; for (const i of ids) { cx += XM0[i]; cy += YM0[i]; } cx /= ids.length; cy /= ids.length;
+    let ext = 0; for (const i of ids) ext = Math.max(ext, Math.hypot(XM0[i] - cx, YM0[i] - cy));
+    const f = ext > 0 ? Math.min(200, 0.75 * ville.r / ext) : 1; if (f <= 1) continue;
+    for (const i of ids) { XM[i] = ville.x + (XM0[i] - cx) * f; YM[i] = ville.y + (YM0[i] - cy) * f; }
+  }
+}
+const villeN = new Map();                       // ville → [nœuds visibles, dont liste noire]
+let coteN = 0;
+function chiffres() {
+  let ins = 0, so = 0, pe = 0, bl = 0, sansVille = 0; const comps = new Set(); villeN.clear();
+  for (let i = 0; i < NB; i++) { if (!visN[i]) continue; const n = N[i]; comps.add(n.c); if (n.t === 'inscrit') ins++; else if (n.t === 'societe') so++; else pe++; if (n.bl && n.t !== 'inscrit') bl++; if (!n.ville) sansVille++;
+    const v = villeN.get(n.ville) || [0, 0]; v[0]++; if (n.bl) v[1]++; villeN.set(n.ville, v); }
+  coteN = sansVille;
+  $('#chiffres').innerHTML = `<span class="chiffre"><b>${so.toLocaleString('fr-FR')}</b> sociétés</span> &nbsp; <span class="chiffre"><b>${pe.toLocaleString('fr-FR')}</b> personnes</span> &nbsp; <span class="chiffre"><b>${visA.length.toLocaleString('fr-FR')}</b> liens</span> &nbsp; <span class="chiffre"><b>${comps.size.toLocaleString('fr-FR')}</b> réseaux</span> &nbsp; <span class="chiffre rouge"><b>${ins}</b> inscrits, <b>${bl}</b> sociétés et personnes de la liste noire</span>` + (maroc() ? ` &nbsp; <span class="chiffre"><b>${sansVille.toLocaleString('fr-FR')}</b> sans ville connue</span>` : '');
+}
+function taille() { const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1; cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+function rayon(n) { return (n.t === 'inscrit' ? 5 : 3.2) + Math.min(7, Math.sqrt(n.deg || 1) * 1.3); }
+
+function cheminSol(pts, z) { ctx.beginPath(); for (let i = 0; i < pts.length; i++) { const [sx, sy] = proj(pts[i][0], pts[i][1], z); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); } ctx.closePath(); }
+function disque(cx, cy, r, z) { const pts = []; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } cheminSol(pts, z); }
+function dessinerPlateau(W, H) {
+  if (!G) return;
+  const k = etat.k, h = etat.sp > 0.05 ? 11 / (k * etat.sp) : 0;        // épaisseur du plateau : 11 px à l'écran
+  ctx.lineJoin = 'round';
+  // zone « sans ville connue », à droite de la carte
+  const c = G.cote;
+  if (c && coteN) {
+    if (h) { ctx.fillStyle = C.coteBas; disque(c.x, c.y, c.r, -h); ctx.fill(); }
+    ctx.fillStyle = C.cote; ctx.strokeStyle = C.ligne; ctx.lineWidth = 0.8; disque(c.x, c.y, c.r, 0); ctx.fill(); ctx.stroke();
+  }
+  // socle puis dessus des régions : la partie visible du socle fait l'épaisseur
+  if (h) { ctx.fillStyle = C.plateauBas; for (const r of G.regions) { cheminSol(r.pts, -h); ctx.fill(); } }
+  ctx.fillStyle = C.plateau; ctx.strokeStyle = C.plateauBord; ctx.lineWidth = Math.min(1, 0.4 + k * 0.2);
+  for (const r of G.regions) { cheminSol(r.pts, 0); ctx.fill(); ctx.stroke(); }
+  // disques des villes
+  ctx.globalAlpha = 0.22; ctx.fillStyle = C.ville;
+  for (const v of G.villes) { if (v.r * k < 2 || !villeN.has(v.code)) continue; const [sx, sy] = proj(v.x, v.y, 0); if (sx < -200 || sx > W + 200 || sy < -200 || sy > H + 200) continue; disque(v.x, v.y, v.r, 0); ctx.fill(); }
+  ctx.globalAlpha = 1;
+}
+function etiquettesVilles(W, H) {
+  if (!G) return;
+  const k = etat.k; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.lineJoin = 'round';
+  const tri = G.villes.filter((v) => villeN.has(v.code)).map((v) => [v, ...villeN.get(v.code)]).sort((a, b) => b[1] - a[1]);
+  tri.forEach(([v, n, bl], i) => {
+    if (i >= 14 && v.r * k < 9 && !bl) return;
+    const [sx, sy] = proj(v.x, v.y - v.r, 0);
+    if (sx < -60 || sx > W + 60 || sy < -20 || sy > H + 20) return;
+    const taille = Math.round(Math.max(10, Math.min(15, 9 + v.r * k * 0.08)));
+    ctx.font = `600 ${taille}px sans-serif`;
+    const t = `${v.nom} · ${n.toLocaleString('fr-FR')}${bl ? ' · ' + bl + ' LN' : ''}`;
+    ctx.strokeStyle = C.fond; ctx.lineWidth = 3; ctx.strokeText(t, sx, sy - 2); ctx.fillStyle = bl ? C.alerte : C.ville; ctx.fillText(t, sx, sy - 2);
+  });
+  const c = G.cote;
+  if (c && coteN) { const [sx, sy] = proj(c.x, c.y - c.r, 0); ctx.font = '600 12px sans-serif'; const t = `Sans ville connue · ${coteN.toLocaleString('fr-FR')}`; ctx.strokeStyle = C.fond; ctx.lineWidth = 3; ctx.strokeText(t, sx, sy - 2); ctx.fillStyle = C.doux; ctx.fillText(t, sx, sy - 2); }
+}
+
+function dessiner() {
+  const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) taille();
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.restore();
+  const k = etat.k, W = r.width, H = r.height, m3 = maroc();
+  const focus = etat.choisi >= 0 ? etat.choisi : etat.survol;
+  const proches = new Set();
+  if (focus >= 0) { proches.add(focus); for (const e of adj[focus]) { proches.add(A[e].a); proches.add(A[e].b); } }
+  const loin = k < (m3 ? 1.2 : 0.35);
+  if (m3) dessinerPlateau(W, H);
+  // positions écran de tous les nœuds visibles ; en vue Maroc, les éléments de la liste noire sont dressés sur une épingle
+  const cy = Math.cos(etat.yaw), sy = Math.sin(etat.yaw), cp = etat.cp;
+  const epingle = m3 && !loin ? 12 : (m3 ? 4 : 0);
+  for (let i = 0; i < NB; i++) {
+    if (!visN[i]) continue;
+    const x = X[i], y = Y[i];
+    const gx = (x * cy - y * sy) * k + etat.tx, gy = (x * sy + y * cy) * cp * k + etat.ty;
+    SXg[i] = gx; SYg[i] = gy; SX[i] = gx; SY[i] = N[i].bl ? gy - epingle : gy;
+  }
+  // arêtes, groupées par style pour limiter les changements d'état ; en vue Maroc les liens entre villes sont des arcs
+  const groupes = { base: [], ancien: [], certain: [], rap: [], dim: [] }, arcs = { base: [], ancien: [], certain: [], rap: [], dim: [] };
+  for (const e of visA) {
+    const a = A[e];
+    const x1 = SXg[a.a], y1 = SYg[a.a], x2 = SXg[a.b], y2 = SYg[a.b];
+    if ((x1 < -10 && x2 < -10) || (x1 > W + 10 && x2 > W + 10) || (y1 < -10 && y2 < -10) || (y1 > H + 10 && y2 > H + 10)) continue;
+    const dim = focus >= 0 && !(a.a === focus || a.b === focus);
+    const g = dim ? 'dim' : a.style.includes('certain') ? 'certain' : a.style.includes('rap') ? 'rap' : a.style.includes('ancien') ? 'ancien' : 'base';
+    if (m3) {
+      const dx = X[a.a] - X[a.b], dy = Y[a.a] - Y[a.b], d = Math.hypot(dx, dy);
+      if (d > 40) { const [mx, my] = proj((X[a.a] + X[a.b]) / 2, (Y[a.a] + Y[a.b]) / 2, Math.min(60, d * 0.12)); arcs[g].push(x1, y1, mx, my, x2, y2); continue; }
+    }
+    groupes[g].push(x1, y1, x2, y2);
+  }
+  const trace = (pts, col, w, dash, alpha) => { if (!pts.length) return; ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash); ctx.beginPath(); for (let i = 0; i < pts.length; i += 4) { ctx.moveTo(pts[i], pts[i + 1]); ctx.lineTo(pts[i + 2], pts[i + 3]); } ctx.stroke(); };
+  const traceArcs = (pts, col, w, dash, alpha) => { if (!pts.length) return; ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.setLineDash(dash); ctx.beginPath(); for (let i = 0; i < pts.length; i += 6) { ctx.moveTo(pts[i], pts[i + 1]); ctx.quadraticCurveTo(pts[i + 2], pts[i + 3], pts[i + 4], pts[i + 5]); } ctx.stroke(); };
+  const lw = Math.max(0.5, Math.min(1.6, k));
+  trace(groupes.dim, C.ligne, lw, [], 0.08);
+  trace(groupes.base, C.ligne, lw, [], loin ? 0.45 : 0.8);
+  trace(groupes.ancien, C.doux, lw, loin ? [] : [2, 4], 0.6);
+  trace(groupes.rap, C.accent, lw * 1.3, loin ? [] : [5, 4], 0.9);
+  trace(groupes.certain, C.accent, lw * 2, [], 0.95);
+  if (m3) {
+    const la = Math.max(0.7, Math.min(1.8, k * 1.2));
+    traceArcs(arcs.dim, C.pont, la, [], 0.06);
+    traceArcs(arcs.base, C.pont, la, [], arcs.base.length > 30000 ? 0.035 : arcs.base.length > 6000 ? 0.07 : 0.5);
+    traceArcs(arcs.ancien, C.pont, la, [2, 4], 0.4);
+    traceArcs(arcs.rap, C.accent, la * 1.3, [5, 4], 0.9);
+    traceArcs(arcs.certain, C.accent, la * 2, [], 0.95);
+  }
+  ctx.setLineDash([]);
+  // épingles (vue Maroc) puis nœuds
+  if (m3 && epingle) {
+    ctx.globalAlpha = 0.9; ctx.strokeStyle = C.alerte; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i < NB; i++) { if (!visN[i] || !N[i].bl) continue; const x = SXg[i], y = SYg[i]; if (x < -12 || x > W + 12 || y < -12 || y > H + 12) continue; ctx.moveTo(x, y); ctx.lineTo(x, SY[i]); }
+    ctx.stroke();
+  }
+  const etiquettes = [];
+  for (let i = 0; i < NB; i++) {
+    if (!visN[i]) continue;
+    const n = N[i]; const x = SX[i], y = SY[i];
+    if (x < -12 || x > W + 12 || y < -12 || y > H + 12) continue;
+    const inscrit = n.t === 'inscrit', bl = !!n.bl && !inscrit;
+    const rad = loin ? Math.max(inscrit ? 3.2 : (n.bl ? 2.4 : (n.o && n.o !== 'r' ? 1.8 : 1.0)), rayon(n) * k) : rayon(n) * Math.min(1.6, Math.max(0.5, k));
+    ctx.globalAlpha = focus >= 0 && !proches.has(i) ? 0.18 : 1;
+    // couleur d'origine : registre (gris), dossiers de l'antifraude (vert), les deux (violet) ; la liste noire reste rouge
+    const oc = n.o === 'd' ? C.dossier : n.o === 'rd' ? C.deux : C.ligne, od = n.o === 'd' ? C.dossierDoux : n.o === 'rd' ? C.deuxDoux : C.carte;
+    ctx.fillStyle = inscrit ? C.alerte : bl ? (loin ? C.alerte : C.alerteDoux) : (loin ? oc : od);
+    ctx.strokeStyle = inscrit || bl ? C.alerte : (i === etat.choisi ? C.accent : oc);
+    ctx.lineWidth = i === etat.choisi ? 3 : (bl ? 1.8 : (n.o && n.o !== 'r' ? 1.8 : 1.1));
+    ctx.beginPath();
+    if (n.t === 'societe') ctx.rect(x - rad, y - rad, 2 * rad, 2 * rad); else ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fill(); if (!loin || inscrit || bl) ctx.stroke();
+    if (bl && n.o && n.o !== 'r' && !loin) { ctx.strokeStyle = oc; ctx.lineWidth = 1.2; ctx.beginPath(); if (n.t === 'societe') ctx.rect(x - rad - 3, y - rad - 3, 2 * rad + 6, 2 * rad + 6); else ctx.arc(x, y, rad + 3, 0, Math.PI * 2); ctx.stroke(); }
+    if ((k >= (m3 ? 8 : 0.9) || inscrit && k >= (m3 ? 2.5 : 0.3) || (focus >= 0 && proches.has(i))) && etiquettes.length < 400) etiquettes.push([n, x, y + rad + 2, inscrit]);
+  }
+  ctx.globalAlpha = 1; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.lineJoin = 'round';
+  for (const [n, x, y, gras] of etiquettes) {
+    ctx.font = `${gras ? '600 ' : ''}${Math.round(Math.max(10, Math.min(13, 11 * k)))}px sans-serif`;
+    const nomA = aff(n); const lim = etat.lat && n.lat ? 48 : 28;
+    const t = nomA.length > lim ? nomA.slice(0, lim - 1) + '…' : nomA;
+    ctx.strokeStyle = C.fond; ctx.lineWidth = 3; ctx.strokeText(t, x, y); ctx.fillStyle = C.texte; ctx.fillText(t, x, y);
+  }
+  if (m3) etiquettesVilles(W, H);
+}
+function cadrer(pts, marge) {
+  // pts : points monde (z = 0) ; ajuste k, tx, ty pour qu'ils tiennent dans la toile avec la rotation et l'inclinaison courantes
+  const r = cv.getBoundingClientRect(); const cy = Math.cos(etat.yaw), sy = Math.sin(etat.yaw);
+  let minx = 1e12, maxx = -1e12, miny = 1e12, maxy = -1e12;
+  for (const [x, y] of pts) { const xr = x * cy - y * sy, yr = (x * sy + y * cy) * etat.cp; if (xr < minx) minx = xr; if (xr > maxx) maxx = xr; if (yr < miny) miny = yr; if (yr > maxy) maxy = yr; }
+  minx -= marge; maxx += marge; miny -= marge; maxy += marge;
+  const haut = maroc() ? 44 : 0;                  // place pour le bandeau d'aide et les étiquettes du nord
+  etat.k = Math.min(r.width / (maxx - minx), (r.height - haut) / (maxy - miny), maroc() ? 40 : 2.5);
+  etat.tx = (r.width - (maxx + minx) * etat.k) / 2; etat.ty = haut + (r.height - haut - (maxy + miny) * etat.k) / 2;
+  dessiner();
+}
+function toutVoir(ids) {
+  const pts = [];
+  if (ids) ids.forEach((i) => pts.push([X[i], Y[i]]));
+  else if (maroc() && G && etat.isole < 0) { for (const rg of G.regions) for (let i = 0; i < rg.pts.length; i += 6) pts.push(rg.pts[i]); const c = G.cote; if (c && c.n) pts.push([c.x + c.r, c.y - c.r], [c.x + c.r, c.y + c.r]); }
+  else for (let i = 0; i < NB; i++) if (visN[i]) pts.push([X[i], Y[i]]);
+  if (pts.length) cadrer(pts, maroc() ? 70 : 40);
+}
+function sous(px, py) {
+  let best = -1, bd = 1e9;
+  for (let i = 0; i < NB; i++) { if (!visN[i]) continue; const dx = SX[i] - px, dy = SY[i] - py; if (dx > 14 || dx < -14 || dy > 14 || dy < -14) continue; const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = i; } }
+  return best;
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// nom affiché : avec l'écriture latine entre parenthèses quand l'option est cochée et que le nom est arabe
+const aff = (n) => (etat.lat && n.lat) ? `${n.nom} (${n.lat})` : n.nom;
+const affHtml = (n) => (etat.lat && n.lat) ? `<bdi>${esc(n.nom)}</bdi> <span class="lat">(${esc(n.lat)})</span>` : `<bdi>${esc(n.nom)}</bdi>`;
+const villeNom = (v) => v ? String(v).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : '';
+function panneau(i) {
+  const p = $('#panneau');
+  if (i < 0) { p.style.display = 'none'; return; }
+  const n = N[i];
+  let h = `<button class="fermer" aria-label="Fermer" onclick="choisir(-1)">×</button><h2>${affHtml(n)}</h2>`;
+  if (n.t === 'inscrit') h += `<div class="ligne">Personne inscrite${n.cin ? ' · CIN ' + esc(n.cin) : ''}${n.listes ? ' · ' + esc(n.listes) : ''}${n.motifs ? ' · ' + esc(n.motifs) : ''}</div>${n.certain ? '<span class="badge certain">lien certain</span>' : '<span class="ligne">lien probable, à valider</span>'}`;
+  else if (n.t === 'societe') h += `<div class="ligne">${[n.rc ? 'RC ' + esc(n.rc) : 'RC non lu', n.trib ? 'tribunal ' + esc(villeNom(n.trib)) : '', n.ville && n.ville !== n.trib ? 'siège ' + esc(villeNom(n.ville)) : '', n.dern ? 'dernière annonce ' + esc(n.dern) : '', n.diss ? 'dissoute' : '', n.np ? n.np + ' personne' + (n.np > 1 ? 's' : '') + ' citée' + (n.np > 1 ? 's' : '') : ''].filter(Boolean).join(' · ')}</div>${n.url ? `<div class="ligne"><a href="${esc(n.url)}" target="_blank" rel="noopener">Ouvrir la dernière annonce</a></div>` : ''}`;
+  else h += `<div class="ligne">${n.o === 'd' ? 'Personne lue dans un dossier de l\'antifraude' : 'Personne du registre'} · présente dans ${n.ns} société${n.ns > 1 ? 's' : ''}${n.cin ? ' · CIN ' + esc(n.cin) : ''}${n.ville ? ' · ' + esc(villeNom(n.ville)) : ''}</div>`;
+  if (n.bl && n.t !== 'inscrit') h += `<div class="rouge">${esc(n.bl)}</div>`;
+  if (n.t !== 'inscrit') h += `<div class="ligne">Origine : <b style="color:${n.o === 'd' ? 'var(--dossier)' : n.o === 'rd' ? 'var(--deux)' : 'inherit'}">${n.o === 'd' ? 'dossiers de l\'antifraude' : n.o === 'rd' ? 'registre et dossiers de l\'antifraude' : 'registre du commerce (annonces légales)'}</b>${n.nd ? ' · ' + n.nd + ' dossier' + (n.nd > 1 ? 's' : '') + ' : ' + esc(n.dos) : ''}</div>`;
+  if (maroc()) h += `<div class="ligne">Sur la carte : ${n.ville ? esc(villeNom(n.ville)) : 'sans ville connue (zone de droite)'}</div>`;
+  const liens = adj[i].filter((e) => visA.includes(e)).map((e) => A[e]).sort((a, b) => b.force - a.force);
+  h += `<ul>` + liens.map((a) => { const o = a.a === i ? a.b : a.a; return `<li><b onclick="choisir(${o})">${affHtml(N[o])}</b> <span class="ligne">— ${esc(a.lib)} · force ${a.force}${maroc() && N[o].ville && N[o].ville !== n.ville ? ' · ' + esc(villeNom(N[o].ville)) : ''}</span></li>`; }).join('') + `</ul>`;
+  h += `<button class="petit" onclick="isoler(${n.c})">Isoler ce réseau (${D.reseaux[n.c]} nœuds)</button>`;
+  p.innerHTML = h; p.style.display = 'block';
+}
+function centrerSur(i, kmin) {
+  const r = cv.getBoundingClientRect(); if (kmin) etat.k = Math.max(etat.k, kmin);
+  const cy = Math.cos(etat.yaw), sy = Math.sin(etat.yaw); const x = X[i], y = Y[i];
+  etat.tx = r.width / 2 - 180 - (x * cy - y * sy) * etat.k; etat.ty = r.height / 2 - (x * sy + y * cy) * etat.cp * etat.k; dessiner();
+}
+function choisir(i) {
+  etat.choisi = i;
+  if (maroc()) {
+    // vue Maroc : un clic sur un élément ne laisse sur la carte que son réseau ; un clic dans le vide ramène tout
+    if (i >= 0 && etat.isole !== N[i].c) {
+      etat.isole = N[i].c; filtrer();
+      const pts = []; for (let j = 0; j < NB; j++) if (visN[j]) pts.push([X[j], Y[j]]);
+      cadrer(pts, 30); if (etat.k > 40) { etat.k = 40; centrerSur(i); }
+    } else if (i < 0 && etat.isole >= 0) { etat.isole = -1; filtrer(); }
+  }
+  panneau(i); dessiner();
+  if (i >= 0) { const r = cv.getBoundingClientRect(); const x = SX[i], y = SY[i]; if (x < 0 || x > r.width - 380 || y < 0 || y > r.height) centrerSur(i); }
+}
+function isoler(c) { etat.isole = c; filtrer(); toutVoir(); }
+window.choisir = choisir; window.isoler = isoler;
+
+function aide() {
+  $('#aide').innerHTML = maroc()
+    ? 'Molette, ou touches <b>Z</b> (zoom) et <b>A</b> (dézoom) à l\'endroit de la souris · glisser : déplacer · <b>clic droit</b> ou <b>Maj + glisser</b> : tourner et incliner · clic : détail et seul son réseau reste sur la carte · clic dans le vide ou <b>Échap</b> : tout revient · <b>0</b> : tout voir'
+    : 'Molette, ou touches <b>Z</b> (zoom) et <b>A</b> (dézoom) à l\'endroit de la souris · glisser : déplacer · clic : détail · double-clic : isoler le réseau';
+}
+function basculer(mode) {
+  etat.mode = mode; const m3 = maroc();
+  X = m3 ? XM : XR; Y = m3 ? YM : YR;
+  etat.pente = m3 ? (+$('#pente').value) * Math.PI / 180 : 0; etat.yaw = m3 ? (+$('#rotation').value) * Math.PI / 180 : 0; angles();
+  $('#btn-vue').classList.toggle('actif', m3); $('#btn-vue').textContent = m3 ? 'Vue réseau' : 'Carte du Maroc 3D';
+  $('#vue3d').classList.toggle('visible', m3);
+  $('#leg-arc').style.display = m3 ? '' : 'none';
+  $('#leg-fin').textContent = m3 ? 'Chaque élément à sa ville ; sans ville connue : zone grise à droite. Épingle rouge : liste noire.' : 'Réseaux de la liste noire en haut à gauche, puis les autres du plus gros au plus petit.';
+  aide(); chiffres(); if (etat.choisi >= 0) panneau(etat.choisi); toutVoir();
+}
+
+let glisse = null;
+cv.addEventListener('contextmenu', (e) => e.preventDefault());
+cv.addEventListener('mousedown', (e) => { glisse = { x: e.clientX, y: e.clientY, tx: etat.tx, ty: etat.ty, yaw: etat.yaw, pente: etat.pente, bouge: false, tourne: maroc() && (e.button === 2 || e.shiftKey) }; cv.classList.add('saisi'); });
+window.addEventListener('mousemove', (e) => {
+  if (glisse) {
+    const dx = e.clientX - glisse.x, dy = e.clientY - glisse.y; if (Math.abs(dx) + Math.abs(dy) > 3) glisse.bouge = true;
+    if (glisse.tourne) {
+      // on tourne autour du point saisi : on conserve sa position écran
+      const r = cv.getBoundingClientRect(); const [wx, wy] = deproj(glisse.x - r.left, glisse.y - r.top);
+      etat.yaw = glisse.yaw + dx * 0.006; etat.pente = Math.max(0, Math.min(75 * Math.PI / 180, glisse.pente + dy * 0.006)); angles();
+      $('#rotation').value = Math.round(((etat.yaw * 180 / Math.PI + 180) % 360 + 360) % 360 - 180); $('#pente').value = Math.round(etat.pente * 180 / Math.PI);
+      const [sx, sy] = proj(wx, wy, 0); etat.tx += glisse.x - r.left - sx; etat.ty += glisse.y - r.top - sy;
+    } else { etat.tx = glisse.tx + dx; etat.ty = glisse.ty + dy; }
+    dessiner(); return;
+  }
+  const r = cv.getBoundingClientRect(); const i = sous(e.clientX - r.left, e.clientY - r.top);
+  if (i !== etat.survol) { etat.survol = i; dessiner(); }
+  const info = $('#info');
+  if (i >= 0) { const n = N[i]; info.style.display = 'block'; info.style.left = (e.clientX - r.left + 14) + 'px'; info.style.top = (e.clientY - r.top + 14) + 'px';
+    info.innerHTML = `<b>${affHtml(n)}</b><span class="doux">${n.t === 'inscrit' ? 'inscrit' + (n.cin ? ' · ' + esc(n.cin) : '') : n.t === 'societe' ? (n.rc ? 'RC ' + esc(n.rc) + ' ' : '') + esc(villeNom(n.ville || n.trib || '')) : 'personne · ' + n.ns + ' société' + (n.ns > 1 ? 's' : '') + (n.ville ? ' · ' + esc(villeNom(n.ville)) : '')}${n.bl && n.t !== 'inscrit' ? ' · ' + esc(n.bl) : ''} · ${n.deg} lien${n.deg > 1 ? 's' : ''}</span>`; }
+  else info.style.display = 'none';
+});
+window.addEventListener('mouseup', (e) => { if (!glisse) return; const b = glisse.bouge, t = glisse.tourne; glisse = null; cv.classList.remove('saisi'); if (!b && !t && e.button === 0) { const r = cv.getBoundingClientRect(); choisir(sous(e.clientX - r.left, e.clientY - r.top)); } });
+cv.addEventListener('dblclick', (e) => { const r = cv.getBoundingClientRect(); const i = sous(e.clientX - r.left, e.clientY - r.top); if (i >= 0) isoler(N[i].c); else { etat.isole = -1; filtrer(); toutVoir(); } });
+const kmax = () => maroc() ? 80 : 10;
+cv.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(); const px = e.clientX - r.left, py = e.clientY - r.top; const f = Math.exp(-e.deltaY * 0.0015); const nk = Math.min(kmax(), Math.max(0.01, etat.k * f)); etat.tx = px - (px - etat.tx) * nk / etat.k; etat.ty = py - (py - etat.ty) * nk / etat.k; etat.k = nk; dessiner(); }, { passive: false });
+// touches Z et A : zoom et dézoom à l'endroit de la souris (au centre si la souris est hors de la carte)
+let souris = null;
+cv.addEventListener('mousemove', (e) => { const r = cv.getBoundingClientRect(); souris = [e.clientX - r.left, e.clientY - r.top]; });
+cv.addEventListener('mouseleave', () => { souris = null; });
+function zoomer(f) {
+  const r = cv.getBoundingClientRect(); const [px, py] = souris || [r.width / 2, r.height / 2];
+  const nk = Math.min(kmax(), Math.max(0.01, etat.k * f));
+  etat.tx = px - (px - etat.tx) * nk / etat.k; etat.ty = py - (py - etat.ty) * nk / etat.k; etat.k = nk; dessiner();
+}
+window.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+  const k = e.key.toLowerCase();
+  if (k === 'z' || k === '+' || k === '=') { e.preventDefault(); zoomer(1.35); }
+  else if (k === 'a' || k === '-') { e.preventDefault(); zoomer(1 / 1.35); }
+  else if (k === 'escape') { choisir(-1); }
+  else if (k === '0') { toutVoir(); }
+  else if (k === 'm') { basculer(maroc() ? 'reseau' : 'maroc'); }
+});
+let touche = null;
+cv.addEventListener('touchstart', (e) => { if (e.touches.length === 1) touche = { x: e.touches[0].clientX, y: e.touches[0].clientY, tx: etat.tx, ty: etat.ty }; }, { passive: true });
+cv.addEventListener('touchmove', (e) => { if (touche && e.touches.length === 1) { etat.tx = touche.tx + e.touches[0].clientX - touche.x; etat.ty = touche.ty + e.touches[0].clientY - touche.y; dessiner(); } }, { passive: true });
+$('#btn-def').onclick = () => { const d = $('#definitions'); const v = d.style.display === 'none'; d.style.display = v ? 'block' : 'none'; $('#btn-def').setAttribute('aria-expanded', v); };
+$('#recentrer').onclick = () => { etat.isole = -1; etat.choisi = -1; panneau(-1); filtrer(); toutVoir(); };
+$('#btn-vue').onclick = () => basculer(maroc() ? 'reseau' : 'maroc');
+function reglerAngles() {
+  // on garde fixe le point au centre de la toile
+  const r = cv.getBoundingClientRect(); const [wx, wy] = deproj(r.width / 2, r.height / 2);
+  etat.pente = (+$('#pente').value) * Math.PI / 180; etat.yaw = (+$('#rotation').value) * Math.PI / 180; angles();
+  const [sx, sy] = proj(wx, wy, 0); etat.tx += r.width / 2 - sx; etat.ty += r.height / 2 - sy; dessiner();
+}
+$('#pente').oninput = reglerAngles; $('#rotation').oninput = reglerAngles;
+$('#btn-plat').onclick = () => { $('#pente').value = 0; $('#rotation').value = 0; reglerAngles(); };
+for (const id of ['f-bl', 'f-cert', 'f-anc', 'f-ns', 'f-rayon', 'f-orig']) $('#' + id).onchange = () => { filtrer(); toutVoir(); };
+$('#seuil').oninput = () => { const v = +$('#seuil').value; etat.seuil = v === 0 ? 0 : Math.pow(10, -4 + 4 * v / 100); $('#seuil-v').textContent = v === 0 ? 'tout' : etat.seuil.toPrecision(2); filtrer(); };
+$('#recherche').oninput = () => {
+  const q = $('#recherche').value.trim().toLowerCase(); if (q.length < 2) return;
+  let hit = -1;
+  for (let i = 0; i < NB; i++) { if (!visN[i]) continue; const n = N[i]; if ((n.nom || '').toLowerCase().includes(q) || (n.lat || '').toLowerCase().includes(q) || (n.cin || '').toLowerCase() === q || (n.rc || '') === q) { hit = i; if (n.t === 'inscrit' || (n.cin || '').toLowerCase() === q || (n.rc || '') === q) break; } }
+  if (hit >= 0) { centrerSur(hit, maroc() ? 6 : 1.4); choisir(hit); }
+};
+window.addEventListener('resize', () => { taille(); dessiner(); });
+new ResizeObserver(() => { taille(); dessiner(); }).observe(document.querySelector('main'));
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { lireCouleurs(); dessiner(); });
+try { if (localStorage.getItem('carte-globale-bl') === '1') $('#f-bl').checked = true; if (localStorage.getItem('carte-globale-lat') === '1') { $('#f-lat').checked = true; etat.lat = true; } } catch (e) { /* stockage indisponible */ }
+$('#f-lat').addEventListener('change', () => { etat.lat = $('#f-lat').checked; try { localStorage.setItem('carte-globale-lat', etat.lat ? '1' : '0'); } catch (e) { /* stockage indisponible */ } if (etat.choisi >= 0) panneau(etat.choisi); dessiner(); });
+$('#f-bl').addEventListener('change', () => { try { localStorage.setItem('carte-globale-bl', $('#f-bl').checked ? '1' : '0'); } catch (e) { /* stockage indisponible */ } });
+if (!G) { $('#btn-vue').style.display = 'none'; }
+aide(); angles(); taille(); filtrer(); toutVoir();
+</script>
+</body>
+</html>

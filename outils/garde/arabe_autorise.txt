@@ -1,0 +1,11 @@
+# Fichiers où l'écriture arabe est attendue : tables de normalisation, translittération, jeu d'essai fictif.
+# Motifs glob depuis la racine du dépôt, un par ligne.
+pipeline/construire_base.py
+pipeline/chaines_dessin.py
+pipeline/translitteration.py
+pipeline/normalisation/**
+pipeline/tests/**
+jeu_essai/**
+tests/**
+pipeline/carte_globale_modele.html
+pipeline/carte_chaines_modele.html
