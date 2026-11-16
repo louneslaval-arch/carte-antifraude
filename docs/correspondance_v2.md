@@ -36,6 +36,13 @@ pas aux fichiers de Kamal (dérive).
 | vues `c2_alias`, `c2_adresse`, `c2_role`, `c2_identifiant` | c2 | graphies, adresses, rôles dans une société et identifiants d'une fiche, lus dans ses mentions |
 | vue `c2_employeur` | c2 | le référentiel `Employeur` de Kamal (clé `ice`, `noms`, `vus`) recalculé depuis nos dossiers : une ligne par graphie (`nom`) au lieu de son tableau `noms`, en attendant l'accès à sa table |
 | `ref_regle_survie` | référentiel | pour chaque attribut d'une fiche, la source qui l'emporte (décision n°16 pour l'adresse) |
+| `c3_dossier` | c3 | en-tête au format du modèle `Dossier` de Kamal (ses champs sous ses noms : `personType`, `csp`, `productType`, `paymentMode`, `clientName`, `agence`, `canal`, `category`, `verdict`, `verdictProvisional`, `analysisStatus`, `businessReceivedAt`, `createdAt`, `updatedAt`), plus `businessData` mis à plat sous nos noms (`cin_declare`, `nom_declare`, `adresse_declaree`, `employeur_declare`, `revenu_declare`, `organisme_pension_declare`, `client_connu`, `agence_code`, `agence_ville`), `en_cours`, `jour`, `employeur_declare_defaut`, et les colonnes prévues, vides tant que la v2 ne les envoie pas (`montant_demande`, `duree_mois`, `apport`, `mensualite`, `statut_final`) |
+| `c3_revenu`, `c3_charge`, `c3_compte`, `c3_operation`, `c3_vehicule` | c3 | revenus déclaré et vérifiés, charges, comptes, opérations lues (type et contrepartie tirés du libellé), véhicules, chacun avec sa pièce : la v2 les garde dans `fields` et dans ses contrôles, sans table |
+| `c3_cle_dossier` | c3 | RIB, châssis et adresse déclarée d'un dossier, pour le croiser avec les autres : la v2 ne croise pas les dossiers |
+| `c3_incoherence_locale`, vue `c3_incoherence` | c3 | incohérences entre pièces, entre dossiers et avec le registre (`salaire_bulletin_releve`, `adresse_cin_differente`, `double_financement`, `rib_autre_dossier`, `employeur_absent_du_registre`) et signal `dossiers_en_rafale` ; distinctes des 55 contrôles de la v2, qui se lisent dans `"AnalysisControl"` sans être recalculés |
+| vue `c3_partie_dossier` | c3 | rôle de chaque fiche dans le dossier, et laquelle est le demandeur |
+| `c6_version_parametres`, vue `parametre` | paramètres | tolérances et seuils versionnés, marqués provisoires (`schema/035_parametres.sql`) ; créée dès l'étape G parce que c3 y lit ses seuils, complétée à l'étape I |
+| `ref_valeur_defaut` | référentiel | valeurs que l'amont pose par défaut (« VAB » pour l'employeur déclaré) : marquées, jamais comparées |
 
 <!-- DEBUT PARTIE GENEREE : outils/v2/carte_correspondance.py --ecrire ; ne pas modifier à la main -->
 

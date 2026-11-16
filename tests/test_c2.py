@@ -66,6 +66,9 @@ def base_de(tmp_path, dossiers=(), socle=None, construire=True):
         c2.charger_socle(cx, socle)
     if construire:
         c2.construire_tout(cx)
+        from pipeline.couches import COUCHES
+        for couche in COUCHES[3:]:                         # les invariants portent sur toutes les couches
+            couche.construire_tout(cx)
     return cx
 
 
