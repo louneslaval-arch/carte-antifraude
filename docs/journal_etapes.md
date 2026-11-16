@@ -471,3 +471,31 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Non corrigé, noté** : questions n°77 à 88. Pas d'essai réel pour cette étape (le « fini quand » porte sur le jeu
   d'essai). `testeur-mutation` non lancé (n°22). Le premier enregistrement portait tests et code ensemble ; les
   corrections ont suivi « test rouge, puis code ».
+
+## 16/11/2026 — étape H, c5 : graphe (branche `etape-h-c5`) — partielle
+- **Couche** : `schema/050_c5.sql`, `pipeline/couches/c5_graphe.py`. Arêtes matérialisées, une par mention de c2
+  (`c5_arete` : rôle d'une personne dans une société ; fiche qui porte un RIB, un logement ou un siège, nœuds en
+  empreinte), adresse normalisée avec sa ville (`c5_cle_adresse`), taille des nœuds (`c5_compteur`, lue au moment du
+  calcul). `traiter(ref)` refait les arêtes du dossier et celles des mentions dont la fiche a changé, relevées par
+  des déclencheurs sur `c2_mention` (`c5_a_refaire`). Homonymies et rapprochements du kit lus dans c2 à la recherche.
+- **Chemins** : `chemins(cx, ref)` (et `chercher(contexte, départs)`) : depuis le demandeur et les rôles société,
+  employeur, gérant ; barème n°23, coût √(2/n) jamais aux deux bouts, homonymie à un bout plafonnée à « mineure »
+  (au milieu : la force seulement), foyer (nom de famille de la CIN, même logement) à 0,1 et plafonné, longueur
+  ≤ 4 (alerte ≤ 3), seuils 0,20 / 0,08 / 0,05, tout dans `c6_version_parametres` (provisoire). Rendu sans aucune
+  valeur d'identifiant. Les chemins ne sont pas stockés : leur mise à jour quand un autre dossier change est la
+  propagation de l'étape I.
+- **Tests** : table des coûts, 0,245 et 0,0559, scénarios S01 à S16 et S20 du générateur (force, longueur, niveau),
+  S11 avec levées, S12, S18, petit graphe fait à la main, flux = lot (au hasard, version par version), ajouter puis
+  retirer un dossier, invariants de c5 (4) montrés rouges. 57 tests.
+- **Mesure** (grand jeu fictif, 61 000 sociétés, 255 000 arêtes) : c5 en lot 7,5 s ; `c5.traiter` 4 à 10 ms ; chaîne
+  au fil de l'eau 184 ms par dossier (c2 : 226 ms) ; recherche de chemins 32 ms par dossier.
+- **Relectures** (quatre sous-agents, dont `testeur-mutation` : mutmut bloqué par le bac à sable, 62 mutations à la
+  main, 32 tuées au départ), corrigées tests d'abord : nœuds et clés d'arête sans valeur en clair ; homonymie au
+  milieu ; coût au bout présumé ; rôle hors barème ; recherche des arêtes périmées remplacée par des déclencheurs
+  (2 s → 10 ms) ; rapprochements du kit qui ne sont pas des identités (un dirigeant d'une société inscrite sortait
+  « critique ») ; « faible » hors graphe ; même rue dans deux villes ; foyer reconnu sur un prénom ; arrondi des
+  seuils ; tests des 22 mutations survivantes.
+- **Hors de la couche, signalé** : `construire.py` et `outils/comptages_f.py` refont les couches au-dessus de c2
+  après le chargement du socle ; `tests/test_c3.py` aussi.
+- **Incident** : disque plein (1,3 Go libres) pendant une mesure ; fichiers temporaires de la séance supprimés.
+- **Non fait, noté** : questions n°89 à 98.

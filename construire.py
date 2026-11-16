@@ -54,6 +54,10 @@ def construire(base, couches=None, schema=migrer.SCHEMA, depuis=None, jusqua=Non
         if socle is not None:
             from pipeline.couches import c2_identites
             c2_identites.charger_socle(cx, socle)
+            if c2_identites in couches:                   # le socle change c2 : les couches choisies du dessus se refont
+                for couche in couches[couches.index(c2_identites) + 1:]:
+                    if couche in choisies:
+                        couche.construire_tout(cx)
     return appliquees, [_nom(c) for c in choisies]
 
 
@@ -73,7 +77,7 @@ def main(argv=None):
         os.makedirs(os.path.dirname(base), exist_ok=True)
     try:
         appliquees, faites = construire(base, depuis=a.depuis, jusqua=a.jusqua, dossier=a.dossier, socle=a.socle)
-    except (ValueError, sqlite3.Error, migrer.ErreurMigration) as e:
+    except (ValueError, LookupError, sqlite3.Error, migrer.ErreurMigration) as e:
         print(f'erreur : {type(e).__name__} (détail retiré : la sortie ne cite jamais une valeur)', file=sys.stderr)
         return 2
     print(f'migrations appliquées : {len(appliquees)} ; couches construites : {len(faites)}')

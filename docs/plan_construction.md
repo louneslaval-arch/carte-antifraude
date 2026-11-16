@@ -12,7 +12,7 @@
 | E | c1 pièces et faits | 4–5 j | fait (13/11) ; comptages réels à rapporter par Lounès (182, 160, 252, 2, 9) |
 | F | c2 identités | 5–7 j | partiel (16/11) : fiches, rapprochements, décisions ; restent les dossiers `af_*`, le reste des règles AF, le rapport d'écart ; comptages réels à rapporter |
 | G | c3 dossier, revenus, comptes, véhicules | 4–5 j | fait (16/11), avec des seuils provisoires (questions n°77 à 88) |
-| H | c5 graphe | 4–5 j | à faire |
+| H | c5 graphe | 4–5 j | partiel (16/11) : graphe et chemins ; restent graphe vivant, chemins stockés, positions, dessin du kit, rapport d'écart (questions n°89 à 98) |
 | I | c6 contrôle réseau, alertes, propagation, nuit | 4–5 j | à faire |
 | J | API temps réel, dont les chiffres agrégés du portail | 4,5–5,5 j | à faire |
 | K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | à faire |

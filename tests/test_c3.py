@@ -67,6 +67,8 @@ def base_de(tmp_path, dossiers=(), socle=None, meta=None):
         couche.construire_tout(cx)
     if socle:
         c2.charger_socle(cx, socle)
+        for couche in COUCHES[3:]:                         # le socle change c2 : les couches du dessus se refont
+            couche.construire_tout(cx)
     return cx
 
 
