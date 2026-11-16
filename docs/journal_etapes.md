@@ -447,3 +447,27 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - À régler avant K2 : `docs/spec_base_client.md` absente (écrans « Base client » et « Fiche client » non
   spécifiés) ; contraste du texte sur le rouge de la tuile centrale ; écriture arabe et `.json` du contenu refusés
   par la garde (à autoriser par Lounès).
+
+## 16/11/2026 — étape G, c3 : dossier, revenus, comptes, véhicules (branche `etape-g-c3`)
+- **Couche** : `schema/040_c3.sql`, `pipeline/couches/c3_dossier.py`. Tables propres au dossier, réécrites par
+  `traiter(ref)` : `c3_dossier` (tous les champs scalaires du modèle `Dossier` de Kamal, `businessData` sous ses clés,
+  colonnes prévues vides), `c3_revenu` (déclaré, vérifié, avec sa pièce), `c3_charge`, `c3_compte`, `c3_operation`
+  (opérations lues, type et contrepartie tirés du libellé), `c3_vehicule`, `c3_cle_dossier`, `c3_incoherence_locale`.
+  Ce qui croise les dossiers ou dépend d'un seuil est une vue, calculée à la lecture : `c3_incoherence`
+  (salaire du bulletin contre le relevé, adresse, double financement, RIB vu ailleurs ; signaux : rafale, employeur
+  absent du registre), `c3_partie_dossier`, `c3_demandeur`, `c3_valeur_par_defaut`. Le fil de l'eau égale donc le lot,
+  même après un changement de paramètre ou de référentiel.
+- **Paramètres** : `schema/035_parametres.sql` crée `c6_version_parametres` (vue `parametre`) avec trois seuils
+  provisoires, et `ref_valeur_defaut` (« VAB », jamais comparée).
+- **Invariants** de c3 (6), chacun montré rouge par un test ; « deux faits » vérifié sur la vue entière.
+- **Relectures** (trois sous-agents), corrigées tests d'abord : clé primaire de `c3_revenu` sans la pièce (bloquant :
+  deux bulletins faisaient échouer tout le lot) ; en-tête complet et contexte sous les clés de Kamal ; adresse comparée
+  pour le seul demandeur, de façon tolérante ; RIB du même demandeur exclu, porteur inconnu en signal ; demandeur
+  unique quand le CIN déclaré n'est pas lu ; employeur connu du registre par son nom ; analyse en cours ou provisoire
+  hors des incohérences ; tolérance et valeur par défaut lues à la lecture ; ponctuation des libellés ; salaire nul ;
+  `known_client` booléen ; paramètre absent nommé ; châssis sans ponctuation (c1).
+- **Hors de la couche, signalé** : c1 (châssis), `tests/test_c2.py` (couches du dessus construites avant les
+  invariants). Les scripts d'essai réel E et F construisent désormais aussi c3.
+- **Non corrigé, noté** : questions n°77 à 88. Pas d'essai réel pour cette étape (le « fini quand » porte sur le jeu
+  d'essai). `testeur-mutation` non lancé (n°22). Le premier enregistrement portait tests et code ensemble ; les
+  corrections ont suivi « test rouge, puis code ».
