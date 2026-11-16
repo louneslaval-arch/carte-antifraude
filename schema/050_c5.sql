@@ -39,7 +39,7 @@ CREATE TABLE c5_cle_adresse (
 CREATE INDEX c5_cle_adresse_ref_idx ON c5_cle_adresse (ref);
 
 -- Une arête par mention : `role` (personne → société, code = rôle) ou `identifiant` (fiche → nœud d'identifiant,
--- code = RIB, LOGEMENT, SIEGE). `de` et `vers` sont les fiches de c2 au moment de la construction ; un invariant
+-- code = RIB, LOGEMENT, SIEGE ; le nœud est une empreinte de la valeur, jamais la valeur). `de` et `vers` sont les fiches de c2 au moment de la construction ; un invariant
 -- vérifie qu'elles sont toujours celles de c2.
 CREATE TABLE c5_arete (
     cle       TEXT PRIMARY KEY,

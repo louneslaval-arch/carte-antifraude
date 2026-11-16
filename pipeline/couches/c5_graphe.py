@@ -14,6 +14,7 @@ sont pas stockés ici : leur mise à jour quand un autre dossier change est la p
 Aucune sortie, aucun message ne porte de valeur ; un chemin rendu ne cite que des identifiants internes de fiche et
 des codes, jamais la valeur d'un identifiant partagé.
 """
+import hashlib
 import heapq
 import math
 
@@ -33,6 +34,12 @@ class ParametreAbsent(LookupError):
     """Un paramètre dont la couche a besoin manque dans `c6_version_parametres`."""
 
 
+def noeud_identifiant(code, valeur):
+    """Nœud d'un identifiant partagé : son type et une empreinte de sa valeur, jamais la valeur en clair (une clé de
+    nœud peut finir dans une URL, un événement ou un message d'erreur)."""
+    return f'{code.lower()}_' + hashlib.sha256(f'{code}|{valeur}'.encode('utf-8')).hexdigest()[:16]
+
+
 def cout(n):
     """Coût de taille d'un nœud traversé (décision n°21) : 1 jusqu'à 2, sinon √(2/n)."""
     return 1.0 if n <= 2 else math.sqrt(2 / n)
@@ -41,10 +48,16 @@ def cout(n):
 def parametres(cx):
     p = dict(cx.execute("SELECT nom, valeur FROM parametre WHERE nom LIKE 'c5\\_%' ESCAPE '\\'").fetchall())
     besoins = ('c5_seuil_majeure', 'c5_seuil_mineure', 'c5_seuil_affichage', 'c5_longueur_alerte',
-               'c5_longueur_recherche', 'c5_fiabilite_homonymie', 'c5_poids_foyer') + tuple(POIDS_IDENTIFIANT.values())
+               'c5_longueur_recherche', 'c5_fiabilite_homonymie', 'c5_poids_foyer', 'c5_poids_inconnu') + \
+        tuple(POIDS_IDENTIFIANT.values())
     if set(besoins) - set(p):
         raise ParametreAbsent('paramètre de c5 absent de c6_version_parametres')
     return p
+
+
+def poids_role(p, code):
+    """Poids de départ d'un rôle (barème n°23) ; un rôle absent du barème vaut le poids d'un rôle inconnu."""
+    return p.get('c5_poids_' + code, p['c5_poids_inconnu'])
 
 
 def niveau(p, longueur, force, plafond=None):
@@ -104,13 +117,14 @@ def _aretes(cx, mentions):
                            m['role'] or 'inconnu', m['parts'], m['source'], m['ref']))
         if m['id'] in adresses:
             code = 'LOGEMENT' if m['type_fiche'] == 'PP' else 'SIEGE'
-            lignes.append(('A|' + m['id'], 'identifiant', m['id'], None, m['fiche'], f'{code}:{adresses[m["id"]]}',
-                           code, None, m['source'], m['ref']))
+            lignes.append(('A|' + m['id'], 'identifiant', m['id'], None, m['fiche'],
+                           noeud_identifiant(code, adresses[m['id']]), code, None, m['source'], m['ref']))
         if m['source'] == 'v2' and m['role'] in ROLES_RIB:
-            for (rib,) in cx.execute("SELECT valeur FROM c1_identifiant_brut WHERE ref = ? AND upstream_piece_id = ? "
-                                     "AND type = 'RIB' ORDER BY valeur", (m['ref'], m['upstream_piece_id'])):
-                lignes.append((f'B|{m["id"]}|{rib}', 'identifiant', m['id'], None, m['fiche'], 'RIB:' + rib, 'RIB',
-                               None, m['source'], m['ref']))
+            for rang, (rib,) in enumerate(cx.execute(
+                    "SELECT valeur FROM c1_identifiant_brut WHERE ref = ? AND upstream_piece_id = ? AND type = 'RIB' "
+                    'ORDER BY valeur', (m['ref'], m['upstream_piece_id'])).fetchall()):
+                lignes.append((f'B|{m["id"]}|{rang}', 'identifiant', m['id'], None, m['fiche'],
+                               noeud_identifiant('RIB', rib), 'RIB', None, m['source'], m['ref']))
     cx.executemany('INSERT INTO c5_arete VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', lignes)
     return {x for ligne in lignes for x in (ligne[4], ligne[5])}
 
@@ -251,8 +265,8 @@ class Contexte:
         for voisin, code in self.cx.execute("SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? "
                                             "UNION SELECT de, code FROM c5_arete WHERE type = 'role' AND vers = ?",
                                             (u, u)):
-            poids = p.get('c5_poids_' + code)
-            if poids is not None and voisin != u and poids > roles.get(voisin, (0, None))[0]:
+            poids = poids_role(p, code)
+            if voisin != u and poids > roles.get(voisin, (0, None))[0]:
                 roles[voisin] = (poids, code)
         for voisin, (poids, code) in sorted(roles.items()):
             sortie.append((voisin, 1, poids, dict(type='role', code=code, de=u, vers=voisin), None, False, None))
@@ -279,43 +293,57 @@ def _departs(cx, ref):
 
 
 def chemins(cx, ref, contexte=None):
-    """Meilleur chemin vers chaque inscrit atteint depuis les identités du dossier, du plus grave au moins grave.
-    Chaque chemin : cible (fiche inscrite), longueur, force, niveau, homonymie (à lever), foyer, étapes."""
-    k = contexte or Contexte(cx)
+    """Meilleur chemin vers chaque inscrit atteint depuis les identités du dossier, du plus grave au moins grave."""
+    return chercher(contexte or Contexte(cx), _departs(cx, ref))
+
+
+def chercher(k, departs):
+    """Recherche par force décroissante. Chaque chemin rendu : cible (fiche inscrite), longueur, force, niveau,
+    homonymie (à lever, à un bout), foyer, étapes (identifiants internes de fiche et codes seulement).
+
+    Règles (`.claude/rules/score.md`) : le coût de taille s'applique aux nœuds traversés, jamais aux deux bouts ; une
+    homonymie (0 lien) qui touche un bout (le départ, ou l'inscrit) fait de la fiche rapprochée ce bout lui-même (pas
+    de coût) et plafonne le niveau à « mineure » ; au milieu, elle n'agit que sur la force. On s'arrête au premier
+    inscrit atteint ; un chemin ne repasse ni par une fiche ni par un identifiant."""
     p = k.p
     limite, plancher = p['c5_longueur_recherche'], p['c5_seuil_affichage']
-    departs = _departs(cx, ref)
-    tas = [(-1.0, 0, d, k_, (), None, False, True, frozenset({d})) for k_, d in enumerate(departs)]
+    departs = sorted(set(departs))
+    # état : (-force, longueur, nœud, rang, étapes, plafond, foyer, est un bout de départ, départ d'origine, passés)
+    tas = [(-1.0, 0, d, r, (), None, False, True, True, frozenset({d})) for r, d in enumerate(departs)]
     rang = len(tas)
-    heapq.heapify(tas)
     vus, meilleurs = {}, {}
     while tas:
-        moins_force, longueur, u, _, etapes, plafond, foyer, depart, passes = heapq.heappop(tas)
+        moins_force, longueur, u, _, etapes, plafond, foyer, bout, origine, passes = heapq.heappop(tas)
         force = -moins_force
         etat = (plafond is not None, foyer)
-        if any(lg <= longueur and f >= force and e <= etat for lg, f, e in vus.get(u, ())):
+        if any(lg <= longueur and f >= force and e[0] <= etat[0] and e[1] <= etat[1] for lg, f, e in vus.get(u, ())):
             continue
         vus.setdefault(u, []).append((longueur, force, etat))
         if u in k.inscrits:
             niv = niveau(p, longueur, force, plafond)
             if niv:
-                candidat = dict(cible=u, longueur=longueur, force=round(force, 6), niveau=niv, homonymie=plafond is not None
-                                and any(e['type'] == 'homonymie' for e in etapes), foyer=foyer, etapes=list(etapes))
+                candidat = dict(cible=u, longueur=longueur, force=round(force, 6), niveau=niv,
+                                homonymie=plafond is not None and any(e['type'] == 'homonymie' for e in etapes),
+                                foyer=foyer, etapes=list(etapes))
                 actuel = meilleurs.get(u)
-                if actuel is None or (NIVEAUX.index(niv), -force, longueur) < \
+                if actuel is None or (NIVEAUX.index(niv), -candidat['force'], longueur) < \
                         (NIVEAUX.index(actuel['niveau']), -actuel['force'], actuel['longueur']):
                     meilleurs[u] = candidat
-            if not depart:
+            if not origine:
                 continue                                  # on s'arrête au premier inscrit atteint
-        traverse = 1.0 if depart else cout(k.n(u))        # jamais le coût des deux bouts
         for voisin, ajout, poids, etape, plafond_lien, foyer_lien, noeud in k.liens(u):
+            homonymie = etape['type'] == 'homonymie'
+            vers_inscrit = voisin in k.inscrits
+            # le coût de u : jamais s'il est un bout (départ, ou fiche rapprochée de l'inscrit qu'on rejoint)
+            traverse = 1.0 if bout or (homonymie and vers_inscrit) else cout(k.n(u))
             nouvelle = force * traverse * poids * (cout(k.n(noeud)) if noeud else 1.0)
             if longueur + ajout > limite or nouvelle < plancher or voisin in departs or voisin in passes \
                     or (noeud and noeud in passes):     # un chemin ne repasse ni par une fiche ni par un identifiant
                 continue
-            p2 = plafond_lien or plafond
-            etape = dict(etape)
+            if homonymie and not (bout or vers_inscrit):
+                plafond_lien = None                       # homonymie au milieu : la force seulement
             rang += 1                                     # départage stable : jamais de comparaison d'étapes
-            heapq.heappush(tas, (-nouvelle, longueur + ajout, voisin, rang, etapes + (etape,), p2,
-                                 foyer or foyer_lien, False, passes | {voisin} | ({noeud} if noeud else set())))
+            heapq.heappush(tas, (-nouvelle, longueur + ajout, voisin, rang, etapes + (dict(etape),),
+                                 plafond_lien or plafond, foyer or foyer_lien, bout and homonymie, False,
+                                 passes | {voisin} | ({noeud} if noeud else set())))
     return sorted(meilleurs.values(), key=lambda c: (NIVEAUX.index(c['niveau']), -c['force'], c['longueur'], c['cible']))

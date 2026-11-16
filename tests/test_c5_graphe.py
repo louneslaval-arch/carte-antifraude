@@ -179,13 +179,13 @@ def test_S11_homonymie_a_un_bout_plafonnee_a_mineure_puis_levee(cx, jeu):
 def test_S12_employeur_reconnu_par_son_seul_nom_mineure_au_plus(cx, jeu):
     ref = next(v['ref'] for v in jeu.verite if 'S12' in v['scenarios'])
     m = meilleur(cx, ref)
-    assert m and m['homonymie'] and m['niveau'] in ('mineure', 'affiche')
+    assert m and m['homonymie'] and m['longueur'] == 0 and m['niveau'] == 'mineure'
 
 
 def test_S18_meme_chassis_n_est_pas_un_lien(cx, jeu):
     a, b = [v['ref'] for v in jeu.verite if 'S18' in v['scenarios']]
-    assert not any(ch['inscrit'] for ch in c5.chemins(cx, a)) or True
     assert lignes(cx, "SELECT count(*) FROM c5_arete WHERE code = 'CHASSIS'") == [(0,)]
+    assert all(e['code'] != 'CHASSIS' for r in (a, b) for ch in c5.chemins(cx, r) for e in ch['etapes'])
 
 
 def test_dossier_sans_lien_aucun_chemin(cx, jeu):
@@ -194,11 +194,31 @@ def test_dossier_sans_lien_aucun_chemin(cx, jeu):
 
 
 def test_chemin_detaille_sans_aucune_valeur_d_identite(cx, jeu):
-    ref = attendus(jeu, ['S07'])[0]['ref']
-    m = meilleur(cx, ref)
-    texte = json.dumps(m, ensure_ascii=False)
-    assert 'ZZ' not in texte and '999' not in texte
-    assert [e['code'] for e in m['etapes']] == ['gerant', 'gerant']
+    import re
+    assert [e['code'] for e in meilleur(cx, attendus(jeu, ['S07'])[0]['ref'])['etapes']] == ['gerant', 'gerant']
+    k = c5.Contexte(cx)
+    valeurs = {v for (v,) in lignes(cx, 'SELECT valeur FROM c1_identifiant_brut UNION SELECT cle FROM c5_cle_adresse')}
+    fiche = re.compile(r'(pp|pm)_[0-9a-f]{16}')
+    vus = {'role': 0, 'identifiant': 0, 'homonymie': 0}
+    for d in jeu.dossiers:
+        for ch in c5.chemins(cx, d['ref'], k):
+            assert set(ch) == {'cible', 'longueur', 'force', 'niveau', 'homonymie', 'foyer', 'etapes'}
+            assert fiche.fullmatch(ch['cible'])
+            for e in ch['etapes']:
+                assert set(e) == {'type', 'code', 'de', 'vers'} and fiche.fullmatch(e['de']) and fiche.fullmatch(e['vers'])
+                vus[e['type']] += 1
+            texte = json.dumps(ch, ensure_ascii=False)
+            assert 'ZZ' not in texte and not any(x in texte for x in ('RIB:', 'LOGEMENT:', 'SIEGE:'))
+            assert not any(v in texte for v in valeurs if v and len(v) >= 6)
+    assert all(vus.values())                                # des chemins par rôle, par identifiant et par homonymie
+
+
+def test_cles_d_arete_et_noeuds_d_identifiant_sans_valeur_en_clair(cx):
+    valeurs = {v for (v,) in lignes(cx, "SELECT valeur FROM c1_identifiant_brut WHERE type = 'RIB'")}
+    adresses = {v for (v,) in lignes(cx, 'SELECT cle FROM c5_cle_adresse')}
+    for cle, vers in lignes(cx, "SELECT cle, vers FROM c5_arete WHERE type = 'identifiant'"):
+        assert not any(v in cle or v in vers for v in valeurs | adresses)
+    assert not any(v in n for (n,) in lignes(cx, 'SELECT noeud FROM c5_compteur') for v in valeurs | adresses)
 
 
 # ---- petit graphe fait à la main -----------------------------------------------------------------------------------
@@ -231,7 +251,7 @@ def test_cout_lu_dans_le_compteur_au_moment_du_calcul(jeu, socle, tmp_path):
         for couche in COUCHES[1:]:
             couche.traiter(cx, d['ref'])
     assert math.isclose(meilleur(cx, lie)['force'], 0.9 * math.sqrt(2 / 5), abs_tol=1e-6)
-    assert lignes(cx, "SELECT n FROM c5_compteur WHERE noeud = ?", 'RIB:' + rib) == [(5,)]
+    assert lignes(cx, "SELECT n FROM c5_compteur WHERE noeud = ?", c5.noeud_identifiant('RIB', rib)) == [(5,)]
 
 
 def test_foyer_meme_nom_meme_logement_poids_reduit_et_plafond(jeu, tmp_path):
@@ -247,8 +267,66 @@ def test_foyer_meme_nom_meme_logement_poids_reduit_et_plafond(jeu, tmp_path):
     cx.execute("UPDATE c2_personne SET inscrit = 1 WHERE cin = 'ZZ100001'")
     foyer, voisin = meilleur(cx, 'ZZ26T0002'), meilleur(cx, 'ZZ26T0003')
     assert foyer['foyer'] and voisin and not voisin['foyer']
-    assert math.isclose(foyer['force'], 0.1 * c5.cout(3), abs_tol=1e-6) and foyer['niveau'] in ('mineure', 'affiche')
+    assert math.isclose(foyer['force'], 0.1 * c5.cout(3), abs_tol=1e-6) and foyer['niveau'] == 'mineure'
     assert math.isclose(voisin['force'], 0.5 * c5.cout(3), abs_tol=1e-6) and voisin['niveau'] == 'majeure'
+
+
+class GrapheFait(c5.Contexte):
+    """Petit graphe fait à la main : {nœud: [(voisin, type, code, poids)]}, tailles et inscrits donnés."""
+
+    def __init__(self, cx, aretes, tailles, inscrits):
+        self.cx, self.p, self.inscrits, self._t = cx, c5.parametres(cx), set(inscrits), tailles
+        self._a = {}
+        for a, b, type_, code, poids in aretes:
+            for x, y in ((a, b), (b, a)):
+                self._a.setdefault(x, []).append((y, type_, code, poids))
+
+    def n(self, noeud):
+        return self._t.get(noeud, 1)
+
+    def liens(self, u):
+        sortie = []
+        for voisin, type_, code, poids in sorted(self._a.get(u, ())):
+            homonymie = type_ == 'homonymie'
+            sortie.append((voisin, 0 if homonymie else 1, poids, dict(type=type_, code=code, de=u, vers=voisin),
+                           'mineure' if homonymie else None, False, None))
+        return sortie
+
+
+def pp(n):
+    return f'pp_{n:016x}'
+
+
+def test_homonymie_au_milieu_n_agit_que_sur_la_force(cx):
+    # départ –gérant– A ≈ B (homonymie) –gérant– inscrit : 2 liens, 0,7 × 0,9 × 0,7 = 0,441, majeure
+    k = GrapheFait(cx, [(pp(1), pp(2), 'role', 'gerant', 0.7), (pp(2), pp(3), 'homonymie', 'R07', 0.9),
+                        (pp(3), pp(4), 'role', 'gerant', 0.7)], {}, [pp(4)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['longueur'], round(m['force'], 3), m['niveau'], m['homonymie']) == (2, 0.441, 'majeure', False)
+
+
+def test_homonymie_au_bout_plafonne_et_ne_coute_pas_la_taille_du_presume_inscrit(cx):
+    # départ –gérant– A (8 sociétés) ≈ inscrit : A est l'inscrit présumé, un bout : pas de coût de taille
+    k = GrapheFait(cx, [(pp(1), pp(2), 'role', 'gerant', 0.7), (pp(2), pp(3), 'homonymie', 'R07', 0.5)],
+                   {pp(2): 8}, [pp(3)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['longueur'], round(m['force'], 3), m['niveau'], m['homonymie']) == (1, 0.35, 'mineure', True)
+    # le départ lui-même rapproché d'une fiche du registre : celle-ci vaut le départ, sans coût
+    k = GrapheFait(cx, [(pp(1), pp(2), 'homonymie', 'AF07', 0.5), (pp(2), pp(3), 'role', 'gerant', 0.7)],
+                   {pp(2): 8}, [pp(3)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert (m['longueur'], round(m['force'], 3), m['niveau'], m['homonymie']) == (1, 0.35, 'mineure', True)
+
+
+def test_cout_jamais_aux_deux_bouts_mais_au_milieu(cx):
+    k = GrapheFait(cx, [(pp(1), pp(2), 'role', 'gerant', 0.7), (pp(2), pp(3), 'role', 'gerant', 0.7)],
+                   {pp(1): 40, pp(2): 8, pp(3): 500}, [pp(3)])
+    (m,) = c5.chercher(k, [pp(1)])
+    assert round(m['force'], 3) == 0.245
+
+
+def test_role_sans_poids_au_bareme_vaut_le_poids_inconnu(cx):
+    assert c5.poids_role(c5.parametres(cx), 'role_jamais_vu') == c5.parametres(cx)['c5_poids_inconnu']
 
 
 # ---- flux = lot, propriétés, invariants ----------------------------------------------------------------------------

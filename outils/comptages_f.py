@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Comptages de l'étape F : charge le socle du kit (liste noire, registre) dans une base neuve, construit c2, et
-n'affiche que des nombres.
+"""Comptages de l'étape F : charge le socle du kit (liste noire, registre) dans une base neuve, construit c2 et les
+couches du dessus (c3, c5), et n'affiche que des nombres.
 
 Le script peut tourner sur des données réelles (lancé par Lounès, hors du dépôt) : il n'affiche jamais une valeur
 lue ni le détail d'une erreur. Aucun chiffre de 1 à 4 ne s'affiche (« < 5 ») ; un comptage par règle qui porte sur
