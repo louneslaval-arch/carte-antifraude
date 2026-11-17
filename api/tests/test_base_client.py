@@ -12,6 +12,7 @@ from conftest import RACINE, connecte
 
 STRUCTURE = os.path.join(RACINE, 'import', 'kamal_structure', 'reference', 'champs_par_type_prod.csv')
 LIVREE = os.path.join(RACINE, 'jeu_essai', 'demo', 'base_demo.sqlite.gz')
+CARTE_LIVREE = os.path.join(RACINE, 'jeu_essai', 'demo', 'carte_globale_demo.tar.gz')
 pytestmark = pytest.mark.skipif(not os.path.exists(STRUCTURE) and not os.path.exists(LIVREE),
                                 reason='ni structure de Kamal ni base de démonstration livrée')
 MOTIFS = (re.compile(r'\bZZ\d{4,}'), re.compile(r'999\d{8,}'), re.compile(r'\b(pp|pm)_[0-9a-f]{16}\b'))
@@ -30,6 +31,22 @@ def base_demo(tmp_path_factory):
         with gzip.open(LIVREE, 'rb') as source, open(chemin, 'wb') as cible:
             shutil.copyfileobj(source, cible)
     return chemin
+
+
+@pytest.fixture(scope='session')
+def carte_demo(base_demo, tmp_path_factory):
+    """Carte globale publiée du même jeu que `base_demo` : générée avec lui, sinon celle livrée avec la base livrée."""
+    d = str(tmp_path_factory.mktemp('carte_demo') / 'carte')
+    if os.path.exists(STRUCTURE):
+        sys.path.insert(0, os.path.join(RACINE, 'outils', 'demo'))
+        import construire_demo
+        construire_demo.construire(None, n_dossiers=300, n_societes=300, graine=20261116, carte=d)
+    else:
+        import tarfile
+        os.makedirs(d)
+        with tarfile.open(CARTE_LIVREE) as t:
+            t.extractall(d)
+    return d
 
 
 @pytest.fixture
@@ -65,7 +82,7 @@ def test_noms_fiches_dossiers_reseau_refuses_hors_cellule_fraude(avec_base, role
     with avec_base() as (c, etat):
         connecte(c, etat, 'u', role)
         assert c.post('/api/base/clients', json={}).status_code == 403
-        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1', '/api/base/reseau/1'):
+        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1', '/api/base/reseau/1', '/api/base/carte/1'):
             assert c.get(chemin).status_code == 403, chemin
 
 
@@ -472,3 +489,41 @@ def test_scripts_des_pages_sans_erreur_de_syntaxe():
         if nom.endswith('.js'):
             r = subprocess.run(['node', '--check', os.path.join(dossier, nom)], capture_output=True, text=True)
             assert r.returncode == 0, nom
+
+
+def test_fiche_retrouvee_sur_la_carte_globale_par_son_cin_ou_son_rc(avec_base, carte_demo, base_demo):
+    compact = lambda v: re.sub(r'\s+', '', str(v)).upper()          # noqa: E731
+    g = sqlite3.connect(os.path.join(carte_demo, 'identites.sqlite'))
+    cins = {compact(c) for (c,) in g.execute('SELECT cin FROM identite WHERE cin IS NOT NULL')}
+    rcs = {compact(r) for (r,) in g.execute("SELECT rc FROM identite JOIN noeud USING (indice) "
+                                            "WHERE type = 'societe' AND rc IS NOT NULL")}
+    cx = sqlite3.connect(base_demo)
+    with avec_base(CARTE_PUBLICATION_GLOBALE=carte_demo) as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        personnes = [(f, cin) for f, cin in cx.execute('SELECT identifiant, cin FROM c2_personne WHERE cin IS NOT NULL')]
+        presente = next((f, cin) for f, cin in personnes if compact(cin) in cins)
+        absente = next(f for f, cin in personnes if compact(cin) not in cins)
+        r = c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}')
+        assert r.status_code == 200 and set(r.json()) == {'indice'}
+        trouve = g.execute('SELECT cin FROM identite WHERE indice = ?', (r.json()['indice'],)).fetchone()[0]
+        assert compact(trouve) == compact(presente[1])
+        assert c.get(f'/api/base/carte/{b.indice_fiche[absente]}').status_code == 404
+        societe = next(f for f, rc in cx.execute('SELECT identifiant, rc FROM c2_societe WHERE rc IS NOT NULL')
+                       if compact(rc) in rcs)
+        r = c.get(f'/api/base/carte/{b.indice_fiche[societe]}')
+        assert r.status_code == 200
+        typ, rc = g.execute('SELECT type, rc FROM noeud JOIN identite USING (indice) WHERE indice = ?',
+                            (r.json()['indice'],)).fetchone()
+        assert typ == 'societe' and compact(rc) == compact(cx.execute('SELECT rc FROM c2_societe WHERE identifiant = ?',
+                                                                       (societe,)).fetchone()[0])
+        assert c.get('/api/base/carte/1').status_code == 404
+        from conftest import tout_le_journal
+        assert 'carte' in tout_le_journal(etat)
+
+
+def test_fiche_vers_la_carte_sans_carte_globale_503(avec_base, base_demo):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        indice = next(iter(etat.base_client.indice_fiche.values()))
+        assert c.get(f'/api/base/carte/{indice}').status_code == 503
