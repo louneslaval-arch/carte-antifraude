@@ -18,7 +18,7 @@
 | K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | avancé (16/11) : portail, base client, fiche complète, dossier, sur base fictive ; vue réseau d'un client rallumée (niveaux masqués) ; carte globale et carte du Maroc (17/11), servies en deux couches ; restent temps réel, carte anonyme DIRECTION, essais automatiques dans le navigateur |
 | L | PostgreSQL et déploiement | 4–5 j | à faire |
 | M | jeton Tandem, notification de la v2, pseudonymisation | 3–4 j | à faire |
-| N | performance (c4) et analytique (c7) | 6–8 sem. | à faire |
+| N | performance (c4) et analytique (c7) | 6–8 sem. | avancé (17/11) : statistiques des dossiers (c7 : dictionnaire, variables par dossier, agrégats avec secret, page autonome) ; restent c4, table d'analyse et défaut à 12 mois |
 
 Les étapes A à K ne dépendent que des fichiers que Lounès dépose dans `import/` et des questions ouvertes indiquées. Premier essai réel possible à la fin de l'étape I.
 

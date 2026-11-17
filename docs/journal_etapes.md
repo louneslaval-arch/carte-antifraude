@@ -557,3 +557,29 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   passage de la fiche à la carte centrée.
 - **Non fait, noté** : questions n°108 à 111.
 
+## 17/11/2026 — statistiques des dossiers, avance sur l'étape N (branche `etape-n-statistiques`)
+- **Demande de Lounès** : module de statistiques sur les dossiers de l'antifraude (dictionnaire d'indicateurs, table
+  d'agrégats, page autonome). Tranché avant le code : calcul depuis c1, c3 et le miroir (et non des tables `v2_*`
+  d'`extraire_json_v2.py`, qui doubleraient la lecture des pièces) ; avance sur l'étape N ; pas de route d'API.
+- **Fait** : `schema/070_c7_analytique.sql` ; `pipeline/analytique/` (`indicateurs`, `regions`, `variables`,
+  `secret`, `agregats`, `page_statistiques`) ; gabarit `pipeline/statistiques_modele.html` ; `stats_dossiers.py` ;
+  jeu d'essai `jeu_essai/v2/statistiques/generer_v2_fictif.py` (600 dossiers au format de Kamal, plan explicite,
+  vérité comptée sur le plan : `pipeline/tests/attendu_statistiques.json`, 36 cases) ; mypy étendu à
+  `pipeline/analytique` dans `outils/verifier_tout.sh`.
+- **Tests** : tests d'abord, rouges pour la bonne raison (modules absents) ; `tests/analytique/` (variables, secret,
+  agrégats, critères interdits, page) : 108 tests. Page vérifiée dans le navigateur : cinq onglets, filtres, cases
+  masquées hachurées, aucune erreur ; 357 Ko ; commande en 1,3 s sur le jeu d'essai.
+- **Trouvé en route** : le nom d'une société de moins de 5 dossiers serait sorti dans la clé d'une case masquée :
+  regroupé avant le calcul ; un second `conftest.py` cassait les tests de l'API : tests en paquet.
+- **Relectures** (`relecteur`, `verificateur-spec`, `gardien-donnees`) : un bloquant corrigé, une case masquée se
+  retrouvait par un autre indicateur de la même tranche (médiane, taux, remplissage) : masque propagé entre
+  indicateurs, taux de verdict ou de contrôle jamais sur 1 à 4 dossiers ; aussi : effectifs en dossiers (pas en pièces
+  ni en occurrences), texte libre rare regroupé, sexe et nationalité dans la seule tranche « tous × toutes », CIN du
+  demandeur (pas celle d'une caution), revenu des PP seulement, dernière analyse par son identifiant, `missing` en
+  tableau (PostgreSQL), années révolues, page « secret » au lieu de « < 5 » ; jeu d'essai complété (verdict
+  provisoire, analyse en cours, deux anomalies graves, caution, archives, noms tirés de syllabes).
+- **Gardien des données** : médianes à partir de 10 valeurs et arrondies ; employeur ou concessionnaire sans forme
+  sociale jamais nommé ; région d'une seule petite ville regroupée ; toute erreur de `stats_dossiers.py` réduite au nom
+  de son type ; page réelle hors du dépôt ; jeu d'essai avec employeurs et concessionnaires rares (le test du
+  regroupement passait à vide). 119 tests du module ; vérification complète verte.
+- **Non fait, noté** : questions n°116 à 134.
