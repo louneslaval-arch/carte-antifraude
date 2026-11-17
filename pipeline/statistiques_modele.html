@@ -5,55 +5,148 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Statistiques des dossiers · antifraude EQDOM</title>
 <style>
-:root { --encre: #1d2330; --doux: #5b6372; --trait: #d9dde4; --fond: #ffffff; --fond-2: #f5f6f8; --barre: #2f5d8a;
-        --barre-claire: #a9bfd6; --ref: #b5452f; --masque: #c9cdd4; }
+/* Palette de référence (skill dataviz, validée daltonisme) ; clair et sombre choisis, pas inversés. */
+:root {
+  color-scheme: light;
+  --fond: #f4f3f0; --surface: #fcfcfb; --surface-2: #f3f2ee; --trait: #e4e2dc; --grille: #ecebe6;
+  --encre: #0b0b0b; --encre-2: #52514e; --encre-3: #85837d;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+  --aire: rgba(42, 120, 214, 0.12); --piste: #e9eef6;
+  --bon: #0ca30c; --attention: #fab219; --serieux: #ec835a; --critique: #d03b3b;
+  --masque: #e6e4de; --hachure: #a19e96; --ref: #d03b3b;
+  --seq1: #cde2fb; --seq2: #9ec5f4; --seq3: #6da7ec; --seq4: #3987e5; --seq5: #256abf; --seq6: #184f95;
+  --ombre: 0 1px 2px rgba(20, 20, 18, .05), 0 4px 16px rgba(20, 20, 18, .05);
+  --rayon: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --fond: #121211; --surface: #1a1a19; --surface-2: #232321; --trait: #2f2f2c; --grille: #2a2a28;
+    --encre: #f0efec; --encre-2: #c3c2b7; --encre-3: #8d8c84;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c;
+    --aire: rgba(57, 135, 229, 0.16); --piste: #222a35;
+    --masque: #2c2c29; --hachure: #6a6862; --ref: #e66767;
+    --seq1: #184f95; --seq2: #1c5cab; --seq3: #256abf; --seq4: #3987e5; --seq5: #6da7ec; --seq6: #9ec5f4;
+    --ombre: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+  }
+}
 * { box-sizing: border-box; }
-body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--encre); background: var(--fond); }
-header { padding: 18px 24px 0; border-bottom: 1px solid var(--trait); background: var(--fond-2); }
-h1 { margin: 0 0 4px; font-size: 20px; }
-h2 { font-size: 16px; margin: 28px 0 8px; }
-h3 { font-size: 14px; margin: 18px 0 6px; }
-.mention { margin: 4px 0 10px; color: var(--doux); }
-.filtres { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0; }
-.filtres select { font: inherit; padding: 3px 6px; }
-nav { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
-nav button { font: inherit; border: 1px solid var(--trait); border-bottom: 0; background: var(--fond-2); padding: 6px 14px;
-             border-radius: 6px 6px 0 0; cursor: pointer; color: var(--doux); }
-nav button[aria-selected="true"] { background: var(--fond); color: var(--encre); font-weight: 600; }
-main { padding: 4px 24px 40px; max-width: 1100px; }
-.chiffres { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
-.chiffre { border: 1px solid var(--trait); border-radius: 8px; padding: 10px 14px; min-width: 170px; }
-.chiffre b { display: block; font-size: 20px; }
-.chiffre span { color: var(--doux); font-size: 12px; }
-.graphe { margin: 6px 0 4px; overflow-x: auto; }
+body { margin: 0; background: var(--fond); color: var(--encre);
+       font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+       -webkit-font-smoothing: antialiased; }
+.app { max-width: 1240px; margin: 0 auto; padding: 28px 24px 56px; }
+/* en-tête */
+.tete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 32px; }
+.titre h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; font-weight: 700; }
+.titre .sous { margin: 4px 0 0; color: var(--encre-2); font-size: 13px; }
+.pastille-fictif { display: inline-block; margin-left: 10px; padding: 2px 9px; border-radius: 99px; font-size: 11px;
+                   font-weight: 600; vertical-align: middle; background: var(--surface-2); color: var(--encre-2);
+                   border: 1px solid var(--trait); }
+.filtres { display: flex; flex-wrap: wrap; gap: 14px; }
+.filtre { display: flex; flex-direction: column; gap: 5px; }
+.filtre > span { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--encre-3); }
+.segments { display: inline-flex; background: var(--surface-2); border: 1px solid var(--trait); border-radius: 10px; padding: 3px; }
+.segments button { font: inherit; font-size: 13px; border: 0; background: none; color: var(--encre-2); padding: 5px 11px;
+                   border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.segments button:hover { color: var(--encre); }
+.segments button[aria-pressed="true"] { background: var(--surface); color: var(--encre); font-weight: 600;
+                                        box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.mention { margin: 18px 0 0; padding: 10px 14px; border-radius: 10px; background: var(--surface); border: 1px solid var(--trait);
+           color: var(--encre-2); font-size: 13px; }
+.mention b { color: var(--encre); }
+/* chiffres clés */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(178px, 1fr)); gap: 14px; margin: 22px 0 8px; }
+.kpi { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 16px 18px 14px;
+       box-shadow: var(--ombre); position: relative; overflow: hidden; }
+.kpi .lib { font-size: 12.5px; color: var(--encre-2); }
+.kpi .val { font-size: 30px; font-weight: 650; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.kpi .val small { font-size: 15px; font-weight: 500; color: var(--encre-2); margin-left: 2px; }
+.kpi .det { font-size: 12px; color: var(--encre-3); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.kpi .trait-couleur { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.kpi svg { display: block; margin-top: 6px; }
+/* onglets */
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; margin: 24px 0 18px; border-bottom: 1px solid var(--trait); }
+.onglets button { font: inherit; font-size: 14px; border: 0; background: none; color: var(--encre-2); padding: 10px 14px 12px;
+                  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.onglets button:hover { color: var(--encre); }
+.onglets button[aria-selected="true"] { color: var(--encre); font-weight: 650; border-bottom-color: var(--s1); }
+/* cartes */
+.grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.carte { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 18px 20px 12px;
+         box-shadow: var(--ombre); min-width: 0; }
+.carte.large { grid-column: 1 / -1; }
+.carte h3 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.carte .expl { margin: 3px 0 10px; color: var(--encre-3); font-size: 12.5px; }
+.graphe { overflow-x: auto; }
 .graphe svg { display: block; max-width: 100%; height: auto; }
-.graphe text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--encre); }
-.graphe text.doux { fill: var(--doux); }
-.encadre { border: 1px dashed var(--doux); border-radius: 8px; padding: 4px 16px 12px; margin-top: 24px; }
-.note { color: var(--doux); font-size: 12px; margin: 2px 0 8px; }
-details { margin: 0 0 14px; }
-summary { cursor: pointer; color: var(--doux); font-size: 12px; }
-table { border-collapse: collapse; margin: 6px 0; font-size: 12px; }
-th, td { border-bottom: 1px solid var(--trait); padding: 3px 10px 3px 0; text-align: left; }
+svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; fill: var(--encre-2); font-size: 12px; }
+svg text.fort { fill: var(--encre); font-weight: 600; }
+svg text.faible { fill: var(--encre-3); font-size: 11px; }
+.legende { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 4px; font-size: 12.5px; color: var(--encre-2); }
+.legende i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legende i.secret { background: var(--masque); border: 1px dashed var(--hachure); }
+.anneau { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.anneau svg { width: 180px; flex: none; }
+.anneau ul { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 190px; }
+.anneau li { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; padding: 6px 0;
+             border-bottom: 1px solid var(--grille); font-size: 13px; }
+.anneau li:last-child { border-bottom: 0; }
+.anneau li i { width: 10px; height: 10px; border-radius: 3px; }
+.anneau li b { font-variant-numeric: tabular-nums; }
+.anneau li span.n { color: var(--encre-3); font-weight: 400; margin-left: 6px; }
+.mesures { display: grid; gap: 10px; }
+.mesure { display: grid; grid-template-columns: minmax(120px, 190px) 1fr 92px; gap: 12px; align-items: center; font-size: 13px; }
+.mesure .piste { height: 8px; border-radius: 99px; background: var(--piste); overflow: hidden; }
+.mesure .plein { height: 100%; border-radius: 99px; background: var(--s1); }
+.mesure .plein.moyen { background: var(--attention); }
+.mesure .plein.bas { background: var(--serieux); }
+.mesure .pc { text-align: right; font-variant-numeric: tabular-nums; color: var(--encre-2); }
+.mesure.secret .piste { background: var(--masque); border: 1px dashed var(--hachure); }
+details { margin: 8px 0 4px; border-top: 1px solid var(--grille); padding-top: 6px; }
+summary { cursor: pointer; color: var(--encre-3); font-size: 12px; list-style: none; }
+summary::before { content: "▸ "; }
+details[open] summary::before { content: "▾ "; }
+table { border-collapse: collapse; margin: 8px 0; font-size: 12.5px; width: 100%; }
+th { text-align: left; color: var(--encre-3); font-weight: 600; font-size: 11.5px; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--trait); }
+td { padding: 4px 10px 4px 0; border-bottom: 1px solid var(--grille); }
 td.n { text-align: right; font-variant-numeric: tabular-nums; }
-button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointer; }
-.vide { color: var(--doux); font-style: italic; }
-@media print { nav, .filtres, button.copier { display: none; } details { display: block; } }
+button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 7px; cursor: pointer; border: 1px solid var(--trait);
+                background: var(--surface-2); color: var(--encre-2); }
+.vide { color: var(--encre-3); font-style: italic; font-size: 13px; padding: 10px 0; }
+.encadre { border: 1px dashed var(--hachure); }
+.encadre .expl b { color: var(--encre-2); }
+.note { margin-top: 26px; color: var(--encre-3); font-size: 12px; line-height: 1.6; }
+.bulle { position: fixed; z-index: 10; pointer-events: none; background: var(--encre); color: var(--surface); font-size: 12.5px;
+         padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); max-width: 280px; line-height: 1.4; }
+.bulle b { display: block; font-weight: 650; }
+[data-tip] { cursor: default; }
+@media (max-width: 860px) { .grille { grid-template-columns: 1fr; } }
+@media print { .filtres, .onglets, button.copier { display: none; } .carte, .kpi { box-shadow: none; } }
 </style>
 </head>
 <body>
-<header>
-  <h1>Statistiques des dossiers</h1>
-  <p id="periode"></p>
-  <p class="mention">Chiffres agrégés. Verdicts de l'antifraude, pas des fraudes constatées. Aucune valeur sur moins de 5 dossiers.</p>
-  <p class="note">Case grisée et hachurée, « secret » : moins de 5 dossiers, ou masquée pour qu'une petite case ne se retrouve ni par différence avec le total, ni par un autre chiffre de la page. Un taux de verdict ou de contrôle n'est jamais publié sur 1 à 4 dossiers, ni quand il désigne tous les dossiers d'un groupe à moins de 5 près.</p>
-  <div class="filtres">
-    <label>Produit <select id="f-produit"></select></label>
-    <label>Catégorie <select id="f-categorie"></select></label>
-  </div>
-  <nav role="tablist" id="onglets"></nav>
-</header>
-<main id="contenu" role="tabpanel"></main>
+<div class="app">
+  <header class="tete">
+    <div class="titre">
+      <h1>Statistiques des dossiers <span class="pastille-fictif" id="pastille"></span></h1>
+      <p class="sous" id="periode"></p>
+    </div>
+    <div class="filtres">
+      <div class="filtre"><span>Produit</span><div class="segments" id="f-produit" role="group" aria-label="Produit"></div></div>
+      <div class="filtre"><span>Catégorie</span><div class="segments" id="f-categorie" role="group" aria-label="Catégorie"></div></div>
+    </div>
+  </header>
+  <p class="mention"><b>Chiffres agrégés. Verdicts de l'antifraude, pas des fraudes constatées. Aucune valeur sur moins de 5 dossiers.</b>
+    Une case grisée « secret » compte moins de 5 dossiers, ou elle est masquée pour qu'une petite case ne se retrouve ni par
+    différence, ni par un autre chiffre de la page.</p>
+  <section class="kpis" id="kpis" aria-label="Chiffres clés"></section>
+  <nav class="onglets" role="tablist" id="onglets"></nav>
+  <main class="grille" id="contenu" role="tabpanel"></main>
+  <p class="note">Un taux de verdict ou de contrôle n'est jamais publié sur 1 à 4 dossiers, ni quand il désigne tous les
+    dossiers d'un groupe à moins de 5 près. Fourchettes : intervalle de Wilson à 95 %. Médianes publiées à partir de 10
+    valeurs, arrondies. Le sexe et la nationalité ne sont jamais croisés avec un verdict.</p>
+</div>
+<div class="bulle" id="bulle" hidden></div>
 <script type="application/json" id="donnees">/*DONNEES*/</script>
 <script>
 'use strict';
@@ -70,11 +163,12 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
   }
   const etat = { p: 0, c: 0, onglet: 0 };
 
+  // ---- libellés -----------------------------------------------------------------------------------------------------
   const DIM = {
     semaine: 'Semaine de réception', type_personne: 'Type de demandeur', csp: 'Catégorie socioprofessionnelle',
     produit: 'Produit', mode_paiement: 'Mode de paiement', categorie: 'Catégorie', region: 'Région', ville: 'Ville',
     tranche_age: 'Âge', tranche_revenu: 'Revenu vérifié (dirhams par mois)', source_revenu: 'Source du revenu vérifié',
-    ecart_revenu: 'Écart entre revenu vérifié et revenu déclaré', anciennete_emploi: "Ancienneté dans l'emploi",
+    ecart_revenu: 'Revenu vérifié face au revenu déclaré', anciennete_emploi: "Ancienneté dans l'emploi",
     type_contrat: 'Contrat de travail', situation_familiale: 'Situation familiale', banque: 'Banque',
     vehicule_etat: 'État du véhicule', tranche_prix_vehicule: 'Prix du véhicule (dirhams)', age_societe: 'Âge de la société',
     associe_unique: 'Société à associé unique', capital_tranche: 'Capital social (dirhams)',
@@ -86,17 +180,24 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     variable: 'Variable'
   };
   const VAL = {
-    PP: 'personne physique', PM: 'personne morale', H: 'homme', F: 'femme', CONFORME: 'conforme',
-    OK_ALERTES_MINEURES: 'conforme, alertes mineures', SUSPECT: 'jugé suspect', TRES_SUSPECT: 'jugé très suspect',
-    PRELEVEMENT_SOURCE: 'prélèvement à la source', PRELEVEMENT_BANCAIRE: 'prélèvement bancaire', tous: 'tous',
-    toutes: 'toutes', DISPO: 'DISPO', AUTO_CLASSIQUE: 'AUTO classique', LOA: 'LOA',
-    bulletin: 'bulletin de paie', attestation: 'attestation de travail', pension: 'attestation de pension',
-    releve: 'relevé bancaire', aucun: 'aucune pièce', age: 'âge', revenu_verifie: 'revenu vérifié',
-    revenu_declare: 'revenu déclaré', anciennete_emploi: 'ancienneté', type_contrat: 'contrat', situation_familiale:
-    'situation familiale', ville: 'ville', region: 'région', banque: 'banque', vehicule_etat: 'état du véhicule',
-    prix_vehicule: 'prix du véhicule', apport_pct: 'apport', age_societe: 'âge de la société', associe_unique:
-    'associé unique', capital_tranche: 'capital', releve_lignes_lues: 'relevé lu', date_reference: 'date de réception',
-    sexe: 'sexe', nationalite: 'nationalité'
+    PP: 'Personne physique', PM: 'Personne morale', H: 'Homme', F: 'Femme', CONFORME: 'Conforme',
+    OK_ALERTES_MINEURES: 'Conforme, alertes mineures', SUSPECT: 'Jugé suspect', TRES_SUSPECT: 'Jugé très suspect',
+    PRELEVEMENT_SOURCE: 'Prélèvement à la source', PRELEVEMENT_BANCAIRE: 'Prélèvement bancaire', tous: 'Tous',
+    toutes: 'Toutes', DISPO: 'DISPO', AUTO_CLASSIQUE: 'AUTO', LOA: 'LOA',
+    bulletin: 'Bulletin de paie', attestation: 'Attestation de travail', pension: 'Attestation de pension',
+    releve: 'Relevé bancaire', aucun: 'Aucune pièce', age: 'Âge', revenu_verifie: 'Revenu vérifié',
+    revenu_declare: 'Revenu déclaré', anciennete_emploi: 'Ancienneté', type_contrat: 'Contrat', situation_familiale:
+    'Situation familiale', ville: 'Ville', region: 'Région', banque: 'Banque', vehicule_etat: 'État du véhicule',
+    prix_vehicule: 'Prix du véhicule', apport_pct: 'Apport', age_societe: 'Âge de la société', associe_unique:
+    'Associé unique', capital_tranche: 'Capital', releve_lignes_lues: 'Relevé lu', date_reference: 'Date de réception',
+    sexe: 'Sexe', nationalite: 'Nationalité', oui: 'Oui', non: 'Non', neuf: 'Neuf', occasion: 'Occasion',
+    COMPLETE: 'Complète', INCOMPLETE: 'Incomplète', EN_ERREUR: 'En erreur', EN_ATTENTE_DONNEES: 'En attente de données',
+    EN_COURS: 'En cours', IDENTITE: 'Identité', EMPLOI_REVENUS: 'Emploi et revenus', BANCAIRE: 'Bancaire',
+    AUTOMOBILE: 'Automobile', PM_PRO: 'Société et professionnel', BLACKLIST_GEO: 'Liste noire et géographie',
+    FONCTIONNAIRE: 'Fonctionnaire', EMPLOYE_COMMUNE: 'Employé communal', MILITAIRE: 'Militaire', SALARIE_PRIVE: 'Salarié du privé',
+    RETRAITE_PUBLIC: 'Retraité du public', RETRAITE_CIMR: 'Retraité CIMR', RETRAITE_INDETERMINE: 'Retraité',
+    PROFESSION_LIBERALE: 'Profession libérale', LOUEUR: 'Loueur', SOCIETE: 'Société', AUTRE: 'Autre',
+    quittance: 'Quittance', CIN: 'CIN'
   };
   const ORDRE = {
     tranche_age: ['18–25', '26–35', '36–45', '46–55', '56–65', 'plus de 65'],
@@ -109,11 +210,19 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     tranche_apport: ['moins de 10 %', '10–19 %', '20–29 %', '30 % et plus'],
     personnes_a_charge: ['0', '1', '2', '3 et plus'], categorie: ['A', 'B', 'C', 'D', 'E']
   };
-  const FIN = ['autres villes', 'autres sociétés', 'ville inconnue', 'non renseigné'];
+  const FIN = ['autres villes', 'autres régions', 'autres sociétés', 'autres valeurs', 'autres situations', 'autres marques',
+               'autres éléments', 'ville inconnue', 'non renseigné'];
+  // couleurs : produit (3 premiers créneaux), famille de contrôles (6, ordre fixe), verdict (palette d'état + libellé)
+  const COUL_PRODUIT = { DISPO: 'var(--s1)', AUTO_CLASSIQUE: 'var(--s2)', LOA: 'var(--s3)' };
+  const FAMILLES = ['IDENTITE', 'EMPLOI_REVENUS', 'BANCAIRE', 'AUTOMOBILE', 'PM_PRO', 'BLACKLIST_GEO'];
+  const coulFamille = f => `var(--s${(FAMILLES.indexOf(f) + 6) % 6 + 1})`;
+  const COUL_VERDICT = { CONFORME: 'var(--bon)', OK_ALERTES_MINEURES: 'var(--attention)', SUSPECT: 'var(--serieux)', TRES_SUSPECT: 'var(--critique)' };
+  const COUL_CAT = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
 
-  // ---- lecture des cases de la tranche choisie ---------------------------------------------------------------------
+  // ---- lecture des cases -------------------------------------------------------------------------------------------
   function lire(ind, d1, d2) {
     const cle = [numInd[ind], etat.p, etat.c, d1 ? numTexte[d1] : -1, d2 ? numTexte[d2] : -1].join('|');
+    if (d1 && numTexte[d1] === undefined) return [];
     return (groupes.get(cle) || []).map(c => ({
       v1: c.v1 === undefined ? '' : T[c.v1], v2: c.v2 === undefined ? '' : T[c.v2], m: !!c.m,
       n: c.n, d: c.d, x: c.x, b: c.b, h: c.h }));
@@ -133,195 +242,439 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
   }
 
   // ---- mise en forme -----------------------------------------------------------------------------------------------
-  const fr = (v, chiffres) => v.toLocaleString('fr-FR', { maximumFractionDigits: chiffres === undefined ? 1 : chiffres });
+  const fr = (v, ch) => v.toLocaleString('fr-FR', { maximumFractionDigits: ch === undefined ? 1 : ch });
   const pct = v => fr(v * 100) + ' %';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const lib = v => VAL[v] || v;
+  const lib = v => {
+    if (VAL[v]) return VAL[v];
+    if (!v) return v;
+    const t = /_/.test(v) && v === v.toUpperCase() ? v.replace(/_/g, ' ').toLowerCase() : v;   // codes de la v2 lisibles
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  };
   const SECRET = 'secret';
-  function effectif(c) { return c.m ? SECRET : `${fr(c.n, 0)} / ${fr(c.d, 0)}`; }
-  const fourchette = c => c.b === undefined ? '' : ` · ${pct(c.b)} – ${pct(c.h)}`;
+  const tip = (titre, ligne) => ` data-tip="${esc(titre)}" data-tip2="${esc(ligne || '')}"`;
+  const coupe = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  const totalDe = cs => { const c = cs.find(x => !x.m && x.d); return c ? c.d : null; };
 
   function hachures(x, y, w, h) {
-    // traits obliques dans le rectangle, sans motif SVG : chaque trait est coupé aux bords à la main
+    // traits obliques coupés aux bords du rectangle, à la main (aucun motif SVG)
     let s = '';
-    for (let k = -h; k < w; k += 6) {
+    for (let k = -h; k < w; k += 5) {
       const x1 = Math.max(x, x + k), y1 = y + h - (x1 - (x + k));
       const x2 = Math.min(x + w, x + k + h), y2 = y + h - (x2 - (x + k));
-      if (x2 > x1) s += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#8a909b" stroke-width="1"/>`;
+      if (x2 > x1) s += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="var(--hachure)" stroke-width="1"/>`;
     }
     return s;
   }
+  function caseSecret(x, y, w, h) {
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="var(--masque)"/>` + hachures(x, y, w, h);
+  }
+  // barre horizontale : extrémité arrondie (4 px), base carrée
+  function barreH(x, y, w, h, coul) {
+    const r = Math.min(4, w / 2, h / 2);
+    return `<path d="M${x} ${y}H${(x + w - r).toFixed(1)}Q${(x + w).toFixed(1)} ${y} ${(x + w).toFixed(1)} ${y + r}V${y + h - r}Q${(x + w).toFixed(1)} ${y + h} ${(x + w - r).toFixed(1)} ${y + h}H${x}Z" fill="${coul}"/>`;
+  }
+  // colonne : sommet arrondi, base carrée
+  function colonne(x, y, w, h, coul) {
+    const r = Math.min(4, w / 2, h);
+    return `<path d="M${x} ${y + h}V${(y + r).toFixed(1)}Q${x} ${y} ${x + r} ${y}H${x + w - r}Q${x + w} ${y} ${x + w} ${(y + r).toFixed(1)}V${y + h}Z" fill="${coul}"/>`;
+  }
 
-  // barres horizontales : une ligne par case ; taux avec fourchette, part ou nombre
-  function barresH(cs, opt) {
-    if (!cs.length) return '<p class="vide">Aucune donnée pour cette tranche.</p>';
-    const L = 230, W = 360, H = 22, haut = cs.length * H + 26;
-    const max = opt.taux ? 1 : Math.max(...cs.filter(c => !c.m).map(c => opt.part ? c.x : c.n), 1);
-    const echelle = opt.taux && opt.zoom ? Math.min(1, Math.max(...cs.filter(c => !c.m).map(c => c.h || c.x), opt.reference || 0) * 1.15) || 1 : max;
-    let s = `<svg viewBox="0 0 ${L + W + 170} ${haut}" width="${L + W + 170}" role="img" aria-label="${esc(opt.titre)}">`;
+  // ---- graphes -----------------------------------------------------------------------------------------------------
+  // aire : dossiers par semaine (série unique, réticule par semaine)
+  function aire(cs) {
+    if (!cs.length) return vide();
+    const W = 1100, H = 230, g = 40, dr = 16, h0 = 18, b = 30;
+    const max = Math.max(...cs.filter(c => !c.m).map(c => c.n), 1);
+    const pas = cs.length > 1 ? (W - g - dr) / (cs.length - 1) : 0;
+    const y = n => H - b - (H - b - h0) * n / max;
+    let s = `<svg width="${W}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Dossiers par semaine">`;
+    for (const t of [0, .5, 1]) {
+      const yy = y(max * t);
+      s += `<line x1="${g}" x2="${W - dr}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="var(--grille)"/>`;
+      s += `<text x="${g - 8}" y="${(yy + 4).toFixed(1)}" text-anchor="end" class="faible">${fr(Math.round(max * t), 0)}</text>`;
+    }
+    const pts = cs.map((c, k) => ({ c, x: g + k * pas, y: c.m ? null : y(c.n) }));
+    // segments continus (une semaine secrète coupe la courbe)
+    let seg = [], segs = [];
+    for (const p of pts) { if (p.y === null) { if (seg.length) segs.push(seg); seg = []; } else seg.push(p); }
+    if (seg.length) segs.push(seg);
+    for (const sg of segs) {
+      const ligne = sg.map((p, k) => `${k ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join('');
+      if (sg.length > 1) s += `<path d="${ligne}L${sg[sg.length - 1].x.toFixed(1)} ${H - b}L${sg[0].x.toFixed(1)} ${H - b}Z" fill="var(--aire)"/>`;
+      s += `<path d="${ligne}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    }
+    pts.forEach((p, k) => {
+      const lab = esc(p.c.v1.replace(/^\d{4}-/, ''));
+      if (cs.length <= 14 || k % Math.ceil(cs.length / 14) === 0)
+        s += `<text x="${p.x.toFixed(1)}" y="${H - 8}" text-anchor="middle" class="faible">${lab}</text>`;
+      if (p.y === null) {
+        s += caseSecret(p.x - 10, H - b - 22, 20, 22);
+      } else {
+        s += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.5" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>`;
+      }
+      const largeur = Math.max(pas, 24);
+      s += `<rect x="${(p.x - largeur / 2).toFixed(1)}" y="0" width="${largeur.toFixed(1)}" height="${H - b}" fill="transparent"` +
+           tip(`Semaine ${p.c.v1}`, p.c.m ? SECRET : `${fr(p.c.n, 0)} dossiers · ${pct(p.c.x)}`) + '/>';
+    });
+    const der = pts.filter(p => p.y !== null).pop();
+    if (der) s += `<text x="${(der.x - 8).toFixed(1)}" y="${(der.y - 10).toFixed(1)}" text-anchor="end" class="fort">${fr(der.c.n, 0)}</text>`;
+    return s + '</svg>';
+  }
+
+  // anneau : parts d'un tout ; les cases secrètes font une seule part grisée (leur somme est connue par différence)
+  function anneau(cs, couleur, dim) {
+    if (!cs.length) return vide();
+    const total = totalDe(cs);
+    const vus = cs.filter(c => !c.m);
+    const reste = total ? total - vus.reduce((a, c) => a + c.n, 0) : 0;
+    const parts = vus.map((c, k) => ({ c, n: c.n, coul: couleur(c.v1, k) }));
+    const secrets = cs.filter(c => c.m);
+    if (secrets.length && reste > 0) parts.push({ secret: true, n: reste });
+    const somme = parts.reduce((a, p) => a + p.n, 0) || 1;
+    const R = 80, r = 54, cx = 90, cy = 90;
+    let a0 = -Math.PI / 2, s = `<svg viewBox="0 0 180 180" role="img" aria-label="${esc(DIM[dim] || dim)}">`;
+    for (const p of parts) {
+      const a1 = a0 + 2 * Math.PI * p.n / somme - (parts.length > 1 ? 0.025 : 0);
+      const grand = a1 - a0 > Math.PI ? 1 : 0;
+      const P = (rr, a) => `${(cx + rr * Math.cos(a)).toFixed(2)} ${(cy + rr * Math.sin(a)).toFixed(2)}`;
+      const d = parts.length === 1
+        ? `M${cx} ${cy - R}A${R} ${R} 0 1 1 ${cx - 0.01} ${cy - R}L${cx - 0.01} ${cy - r}A${r} ${r} 0 1 0 ${cx} ${cy - r}Z`
+        : `M${P(R, a0)}A${R} ${R} 0 ${grand} 1 ${P(R, a1)}L${P(r, a1)}A${r} ${r} 0 ${grand} 0 ${P(r, a0)}Z`;
+      const t = p.secret ? tip('Cases secrètes', `${secrets.length} valeurs regroupées`) : tip(lib(p.c.v1), `${fr(p.c.n, 0)} dossiers · ${pct(p.c.x)}`);
+      s += `<path d="${d}" fill="${p.secret ? 'var(--masque)' : p.coul}"${p.secret ? ' stroke="var(--hachure)" stroke-dasharray="3 2"' : ''}${t}/>`;
+      a0 = a1 + (parts.length > 1 ? 0.025 : 0);
+    }
+    s += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" class="fort" style="font-size:22px">${total ? fr(total, 0) : '—'}</text>`;
+    s += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" class="faible">dossiers</text></svg>`;
+    const lignes = ordonner(dim, cs, true).map((c, k) => c.m
+      ? `<li><i class="legende-secret" style="background:var(--masque);border:1px dashed var(--hachure)"></i><span>${esc(lib(c.v1))}</span><b>${SECRET}</b></li>`
+      : `<li><i style="background:${couleur(c.v1, vus.indexOf(c))}"></i><span>${esc(lib(c.v1))}</span><b>${pct(c.x)}<span class="n">${fr(c.n, 0)}</span></b></li>`).join('');
+    return `<div class="anneau">${s}<ul>${lignes}</ul></div>`;
+  }
+
+  // barres horizontales : une valeur par ligne, piste de fond, valeur au bout
+  function barres(cs, opt) {
+    if (!cs.length) return vide();
+    const L = opt.libelle || 170, W = 600, H = 26, droite = 120, haut = cs.length * H + 4;
+    const max = Math.max(...cs.filter(c => !c.m).map(c => c.x), 0.0001);
+    const larg = W - L - droite;
+    let s = `<svg width="${W}" viewBox="0 0 ${W} ${haut}" role="img" aria-label="${esc(opt.titre || '')}">`;
     cs.forEach((c, k) => {
-      const y = k * H + 4;
-      s += `<text x="${L - 8}" y="${y + 14}" text-anchor="end">${esc(lib(c.v1)).slice(0, 38)}</text>`;
+      const y = k * H + 4, hb = 14;
+      s += `<text x="${L - 10}" y="${y + 12}" text-anchor="end">${esc(coupe(lib(c.v1), 26))}</text>`;
+      s += `<rect x="${L}" y="${y + 1}" width="${larg}" height="${hb}" rx="4" fill="var(--piste)"/>`;
       if (c.m) {
-        s += `<rect x="${L}" y="${y + 3}" width="40" height="${H - 8}" fill="#eef0f3" stroke="#8a909b" stroke-dasharray="3 2"/>`;
-        s += hachures(L, y + 3, 40, H - 8) + `<text x="${L + 48}" y="${y + 14}" class="doux">${SECRET}</text>`;
+        s += caseSecret(L, y + 1, 46, hb) + `<text x="${L + 54}" y="${y + 12}" class="faible">${SECRET}</text>`;
+        s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), SECRET)}/>`;
         return;
       }
-      const v = opt.part ? c.x : opt.taux ? c.x : c.n;
-      const w = Math.max(1, W * v / echelle);
-      const large = opt.taux && c.h !== undefined && c.h - c.b > 0.3;
-      s += `<rect x="${L}" y="${y + 3}" width="${w.toFixed(1)}" height="${H - 8}" fill="${large ? 'var(--barre-claire)' : 'var(--barre)'}"/>`;
-      if (opt.taux && c.b !== undefined) {
-        const x1 = L + W * c.b / echelle, x2 = L + Math.min(W, W * c.h / echelle);
-        s += `<line x1="${x1.toFixed(1)}" x2="${x2.toFixed(1)}" y1="${y + 11}" y2="${y + 11}" stroke="var(--encre)" stroke-width="1.2"/>`;
-        s += `<line x1="${x1.toFixed(1)}" x2="${x1.toFixed(1)}" y1="${y + 7}" y2="${y + 15}" stroke="var(--encre)"/>`;
-        s += `<line x1="${x2.toFixed(1)}" x2="${x2.toFixed(1)}" y1="${y + 7}" y2="${y + 15}" stroke="var(--encre)"/>`;
-      }
-      const texte = opt.taux ? `${pct(c.x)} (${effectif(c)})` : opt.part ? `${pct(c.x)} (${fr(c.n, 0)})` : fr(c.n, 0);
-      s += `<text x="${L + W + 8}" y="${y + 14}" class="doux">${texte}</text>`;
+      const w = Math.max(2, larg * c.x / max);
+      s += barreH(L, y + 1, w, hb, opt.couleur ? opt.couleur(c.v1, k) : 'var(--s1)');
+      const texte = opt.nombre ? fr(c.n, 0) : `${pct(c.x)}`;
+      s += `<text x="${L + larg + 10}" y="${y + 12}" class="fort">${texte}</text>`;
+      if (!opt.nombre) s += `<text x="${W - 4}" y="${y + 12}" text-anchor="end" class="faible">${fr(c.n, 0)}</text>`;
+      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), opt.nombre ? `${fr(c.n, 0)}` : `${fr(c.n, 0)} dossiers · ${pct(c.x)}`)}/>`;
     });
-    if (opt.reference !== undefined && opt.reference !== null) {
-      const xr = L + W * opt.reference / echelle;
-      s += `<line x1="${xr.toFixed(1)}" x2="${xr.toFixed(1)}" y1="0" y2="${haut - 20}" stroke="var(--ref)" stroke-dasharray="4 3"/>`;
-      s += `<text x="${xr.toFixed(1)}" y="${haut - 6}" text-anchor="middle" fill="var(--ref)">ensemble ${pct(opt.reference)}</text>`;
-    }
     return s + '</svg>';
   }
 
-  // courbe : dossiers par semaine ; une semaine masquée laisse un trou marqué « secret »
-  function courbe(cs) {
-    if (!cs.length) return '<p class="vide">Aucune donnée pour cette tranche.</p>';
-    const W = 760, H = 220, g = 50, b = 40;
-    const max = Math.max(...cs.filter(c => !c.m).map(c => c.n), 1);
-    const pas = cs.length > 1 ? (W - g - 20) / (cs.length - 1) : 0;
-    let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="Dossiers par semaine">`;
-    s += `<line x1="${g}" y1="${H - b}" x2="${W - 10}" y2="${H - b}" stroke="var(--trait)"/>`;
-    s += `<text x="${g - 6}" y="16" text-anchor="end" class="doux">${fr(max, 0)}</text><text x="${g - 6}" y="${H - b}" text-anchor="end" class="doux">0</text>`;
-    let trace = '', coupe = true;
+  // colonnes : tranches ordonnées (forme d'histogramme)
+  function colonnes(cs, opt) {
+    if (!cs.length) return vide();
+    const W = 560, H = 220, g = 8, b = 42, h0 = 24, n = cs.length;
+    const bande = (W - 2 * g) / n, w = Math.min(44, bande * 0.62);
+    const max = Math.max(...cs.filter(c => !c.m).map(c => c.x), 0.0001);
+    let s = `<svg width="${W}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opt.titre || '')}">`;
+    s += `<line x1="${g}" x2="${W - g}" y1="${H - b}" y2="${H - b}" stroke="var(--trait)"/>`;
     cs.forEach((c, k) => {
-      const x = g + k * pas;
-      if (c.m) { coupe = true; s += `<text x="${x}" y="${H - b - 6}" text-anchor="middle" class="doux">${SECRET}</text>`; }
-      else {
-        const y = H - b - (H - b - 20) * c.n / max;
-        trace += (coupe ? ' M' : ' L') + x.toFixed(1) + ' ' + y.toFixed(1);
-        coupe = false;
-        s += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="var(--barre)"/>`;
+      const x = g + k * bande + (bande - w) / 2;
+      // libellé sur une ligne s'il est court, sinon coupé à l'espace le plus proche du milieu
+      const texte = lib(c.v1);
+      let l1 = texte, l2 = '';
+      if (texte.length > 13) {
+        const espaces = [...texte.matchAll(/ /g)].map(m => m.index);
+        if (espaces.length) {
+          const cut = espaces.reduce((a, i) => Math.abs(i - texte.length / 2) < Math.abs(a - texte.length / 2) ? i : a);
+          l1 = texte.slice(0, cut); l2 = texte.slice(cut + 1);
+        }
       }
-      if (cs.length <= 16 || k % Math.ceil(cs.length / 16) === 0)
-        s += `<text x="${x.toFixed(1)}" y="${H - b + 16}" text-anchor="middle" class="doux">${esc(c.v1.replace(/^\d{4}-/, ''))}</text>`;
+      s += `<text x="${(x + w / 2).toFixed(1)}" y="${H - b + 16}" text-anchor="middle" class="faible">${esc(l1)}</text>`;
+      if (l2) s += `<text x="${(x + w / 2).toFixed(1)}" y="${H - b + 30}" text-anchor="middle" class="faible">${esc(coupe(l2, 16))}</text>`;
+      if (c.m) {
+        s += caseSecret(x, H - b - 26, w, 26) + `<text x="${(x + w / 2).toFixed(1)}" y="${H - b - 32}" text-anchor="middle" class="faible">${SECRET}</text>`;
+      } else {
+        const h = Math.max(2, (H - b - h0) * c.x / max);
+        s += colonne(x, H - b - h, w, h, opt.couleur || 'var(--s1)');
+        s += `<text x="${(x + w / 2).toFixed(1)}" y="${(H - b - h - 7).toFixed(1)}" text-anchor="middle" class="fort">${pct(c.x)}</text>`;
+      }
+      s += `<rect x="${(g + k * bande).toFixed(1)}" y="0" width="${bande.toFixed(1)}" height="${H}" fill="transparent"${tip(lib(c.v1), c.m ? SECRET : `${fr(c.n, 0)} dossiers · ${pct(c.x)}`)}/>`;
     });
-    s += `<path d="${trace.trim()}" fill="none" stroke="var(--barre)" stroke-width="2"/>`;
     return s + '</svg>';
   }
+
+  // taux par critère : point et fourchette, face au taux de l'ensemble (point plein : la fourchette exclut l'ensemble)
+  function forets(cs, ref, opt) {
+    if (!cs.length) return vide();
+    const L = opt.libelle || 170, W = opt.W || 600, H = 26, droite = 116, haut = cs.length * H + 30;
+    const hauts = cs.filter(c => !c.m).map(c => c.h).concat([ref || 0]);
+    const xmax = Math.min(1, Math.max(...hauts) * 1.12 || 1), larg = W - L - droite;
+    const X = v => L + larg * v / xmax;
+    let s = `<svg width="${W}" viewBox="0 0 ${W} ${haut}" role="img" aria-label="${esc(opt.titre || '')}">`;
+    for (const t of [0, .25, .5, .75, 1]) {
+      const v = xmax * t;
+      s += `<line x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}" y1="0" y2="${haut - 22}" stroke="var(--grille)"/>`;
+      s += `<text x="${X(v).toFixed(1)}" y="${haut - 6}" text-anchor="middle" class="faible">${fr(v * 100, 0)} %</text>`;
+    }
+    if (ref !== null && ref !== undefined)
+      s += `<line x1="${X(ref).toFixed(1)}" x2="${X(ref).toFixed(1)}" y1="0" y2="${haut - 22}" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+    cs.forEach((c, k) => {
+      const y = k * H + 4, ym = y + 9;
+      s += `<text x="${L - 10}" y="${y + 13}" text-anchor="end">${esc(coupe(lib(c.v1), 26))}</text>`;
+      if (c.m) {
+        s += caseSecret(L, y + 2, 40, 14) + `<text x="${L + 48}" y="${y + 13}" class="faible">${SECRET}</text>`;
+      } else {
+        const col = opt.couleurDe ? opt.couleurDe(c.v1) : (opt.couleur || 'var(--s1)');
+        const net = ref === null || ref === undefined || c.b > ref || c.h < ref;
+        if (c.b !== undefined)
+          s += `<line x1="${X(c.b).toFixed(1)}" x2="${X(c.h).toFixed(1)}" y1="${ym}" y2="${ym}" stroke="${col}" stroke-width="2" stroke-linecap="round" opacity=".45"/>`;
+        s += `<circle cx="${X(c.x).toFixed(1)}" cy="${ym}" r="5" fill="${net ? col : 'var(--surface)'}" stroke="${col}" stroke-width="2"/>`;
+        s += `<text x="${L + larg + 10}" y="${y + 13}" class="fort">${pct(c.x)}</text>`;
+        s += `<text x="${W - 4}" y="${y + 13}" text-anchor="end" class="faible">${fr(c.n, 0)}/${fr(c.d, 0)}</text>`;
+      }
+      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), c.m ? SECRET : `${pct(c.x)} · ${fr(c.n, 0)} sur ${fr(c.d, 0)} · fourchette ${pct(c.b)} – ${pct(c.h)}`)}/>`;
+    });
+    return s + '</svg>';
+  }
+
+  // carte de chaleur : semaine × produit (part des dossiers de la tranche)
+  function chaleur(cs, lignes, colonnesV) {
+    if (!cs.length) return vide();
+    const L = 92, top = 24, cw = Math.min(70, (600 - L) / colonnesV.length), ch = 30;
+    const W = L + cw * colonnesV.length + 4, H = top + ch * lignes.length + 4;
+    const max = Math.max(...cs.filter(c => !c.m).map(c => c.x), 0.0001);
+    const pas = ['var(--seq1)', 'var(--seq2)', 'var(--seq3)', 'var(--seq4)', 'var(--seq5)', 'var(--seq6)'];
+    let s = `<svg width="${W}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Semaine par produit">`;
+    colonnesV.forEach((v, j) => { s += `<text x="${(L + j * cw + cw / 2).toFixed(1)}" y="15" text-anchor="middle" class="faible">${esc(v.replace(/^\d{4}-/, ''))}</text>`; });
+    lignes.forEach((l, i) => {
+      s += `<text x="${L - 10}" y="${top + i * ch + 20}" text-anchor="end">${esc(lib(l))}</text>`;
+      colonnesV.forEach((v, j) => {
+        const c = cs.find(x => x.v1 === v && x.v2 === l) || cs.find(x => x.v1 === l && x.v2 === v);
+        const x = L + j * cw + 1, y = top + i * ch + 1;
+        if (!c) { s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="5" fill="var(--surface-2)"/>`; return; }
+        if (c.m) { s += caseSecret(x, y, cw - 2, ch - 2) + `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" fill="transparent"${tip(`${lib(l)} · ${v}`, SECRET)}/>`; return; }
+        const k = Math.min(5, Math.floor(6 * c.x / max * 0.999));
+        s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="5" fill="${pas[k]}"${tip(`${lib(l)} · ${v}`, `${fr(c.n, 0)} dossiers · ${pct(c.x)} de la tranche`)}/>`;
+        s += `<text x="${(x + (cw - 2) / 2).toFixed(1)}" y="${y + 19}" text-anchor="middle" style="fill:${k >= 3 ? '#ffffff' : '#0b0b0b'};font-size:11.5px;pointer-events:none">${fr(c.n, 0)}</text>`;
+      });
+    });
+    return s + '</svg>';
+  }
+
+  // jauge en arc (une proportion)
+  function jauge(c, libelle) {
+    if (!c) return vide();
+    const R = 62, cx = 80, cy = 78, a = v => Math.PI + Math.PI * v;
+    const P = v => `${(cx + R * Math.cos(a(v))).toFixed(2)} ${(cy + R * Math.sin(a(v))).toFixed(2)}`;
+    let s = `<svg viewBox="0 0 160 96" style="max-width:220px" role="img" aria-label="${esc(libelle)}">`;
+    s += `<path d="M${P(0)}A${R} ${R} 0 0 1 ${P(1)}" fill="none" stroke="var(--piste)" stroke-width="12" stroke-linecap="round"/>`;
+    if (!c.m) {
+      s += `<path d="M${P(0)}A${R} ${R} 0 0 1 ${P(Math.max(0.005, c.x))}" fill="none" stroke="var(--s1)" stroke-width="12" stroke-linecap="round"${tip(libelle, `${pct(c.x)} · ${fr(c.n, 0)} sur ${fr(c.d, 0)}`)}/>`;
+      s += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="fort" style="font-size:22px">${pct(c.x)}</text>`;
+      s += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" class="faible">${fr(c.n, 0)} sur ${fr(c.d, 0)}</text>`;
+    } else s += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="fort">${SECRET}</text>`;
+    return s + '</svg>';
+  }
+
+  // mesures : taux de remplissage d'une liste de variables
+  function mesures(cs) {
+    if (!cs.length) return vide();
+    return '<div class="mesures">' + ordonner('variable', cs, true).map(c => c.m
+      ? `<div class="mesure secret"${tip(lib(c.v1), SECRET)}><span>${esc(lib(c.v1))}</span><div class="piste"></div><span class="pc">${SECRET}</span></div>`
+      : `<div class="mesure"${tip(lib(c.v1), `${fr(c.n, 0)} sur ${fr(c.d, 0)} dossiers concernés`)}><span>${esc(lib(c.v1))}</span><div class="piste"><div class="plein ${c.x < .5 ? 'bas' : c.x < .8 ? 'moyen' : ''}" style="width:${(c.x * 100).toFixed(1)}%"></div></div><span class="pc">${pct(c.x)}</span></div>`).join('') + '</div>';
+  }
+  const vide = () => '<p class="vide">Aucune donnée dans cette tranche.</p>';
 
   // tableau équivalent, dépliable, copiable (texte séparé par tabulations)
   function tableau(entetes, lignes) {
+    if (!lignes.length) return '';
     const tsv = [entetes.join('\t')].concat(lignes.map(l => l.join('\t'))).join('\n');
     const corps = lignes.map(l => '<tr>' + l.map((v, k) => `<td${k ? ' class="n"' : ''}>${esc(v)}</td>`).join('') + '</tr>').join('');
     return `<details><summary>Tableau</summary><table><thead><tr>${entetes.map(e => `<th>${esc(e)}</th>`).join('')}</tr></thead><tbody>${corps}</tbody></table>` +
       `<button type="button" class="copier" data-tsv="${esc(tsv)}">Copier le tableau</button></details>`;
   }
   const cellule = (c, f) => c.m ? SECRET : f(c);
-
-  function blocRepartition(dim, cs, titre) {
+  const tabRep = (dim, cs) => tableau([DIM[dim] || dim, 'Dossiers', 'Part'], cs.map(c => [lib(c.v1), cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))]));
+  const tabTaux = (dim, cs) => tableau([DIM[dim] || dim, 'Taux', 'Effectif', 'Fourchette à 95 %'], cs.map(c => [lib(c.v1), cellule(c, c => pct(c.x)),
+    cellule(c, c => `${fr(c.n, 0)} / ${fr(c.d, 0)}`), cellule(c, c => c.b === undefined ? '' : `${pct(c.b)} – ${pct(c.h)}`)]));
+  function carte(titre, expl, corps, large, classe) {
+    return `<article class="carte${large ? ' large' : ''}${classe ? ' ' + classe : ''}"><h3>${esc(titre)}</h3>${expl ? `<p class="expl">${expl}</p>` : ''}<div class="graphe">${corps}</div></article>`;
+  }
+  // une répartition : anneau (2 à 4 valeurs), colonnes (tranches ordonnées) ou barres
+  function repartition(dim, opt) {
+    const cs = lire('part_dossiers', dim);
+    if (!cs.length) return '';
+    const o = opt || {};
     const ordre = ordonner(dim, cs);
-    const graphe = dim === 'semaine' ? courbe(ordre) : barresH(ordre, { part: true, titre: titre || DIM[dim] });
-    return `<h3>${esc(titre || DIM[dim] || dim)}</h3><div class="graphe">${graphe}</div>` +
-      tableau([DIM[dim] || dim, 'Dossiers', 'Part'], ordre.map(c => [lib(c.v1), cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))]));
-  }
-  function blocTaux(dim, cs, reference, titre, zoom) {
-    const ordre = ordonner(dim, cs, true);
-    return `<h3>${esc(titre)}</h3><div class="graphe">${barresH(ordre, { taux: true, reference, titre, zoom: zoom !== false })}</div>` +
-      tableau([DIM[dim] || dim, 'Taux', 'Effectif', 'Fourchette à 95 %'], ordre.map(c => [lib(c.v1), cellule(c, c => pct(c.x)),
-        cellule(c, c => `${fr(c.n, 0)} / ${fr(c.d, 0)}`), cellule(c, c => `${pct(c.b)} – ${pct(c.h)}`)]));
-  }
-  function chiffre(c, libelle, f) {
-    return `<div class="chiffre"><b>${c ? (c.m ? SECRET : esc(f(c))) : '—'}</b><span>${esc(libelle)}</span></div>`;
-  }
-  function repartitions(dims) {
-    return dims.map(d => { const cs = lire('part_dossiers', d); return cs.length ? blocRepartition(d, cs) : ''; }).join('');
+    let g;
+    if (o.forme === 'anneau' || (!o.forme && cs.length <= 4 && !ORDRE[dim]))
+      g = anneau(ordre, (v, k) => o.couleur ? o.couleur(v, k) : COUL_CAT[k % 6], dim);
+    else if (o.forme === 'colonnes' || (!o.forme && ORDRE[dim] && cs.length <= 8))
+      g = colonnes(ordre, { titre: DIM[dim], couleur: o.teinte });
+    else g = barres(ordonner(dim, cs, !ORDRE[dim]), { titre: DIM[dim], couleur: o.couleurBarre, libelle: o.libelle });
+    return carte(o.titre || DIM[dim] || dim, o.expl || '', g + tabRep(dim, ordre), o.large);
   }
 
-  // ---- onglets ----------------------------------------------------------------------------------------------------
+  // ---- chiffres clés -----------------------------------------------------------------------------------------------
+  function sparkline(cs) {
+    const vus = cs.filter(c => !c.m);
+    if (vus.length < 2) return '';
+    const W = 150, H = 34, max = Math.max(...vus.map(c => c.n), 1), pas = W / (cs.length - 1);
+    let d = '', coup = true;
+    cs.forEach((c, k) => { if (c.m) { coup = true; return; } d += `${coup ? 'M' : 'L'}${(k * pas).toFixed(1)} ${(H - 3 - (H - 6) * c.n / max).toFixed(1)}`; coup = false; });
+    return `<svg viewBox="-3 0 ${W + 6} ${H}" width="${W}" height="${H}"><path d="${d}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".8"/></svg>`;
+  }
+  function kpi(libelle, c, valeur, detail, couleur, extra) {
+    const v = !c ? '—' : c.m ? SECRET : valeur(c);
+    return `<div class="kpi"><span class="trait-couleur" style="background:${couleur}"></span><div class="lib">${esc(libelle)}</div>` +
+      `<div class="val">${v}</div><div class="det">${c && !c.m && detail ? esc(detail(c)) : '&nbsp;'}</div>${extra || ''}</div>`;
+  }
+  function chiffresCles() {
+    const semaines = ordonner('semaine', lire('part_dossiers', 'semaine'));
+    document.getElementById('kpis').innerHTML =
+      kpi('Dossiers', un('nb_dossiers'), c => fr(c.x, 0), () => `${semaines.length} semaines de réception`, 'var(--s1)', sparkline(semaines)) +
+      kpi("Jugés suspects par l'antifraude", un('taux_juge_suspect'), c => `${fr(c.x * 100)}<small>%</small>`, c => `${fr(c.n, 0)} sur ${fr(c.d, 0)} · ${pct(c.b)} – ${pct(c.h)}`, 'var(--serieux)') +
+      kpi('Jugés très suspects', un('taux_tres_suspect'), c => `${fr(c.x * 100)}<small>%</small>`, c => `${fr(c.n, 0)} sur ${fr(c.d, 0)} · ${pct(c.b)} – ${pct(c.h)}`, 'var(--critique)') +
+      kpi('Âge médian', un('mediane_age'), c => `${fr(c.x, 0)}<small>ans</small>`, c => `sur ${fr(c.d, 0)} demandeurs`, 'var(--s3)') +
+      kpi('Revenu vérifié médian', un('mediane_revenu_verifie'), c => `${fr(c.x, 0)}<small>DH</small>`, c => `par mois · sur ${fr(c.d, 0)} dossiers`, 'var(--s4)') +
+      kpi('Relevés aux lignes lues', un('taux_releve_relu'), c => `${fr(c.x * 100)}<small>%</small>`, c => `${fr(c.n, 0)} sur ${fr(c.d, 0)}`, 'var(--s5)');
+  }
+
+  // ---- onglets -----------------------------------------------------------------------------------------------------
+  const PRODUITS = ['DISPO', 'AUTO_CLASSIQUE', 'LOA'];
   const ONGLETS = [
     ['Demandes', () => {
-      const n = un('nb_dossiers');
-      return `<div class="chiffres">${chiffre(n, 'dossiers dans la tranche', c => fr(c.x, 0))}</div>` +
-        repartitions(['semaine', 'produit', 'categorie', 'type_personne', 'csp', 'mode_paiement', 'region']) +
-        '<p class="note">Régions : les 12 régions officielles. Le contour des régions disponible suit l’ancien découpage ; elles sont donc dessinées en barres.</p>';
+      const sem = ordonner('semaine', lire('part_dossiers', 'semaine'));
+      let s = carte('Dossiers reçus par semaine', 'Dossiers de la tranche choisie, par semaine de réception des données.', aire(sem) + tabRep('semaine', sem), true);
+      s += repartition('produit', { forme: 'anneau', couleur: v => COUL_PRODUIT[v] || 'var(--s4)' });
+      s += repartition('type_personne', { forme: 'anneau' });
+      const croise = lire('part_dossiers', 'semaine', 'produit');
+      if (croise.length) {
+        const semaines = [...new Set(croise.map(c => c.v1))].sort();
+        s += carte('Semaine × produit', 'Nombre de dossiers ; plus la case est foncée, plus la part de la tranche est grande.',
+          chaleur(croise, PRODUITS.filter(p => croise.some(c => c.v2 === p)), semaines) +
+          tableau(['Semaine', 'Produit', 'Dossiers', 'Part'], croise.map(c => [c.v1, lib(c.v2), cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))])), true);
+      }
+      s += repartition('categorie', { forme: 'colonnes' });
+      s += repartition('mode_paiement', { forme: 'anneau' });
+      s += repartition('csp', { libelle: 190 });
+      s += repartition('region', { expl: 'Les 12 régions officielles. Une région dont tous les dossiers viennent d’une seule petite ville est regroupée.', libelle: 190 });
+      return s;
     }],
     ['Profils', () => {
-      const s = '<div class="chiffres">' + chiffre(un('mediane_age'), 'âge médian (ans)', c => fr(c.x, 1)) +
-        chiffre(un('mediane_revenu_verifie'), 'revenu vérifié médian (dirhams par mois)', c => fr(c.x, 0)) +
-        chiffre(un('mediane_prix_vehicule'), 'prix médian du véhicule (dirhams)', c => fr(c.x, 0)) + '</div>';
-      return s + repartitions(['tranche_age', 'tranche_revenu', 'source_revenu', 'ecart_revenu', 'anciennete_emploi',
-        'type_contrat', 'situation_familiale', 'personnes_a_charge', 'ville', 'source_ville', 'banque', 'vehicule_etat',
-        'tranche_prix_vehicule', 'marque_vehicule', 'tranche_apport', 'age_societe', 'associe_unique', 'capital_tranche',
-        'employeur', 'concessionnaire']) +
-        '<div class="encadre"><h2>Sexe et nationalité des demandeurs</h2><p class="note">Répartition seulement, jamais croisée avec un verdict.</p>' +
-        repartitions(['sexe', 'nationalite']) + '</div>';
+      let s = repartition('tranche_age', { teinte: 'var(--s3)' }) + repartition('tranche_revenu', { teinte: 'var(--s4)' });
+      s += repartition('source_revenu', { forme: 'barres' }) + repartition('ecart_revenu', { teinte: 'var(--s4)' });
+      s += repartition('anciennete_emploi', { teinte: 'var(--s3)' }) + repartition('type_contrat', { forme: 'anneau' });
+      s += repartition('situation_familiale') + repartition('personnes_a_charge', { teinte: 'var(--s3)' });
+      s += repartition('ville', { libelle: 150 }) + repartition('source_ville', { forme: 'anneau' });
+      s += repartition('vehicule_etat', { forme: 'anneau' }) + repartition('tranche_prix_vehicule', { teinte: 'var(--s2)' });
+      s += repartition('tranche_apport', { teinte: 'var(--s2)' }) + repartition('marque_vehicule');
+      s += repartition('age_societe', { teinte: 'var(--s5)' }) + repartition('associe_unique', { forme: 'anneau' });
+      s += repartition('capital_tranche', { teinte: 'var(--s5)' }) + repartition('banque') + repartition('employeur') + repartition('concessionnaire');
+      const sexe = lire('part_dossiers', 'sexe'), nat = lire('part_dossiers', 'nationalite');
+      if (sexe.length || nat.length)
+        s += carte('Sexe et nationalité des demandeurs', '<b>Répartition seulement, jamais croisée avec un verdict.</b> Sur l’ensemble des dossiers uniquement.',
+          (sexe.length ? anneau(ordonner('sexe', sexe), (v, k) => COUL_CAT[k], 'sexe') + tabRep('sexe', sexe) : '') +
+          (nat.length ? barres(ordonner('nationalite', nat, true), { titre: 'Nationalité' }) + tabRep('nationalite', nat) : ''), true, 'encadre');
+      else s += carte('Sexe et nationalité des demandeurs', 'Répartition seulement, jamais croisée avec un verdict : affichée sur l’ensemble des dossiers (produit « Tous », catégorie « Toutes »).', '', true, 'encadre');
+      return s;
     }],
     ['Verdicts', () => {
       const ens = un('taux_juge_suspect');
-      let s = '<div class="chiffres">' + chiffre(ens, "jugés suspects par l'antifraude", c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) +
-        chiffre(un('taux_tres_suspect'), 'jugés très suspects', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) +
-        chiffre(un('nb_moyen_alertes_majeures_critiques'), 'alertes majeures et critiques par dossier', c => fr(c.x, 2)) + '</div>';
+      const ref = ens && !ens.m ? ens.x : null;
       const v = lire('part_verdict', 'verdict');
-      if (v.length) s += blocRepartition('verdict', v, "Répartition des verdicts de l'antifraude");
-      s += '<h2>Dossiers jugés suspects par l’antifraude, par critère</h2><p class="note">Barre : taux ; trait : fourchette à 95 % ; barre claire : fourchette très large ; ligne pointillée : taux de l’ensemble de la tranche.</p>';
+      let s = v.length ? carte("Verdicts de l'antifraude", 'Parmi les dossiers qui ont un verdict. Un signal, jamais une fraude constatée.',
+        anneau(ordonner('verdict', v), x => COUL_VERDICT[x] || 'var(--s1)', 'verdict') + tabRep('verdict', v), true) : '';
+      s += carte('Comment lire les taux par critère', '',
+        `<div class="legende"><span><i style="background:var(--s1);border-radius:50%"></i>Taux : sa fourchette à 95 % ne contient pas le taux de l’ensemble</span>` +
+        `<span><i style="background:var(--surface);border:2px solid var(--s1);border-radius:50%"></i>Taux dans la marge de l’ensemble</span>` +
+        `<span><i style="background:var(--ref);height:2px;width:14px;vertical-align:3px"></i>Taux de l’ensemble de la tranche${ref !== null ? ` (${pct(ref)})` : ''}</span>` +
+        `<span><i class="secret"></i>Secret</span></div>`, true);
       const dims = Object.keys(DIM).filter(d => lire('taux_juge_suspect', d).length);
-      for (const d of dims) s += blocTaux(d, lire('taux_juge_suspect', d), ens && !ens.m ? ens.x : null, DIM[d]);
+      for (const d of dims) {
+        const cs = ordonner(d, lire('taux_juge_suspect', d), !ORDRE[d] && d !== 'semaine');
+        s += carte(`Jugés suspects · ${DIM[d]}`, '', forets(cs, ref, { titre: DIM[d] }) + tabTaux(d, cs), cs.length > 9);
+      }
       return s;
     }],
     ['Contrôles', () => {
-      let s = '';
-      const anomalies = lire('taux_anomalie_controle', 'famille', 'controle');
-      const familles = [...new Set(anomalies.map(c => c.v1))].sort();
-      s += '<h2>Taux d’anomalie de chaque contrôle</h2><p class="note">Parmi les dossiers où le contrôle est applicable.</p>';
-      for (const f of familles)
-        s += blocTaux('controle', anomalies.filter(c => c.v1 === f).map(c => Object.assign({}, c, { v1: c.v2 })), null, f, false);
-      const nonExec = lire('taux_non_executable_controle', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 }))
-        .filter(c => c.m || c.n > 0);
-      s += '<h2>Contrôles les plus souvent non exécutables</h2>' + blocTaux('controle', ordonner('controle', nonExec, true).slice(0, 12), null, 'Non exécutables', false);
+      const ano = lire('taux_anomalie_controle', 'famille', 'controle').map(c => Object.assign({}, c, { famille: c.v1, v1: c.v2 }));
+      const coul = (v) => { const c = ano.find(x => x.v1 === v); return c ? coulFamille(c.famille) : 'var(--s1)'; };
+      const familles = [...new Set(ano.map(c => c.famille))].sort((a, b) => FAMILLES.indexOf(a) - FAMILLES.indexOf(b));
+      let s = carte('Taux d’anomalie de chaque contrôle', 'Parmi les dossiers où le contrôle est applicable. Couleur : famille du contrôle.',
+        `<div class="legende">${familles.map(f => `<span><i style="background:${coulFamille(f)}"></i>${esc(lib(f))}</span>`).join('')}</div>` +
+        forets(ano.sort((a, b) => FAMILLES.indexOf(a.famille) - FAMILLES.indexOf(b.famille) || (a.v1 < b.v1 ? -1 : 1)), null, { titre: 'Anomalies', libelle: 120, couleurDe: coul, W: 1000 }) + tabTaux('controle', ano), true);
+      const ne = lire('taux_non_executable_controle', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 })).filter(c => c.m || c.n > 0);
+      s += carte('Contrôles le plus souvent non exécutables', 'Il leur manquait une donnée ou une pièce.',
+        barres(ordonner('controle', ne, true).slice(0, 12), { titre: 'Non exécutables', couleur: v => coul(v), libelle: 120 }) + tabTaux('controle', ne));
       const manq = lire('elements_manquants', 'manquant').map(c => Object.assign({}, c, { n: c.x }));
-      if (manq.length) s += `<h3>Ce qui leur manque</h3><div class="graphe">${barresH(ordonner('manquant', manq.map(c => Object.assign({}, c, { x: c.n })), true), { titre: 'Éléments manquants' })}</div>` +
-        tableau(['Élément manquant', 'Occurrences'], manq.map(c => [c.v1, cellule(c, c => fr(c.n, 0))]));
+      const total = manq.filter(c => !c.m).reduce((a, c) => Math.max(a, c.n), 0) || 1;
+      s += carte('Ce qui leur manque', 'Dossiers où l’élément manque à au moins un contrôle non exécutable.',
+        barres(ordonner('manquant', manq.map(c => Object.assign({}, c, { x: c.n / total })), true), { titre: 'Éléments manquants', nombre: true, couleur: () => 'var(--s2)', libelle: 150 }) +
+        tableau(['Élément manquant', 'Dossiers'], manq.map(c => [c.v1, cellule(c, c => fr(c.n, 0))])));
       const dec = lire('controle_decisif', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 })).filter(c => c.m || c.n > 0);
-      s += '<h2>Contrôles décisifs</h2><p class="note">Part des dossiers jugés suspects où ce contrôle est la seule anomalie majeure ou critique.</p>' +
-        (dec.length ? blocTaux('controle', dec, null, 'Contrôle décisif', false) : '<p class="vide">Aucun contrôle décisif dans cette tranche.</p>');
+      s += carte('Contrôles décisifs', 'Part des dossiers jugés suspects où ce contrôle est la seule anomalie majeure ou critique.',
+        (dec.length ? forets(ordonner('controle', dec, true), null, { titre: 'Décisifs', libelle: 120, couleur: 'var(--serieux)', W: 1000 }) : vide()) + tabTaux('controle', dec), true);
       return s;
     }],
     ['Qualité des données', () => {
-      let s = '<div class="chiffres">' + chiffre(un('taux_releve_relu'), 'relevés avec lignes d’opérations lues', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) + '</div>';
-      s += blocTaux('type_piece', lire('taux_relecture_piece', 'type_piece'), null, 'Pièces relues, par type', false);
-      s += blocTaux('variable', lire('taux_remplissage', 'variable'), null, 'Variables renseignées (part des dossiers concernés)', false);
+      let s = carte('Relevés aux lignes d’opérations lues', 'Part des dossiers avec relevé dont au moins un mois porte des opérations lues.', jauge(un('taux_releve_relu'), 'Relevés lus'));
       const st = lire('part_statut_analyse', 'statut_analyse');
-      if (st.length) s += blocRepartition('statut_analyse', st, "Statut de l'analyse");
+      if (st.length) s += carte("Statut de l'analyse", '', anneau(ordonner('statut_analyse', st, true), (v, k) => COUL_CAT[k], 'statut_analyse') + tabRep('statut_analyse', st));
+      const remp = lire('taux_remplissage', 'variable');
+      s += carte('Variables renseignées', 'Part des dossiers concernés pour lesquels la variable a pu être calculée. Rouge sous 50 %, jaune sous 80 %.',
+        mesures(remp) + tabTaux('variable', remp), true);
+      const rel = lire('taux_relecture_piece', 'type_piece');
+      s += carte('Pièces relues, par type', 'Source REANALYSE ou champs relus.', barres(ordonner('type_piece', rel, true), { titre: 'Pièces relues', libelle: 230 }) + tabTaux('type_piece', rel));
       const ext = lire('part_statut_extraction', 'type_piece', 'statut_extraction');
-      s += '<h3>Statut d’extraction des pièces</h3>' + tableau(['Type de pièce', 'Statut', 'Pièces', 'Part du type'],
-        ext.map(c => [c.v1, c.v2, cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))])).replace('<details>', '<details open>');
+      s += carte('Statut d’extraction des pièces', '', tableau(['Type de pièce', 'Statut', 'Pièces', 'Part du type'],
+        ext.map(c => [c.v1, c.v2, cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))])).replace('<details>', '<details open>'));
       return s;
     }]
   ];
 
   function afficher() {
     document.querySelectorAll('#onglets button').forEach((b, k) => b.setAttribute('aria-selected', String(k === etat.onglet)));
+    document.querySelectorAll('#f-produit button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === etat.p)));
+    document.querySelectorAll('#f-categorie button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === etat.c)));
+    chiffresCles();
     document.getElementById('contenu').innerHTML = ONGLETS[etat.onglet][1]();
   }
 
-  // ---- en-tête, filtres, onglets ----------------------------------------------------------------------------------
+  // ---- en-tête, filtres, onglets, info-bulle ------------------------------------------------------------------------
   const e = D.entete;
+  document.getElementById('pastille').textContent = 'données agrégées';
   document.getElementById('periode').textContent =
-    `Période du ${e.periode_debut || '—'} au ${e.periode_fin || '—'} · ${fr(e.dossiers || 0, 0)} dossiers · calculé le ${String(e.calcule_le || '').replace('T', ' ').replace('Z', '')} · dictionnaire version ${e.version || '—'}`;
+    `Du ${e.periode_debut || '—'} au ${e.periode_fin || '—'} · ${fr(e.dossiers || 0, 0)} dossiers · calculé le ${String(e.calcule_le || '').replace('T', ' à ').replace('Z', '')} · dictionnaire version ${e.version || '—'}`;
   [['f-produit', D.filtres.produit, 'p'], ['f-categorie', D.filtres.categorie, 'c']].forEach(([id, valeurs, cle]) => {
-    const sel = document.getElementById(id);
-    sel.innerHTML = valeurs.map((v, k) => `<option value="${k}">${esc(lib(v))}</option>`).join('');
-    sel.addEventListener('change', () => { etat[cle] = Number(sel.value); afficher(); });
+    const boite = document.getElementById(id);
+    boite.innerHTML = valeurs.map((v, k) => `<button type="button" data-k="${k}">${esc(lib(v))}</button>`).join('');
+    boite.addEventListener('click', ev => { const b = ev.target.closest('button[data-k]'); if (b) { etat[cle] = Number(b.dataset.k); afficher(); } });
   });
   document.getElementById('onglets').innerHTML = ONGLETS.map((o, k) => `<button type="button" role="tab" data-k="${k}">${esc(o[0])}</button>`).join('');
   document.getElementById('onglets').addEventListener('click', ev => {
     const b = ev.target.closest('button[data-k]');
     if (b) { etat.onglet = Number(b.dataset.k); afficher(); }
+  });
+  const bulle = document.getElementById('bulle');
+  document.addEventListener('mousemove', ev => {
+    const t = ev.target.closest && ev.target.closest('[data-tip]');
+    if (!t) { bulle.hidden = true; return; }
+    bulle.innerHTML = `<b>${esc(t.dataset.tip)}</b>${esc(t.dataset.tip2 || '')}`;
+    bulle.hidden = false;
+    const x = Math.min(ev.clientX + 14, window.innerWidth - bulle.offsetWidth - 8);
+    const y = ev.clientY + 16 + bulle.offsetHeight > window.innerHeight ? ev.clientY - bulle.offsetHeight - 10 : ev.clientY + 16;
+    bulle.style.left = x + 'px'; bulle.style.top = y + 'px';
   });
   document.getElementById('contenu').addEventListener('click', ev => {
     const b = ev.target.closest('button.copier');

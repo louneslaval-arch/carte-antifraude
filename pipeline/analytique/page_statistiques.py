@@ -18,7 +18,7 @@ MARQUE = '/*DONNEES*/'
 PAGE: dict[str, Any] = {
     'nb_dossiers': {('', '')},
     'part_dossiers': {(d, '') for d in ind.DIMENSIONS_TAUX + ind.DIMENSIONS_REPARTITION_SEULE
-                      + ind.DIMENSIONS_REPARTITION + ind.DIMENSIONS_SOCIETES},
+                      + ind.DIMENSIONS_REPARTITION + ind.DIMENSIONS_SOCIETES} | {('semaine', 'produit')},
     'part_verdict': None, 'part_statut_analyse': None, 'part_statut_extraction': None,
     'taux_juge_suspect': {('', '')} | {(d, '') for d in ind.DIMENSIONS_TAUX},
     'taux_tres_suspect': {('', '')}, 'nb_moyen_alertes_majeures_critiques': {('', '')},
