@@ -40,6 +40,18 @@ def fiche(publication, indice):
     return f
 
 
+def fiche_globale(publication, indice):
+    """Fiche d'un nœud de la carte globale : la fiche commune et ce que seule la carte globale porte."""
+    f = fiche(publication, indice)
+    if f is None:
+        return None
+    with _ouvrir(publication) as con:
+        ligne = con.execute('SELECT liste_noire, personnes, nb_dossiers, dossiers FROM fiche_globale WHERE indice = ?',
+                            (indice,)).fetchone()
+    f.update(zip(('liste_noire', 'personnes', 'nb_dossiers', 'dossiers'), ligne or (None,) * 4))
+    return f
+
+
 def forme_recherche(q):
     """(champs, valeur, exacte) : un CIN ou un RC se cherche exactement, un nom par morceau."""
     nettoye = re.sub(r'\s+', ' ', q.strip().upper())

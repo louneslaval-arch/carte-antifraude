@@ -26,6 +26,8 @@ class Etat:
         journal.purger(self.base, reglages.journal_jours)        # conservation : aussi à chaque rechargement
         self.debit = Debit(reglages)
         self.publication = charger(reglages.publication, reglages.donnees_reelles) if reglages.publication else None
+        self.publication_globale = (charger(reglages.publication_globale, reglages.donnees_reelles)
+                                    if reglages.publication_globale else None)
         self.base_client = BaseClient(reglages.base_client, reglages.donnees_reelles) if reglages.base_client else None
 
 

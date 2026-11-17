@@ -28,7 +28,12 @@ class Publication:
 
     @property
     def noeuds(self):
-        return len(self.geometrie['noeuds']['t'])
+        n = self.geometrie['noeuds']                       # colonnes (carte des chaînes) ou liste (carte globale)
+        return len(n) if isinstance(n, list) else len(n['t'])
+
+    @property
+    def epoque(self):
+        return self.manifeste['empreinte'][:16]
 
     @property
     def identites(self):

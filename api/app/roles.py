@@ -25,6 +25,9 @@ DROITS = {
     'carte.noms': frozenset({Role.ANALYSTE, Role.AGENCE}),
     'carte.noeud': frozenset({Role.ANALYSTE}),
     'carte.recherche': frozenset({Role.ANALYSTE}),
+    # carte globale (registre × liste noire) : noms, fiches et recherche, et pour l'instant la géométrie aussi ; une
+    # carte anonyme pour DIRECTION attend la revue des petits comptes par ville (questions ouvertes)
+    'carte.globale': frozenset({Role.ANALYSTE}),
     'chaines': frozenset({Role.ANALYSTE}),
     'stats': TOUS,
     'admin': frozenset({Role.ADMIN}),
