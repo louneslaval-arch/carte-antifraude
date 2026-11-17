@@ -226,3 +226,60 @@ def test_un_style_d_arete_inconnu_arrete_la_publication(jeu, tmp_path):
     with pytest.raises(ValueError):
         pg.publier(chemin, str(tmp_path / 'pub'))
     assert not os.path.exists(str(tmp_path / 'pub'))         # rien d'écrit
+
+
+# ---- tout ce que carte_globale.py peut produire --------------------------------------------------------------------
+# styles d'arête : rôle actuel ou terminé (« ancien »), annonce mélangée (« melange »), rôle confirmé ou lu dans un
+# dossier (« dossier »), rapprochements (« rap », « certain ») — carte_globale.py, lignes 117-119, 125, 139, 250-254, 270
+STYLES_PRODUITS = sorted({'', 'ancien', 'melange', 'ancien melange', 'dossier', 'ancien dossier', 'melange dossier',
+                          'ancien melange dossier', 'rap', 'certain'})
+
+
+def publier_modifiee(jeu, tmp_path, modifier):
+    src = json.loads(json.dumps(jeu['source']))
+    modifier(src)
+    chemin = str(tmp_path / 'globale.json')
+    with open(chemin, 'w', encoding='utf-8') as f:
+        json.dump(src, f, ensure_ascii=False)
+    pub = str(tmp_path / 'pub')
+    pg.publier(chemin, pub)
+    with open(os.path.join(pub, 'geometrie.json'), encoding='utf-8') as f:
+        texte = f.read()
+    con = sqlite3.connect(os.path.join(pub, 'identites.sqlite'))
+    return src, json.loads(texte), texte, con
+
+
+def test_tous_les_styles_que_carte_globale_produit_sont_publies(jeu, tmp_path):
+    if len(jeu['source']['aretes']) < len(STYLES_PRODUITS):
+        pytest.skip('pas assez d\'arêtes dans ce jeu')
+
+    def modifier(src):
+        for a, style in zip(src['aretes'], STYLES_PRODUITS):
+            a['style'] = style
+    _src, geo, _texte, _con = publier_modifiee(jeu, tmp_path, modifier)
+    assert set(STYLES_PRODUITS) <= {a['style'] for a in geo['aretes']}
+
+
+def test_dossiers_et_regles_af_publies_sans_reference_en_couche1(jeu, tmp_path):
+    ref_dossier = 'ZZ26R' + '0001'
+
+    def modifier(src):
+        a0, a1, a2 = src['aretes'][:3]
+        a0.update(lib=f"gérant d'après le dossier {ref_dossier}", style='dossier')
+        a1.update(lib=f'associé (06/2025) · confirmé par le dossier {ref_dossier}', style='dossier')
+        a2.update(lib='rapprochement AF02b (certain, même CIN, dossier)', style='certain')
+        n = next(x for x in src['noeuds'] if x['t'] == 'personne')
+        n.update(o='d', nd=2, dos=f'{ref_dossier} (conforme), ZZ26R0002 (suspect)')
+    src, geo, texte, con = publier_modifiee(jeu, tmp_path, modifier)
+    assert 'ZZ26R' not in texte
+    ref = dict(con.execute('SELECT indice, ref_id FROM noeud'))
+    ids = [n['id'] for n in src['noeuds']]
+    libs = {(ref[a['a']], ref[a['b']]): a['lib'] for a in geo['aretes']}
+    a0, a1, a2 = src['aretes'][:3]
+    assert libs[(ids[a0['a']], ids[a0['b']])] == ''
+    assert libs[(ids[a1['a']], ids[a1['b']])] == 'associé'
+    assert libs[(ids[a2['a']], ids[a2['b']])] == 'rapprochement AF02b (certain, même CIN, dossier)'
+    n = next(x for x in src['noeuds'] if x.get('dos'))
+    i = next(k for k, r in ref.items() if r == n['id'])
+    assert geo['noeuds'][i]['o'] == 'd' and 'dos' not in geo['noeuds'][i] and 'nd' not in geo['noeuds'][i]
+    assert con.execute('SELECT nb_dossiers, dossiers FROM fiche_globale WHERE indice = ?', (i,)).fetchone() == (2, n['dos'])

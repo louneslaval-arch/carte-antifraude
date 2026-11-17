@@ -527,3 +527,31 @@ def test_fiche_vers_la_carte_sans_carte_globale_503(avec_base, base_demo):
         connecte(c, etat, 'ana', 'ANALYSTE')
         indice = next(iter(etat.base_client.indice_fiche.values()))
         assert c.get(f'/api/base/carte/{indice}').status_code == 503
+
+
+def test_meme_rc_dans_un_autre_tribunal_n_est_pas_la_meme_societe(client_avec, carte_demo, base_demo, tmp_path):
+    compact = lambda v: re.sub(r'\s+', '', str(v)).upper()          # noqa: E731
+    copie = str(tmp_path / 'carte')
+    shutil.copytree(carte_demo, copie)
+    cx = sqlite3.connect(base_demo)
+    g = sqlite3.connect(os.path.join(copie, 'identites.sqlite'))
+    noeuds = {(compact(rc), t): i for i, rc, t in g.execute(
+        "SELECT indice, rc, tribunal FROM identite JOIN noeud USING (indice) WHERE type = 'societe' AND rc IS NOT NULL")}
+    fiche, rc, trib = next((f, r, t) for f, r, t in cx.execute(
+        'SELECT identifiant, rc, tribunal FROM c2_societe WHERE rc IS NOT NULL AND tribunal IS NOT NULL')
+        if (compact(r), t) in noeuds)
+    i = noeuds[(compact(rc), trib)]
+    g.execute("UPDATE identite SET tribunal = 'AUTRE' WHERE indice = ?", (i,))   # même RC, autre tribunal
+    g.commit()
+    g.close()
+    m = os.path.join(copie, 'manifeste.json')
+    manifeste = json.load(open(m, encoding='utf-8'))
+    sys.path.insert(0, os.path.join(RACINE, 'pipeline'))
+    import publier_carte as pc
+    manifeste['fichiers']['identites.sqlite'] = pc.empreinte(os.path.join(copie, 'identites.sqlite'))
+    json.dump(manifeste, open(m, 'w', encoding='utf-8'))
+    with client_avec(CARTE_BASE_CLIENT=base_demo, CARTE_PUBLICATION_GLOBALE=copie) as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        r = c.get(f'/api/base/carte/{etat.base_client.indice_fiche[fiche]}')
+        assert r.status_code == 404 or r.json()['indice'] != i
+

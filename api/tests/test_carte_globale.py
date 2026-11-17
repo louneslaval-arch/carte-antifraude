@@ -107,3 +107,36 @@ def test_publication_globale_reelle_refusee_sans_autorisation(publication_global
     with pytest.raises(PublicationRefusee):
         charger(copie, donnees_reelles=False)
     assert charger(publication_globale, donnees_reelles=False).noeuds == m['noeuds']
+
+
+def test_une_publication_d_un_autre_type_est_refusee(publication, publication_globale, client_avec):
+    from app.graphe import PublicationRefusee, charger
+    with pytest.raises(PublicationRefusee):
+        charger(publication, donnees_reelles=False, type='globale')
+    with pytest.raises(PublicationRefusee):
+        charger(publication_globale, donnees_reelles=False, type='chaines')
+    with pytest.raises(PublicationRefusee):
+        with client_avec(CARTE_PUBLICATION_GLOBALE=publication):
+            pass
+
+
+def test_quota_d_etiquettes_compte_chaque_carte_a_part(avec_globale):
+    with avec_globale(CARTE_QUOTA_ETIQUETTES='2') as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        assert c.post('/api/carte/noms', json={'indices': [0, 1]}).status_code == 200
+        # l'indice 0 de la carte globale n'est pas le nœud 0 de la carte des chaînes : il compte en plus
+        assert c.post('/api/carte/globale/noms', json={'indices': [0]}).status_code == 429
+
+
+def test_page_de_la_carte_sans_style_ni_gestionnaire_en_ligne_et_lots_de_noms_bornes():
+    import re
+
+    from app.routes.carte import MAX_NOMS
+    racine = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    html = open(os.path.join(racine, 'front', 'carte.html'), encoding='utf-8').read()
+    js = open(os.path.join(racine, 'front', 'carte.js'), encoding='utf-8').read()
+    interdit = re.compile(r'\sstyle\s*=|\son[a-z]+\s*=')      # bloqués par la politique de sécurité du contenu
+    assert not interdit.search(html)
+    for chaine in re.findall(r'`[^`]*`|\'[^\'\n]*\'', js):
+        assert not interdit.search(chaine), chaine[:60]
+    assert f'.slice(0, {MAX_NOMS})' in js
