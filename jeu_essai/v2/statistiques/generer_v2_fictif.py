@@ -37,6 +37,7 @@ DEBUT = datetime.date(2026, 10, 13)                  # 28 jours de réception : 
 ATTENDU = os.path.join(RACINE, 'pipeline', 'tests', 'attendu_statistiques.json')   # seul chemin .json admis
 BASE_ESSAI = os.path.join(RACINE, 'jeu_essai', 'sortie', 'statistiques_essai.sqlite')
 T0 = '2026-11-13T10:00:00.000Z'
+INACTIFS = {f'ZZ26S{i:04d}' for i in range(N_DOSSIERS) if i % 53 == 20}      # dossiers archivés
 
 PRODUITS = ('DISPO', 'AUTO_CLASSIQUE', 'LOA')
 CSP_PP = ('SALARIE_PRIVE', 'FONCTIONNAIRE', 'MILITAIRE', 'EMPLOYE_COMMUNE', 'RETRAITE_PUBLIC', 'PROFESSION_LIBERALE')
@@ -49,7 +50,8 @@ VILLES = (('CASABLANCA', None, None, 'CASABLANCA'),          # (domiciliation, C
           (None, None, '7 AVENUE EXEMPLE TANGER', 'TANGER'),
           (None, 'ZOUKAVILLE', None, None),
           ('FES', 'AGADIR', None, 'FES'),
-          (None, 'CASA', None, 'CASABLANCA'))
+          (None, 'CASA', None, 'CASABLANCA'),
+          (None, 'Rabat', '7 AVENUE EXEMPLE TANGER', 'RABAT'))          # CIN avant relevé
 REGION = {'CASABLANCA': 'Casablanca-Settat', 'RABAT': 'Rabat-Salé-Kénitra', 'MARRAKECH': 'Marrakech-Safi',
           'TANGER': 'Tanger-Tétouan-Al Hoceïma', 'FES': 'Fès-Meknès',
           'TIZNIT': 'Souss-Massa'}
@@ -58,8 +60,10 @@ CONTROLES = (('IDT-01', 'IDENTITE', 'Cohérence de la CIN'), ('EMP-01', 'EMPLOI_
              ('BNQ-01', 'BANCAIRE', 'Relevé du compte'), ('AUT-01', 'AUTOMOBILE', 'Facture du véhicule'),
              ('PMP-01', 'PM_PRO', 'Registre de la société'), ('BLG-01', 'BLACKLIST_GEO', 'Liste noire'))
 VERDICTS = ['CONFORME'] * 10 + ['OK_ALERTES_MINEURES'] * 4 + ['SUSPECT'] * 4 + ['TRES_SUSPECT', None]
-NOMS = ('ZELMOU', 'BAKRITA', 'TOUZANI', 'RAMIKOU', 'FILALOU', 'DOUKARI', 'SOUFIMA', 'KHAROUBI')
-PRENOMS = ('AZIZ', 'NADIRA', 'SALOUM', 'ZINEBA', 'HAMIDOU', 'RIMAH')
+# noms tirés de syllabes (comme ceux du générateur du registre) : aucun nom réel
+SYLLABES = ('ZOU', 'KA', 'RI', 'TA', 'MOU', 'BI', 'ZE', 'LO', 'FA', 'DI', 'GHA', 'NE')
+NOMS = tuple(''.join(SYLLABES[(k * 5 + j * 7) % len(SYLLABES)] for j in range(3)) + 'Z' for k in range(8))
+PRENOMS = tuple(''.join(SYLLABES[(k * 3 + j * 5 + 1) % len(SYLLABES)] for j in range(2)) + 'X' for k in range(6))
 
 
 def _date(j):
@@ -88,12 +92,19 @@ def plan(graine=GRAINE, n=N_DOSSIERS):
         pm = i % 10 == 9
         recu = _date(i)
         verdict = VERDICTS[i % 20]
+        # parmi les dossiers « sans verdict » : un verdict provisoire, une analyse encore en cours, une attente
+        verdict_v2, provisoire, statut = verdict, False, 'COMPLETE' if verdict else 'EN_ATTENTE_DONNEES'
+        if i % 60 == 19:
+            verdict_v2, provisoire = 'SUSPECT', True
+        elif i % 60 == 39:
+            verdict_v2, statut = 'CONFORME', 'EN_COURS'
         p = dict(i=i, ref=f'ZZ26S{i:04d}', type_personne='PM' if pm else 'PP', produit=PRODUITS[i % 3],
                  categorie='E' if i in CATEGORIE_E else 'ABCD'[(i // 3) % 4],
                  csp='SOCIETE' if pm else CSP_PP[i % len(CSP_PP)],
                  mode_paiement='PRELEVEMENT_SOURCE' if i % 2 else 'PRELEVEMENT_BANCAIRE',
-                 verdict=verdict, statut='EN_ATTENTE_DONNEES' if verdict is None else 'COMPLETE',
-                 recu=recu, semaine='%d-S%02d' % recu.isocalendar()[:2], actif=True,
+                 verdict=verdict, verdict_v2=verdict_v2, provisoire=provisoire, statut=statut,
+                 recu=recu, semaine='%d-S%02d' % recu.isocalendar()[:2], actif=i % 53 != 20,
+                 caution=i % 11 == 0 and not pm,
                  alertes_majeures=1 if verdict == 'SUSPECT' else 0, alertes_critiques=1 if verdict == 'TRES_SUSPECT' else 0)
         p['juge_suspect'] = None if verdict is None else int(verdict in ('SUSPECT', 'TRES_SUSPECT'))
         # identité (PP) : âge révolu fixé, quelques naissances hors bornes
@@ -149,8 +160,8 @@ def controles(i, p):
             resultat = 'NON_APPLICABLE'
         elif v is None:
             resultat, manquants = 'NON_EXECUTABLE', ['BULLETIN_DE_PAIE'] if cid == 'EMP-01' else ['RELEVE_BANCAIRE']
-        elif cid == 'EMP-01' and v == 'SUSPECT' and i % 20 in (14, 15):
-            resultat, criticite = 'ANOMALIE', 'MAJEURE'                    # seule anomalie majeure : décisif
+        elif cid == 'EMP-01' and v == 'SUSPECT' and i % 20 in (14, 15, 16):
+            resultat, criticite = 'ANOMALIE', 'MAJEURE'          # décisif en 14 et 15 ; en 16, avec BNQ-01 : non
         elif cid == 'BNQ-01' and v in ('SUSPECT', 'TRES_SUSPECT') and i % 20 in (16, 17, 18):
             resultat, criticite = 'ANOMALIE', 'CRITIQUE'
         elif cid == 'IDT-01' and v == 'OK_ALERTES_MINEURES':
@@ -187,11 +198,11 @@ def dossier(m, p):
                          computedAt=recu, label=lib, family=fam, numeroMetier=cid, previousOutcome=None)
                     for cid, fam, lib, app, res, crit, manq in p['controles']]
     analyse = dict(id=analyse_id, matrixVersion='V1.0', engineVersion='2.8.0', trigger='INTAKE', status=p['statut'],
-                   verdict=p['verdict'], provisional=False, startedAt=recu, endedAt=recu, error=None,
+                   verdict=p['verdict_v2'], provisional=p['provisoire'], startedAt=recu, endedAt=recu, error=None,
                    controls=controles_v2)
     d.update(ref=ref, id=ident, personType=p['type_personne'], csp=p['csp'], productType=p['produit'],
              paymentMode=p['mode_paiement'], clientName=f'{nom} {prenom}', category=p['categorie'],
-             analysisStatus=p['statut'], verdict=p['verdict'], verdictProvisional=False,
+             analysisStatus=p['statut'], verdict=p['verdict_v2'], verdictProvisional=p['provisoire'],
              alertsMinor=1 if p['verdict'] == 'OK_ALERTES_MINEURES' else 0, alertsMajor=p['alertes_majeures'],
              alertsCritical=p['alertes_critiques'], businessReceivedAt=recu, resultsReceivedAt=recu, createdAt=recu,
              updatedAt=recu, analyses=[{k: v for k, v in analyse.items() if k != 'controls'}],
@@ -212,7 +223,11 @@ def dossier(m, p):
             cin_champs['adresse'] = ville_cin
         elif ville_cin:
             cin_champs['ville_residence'] = ville_cin
-        pieces.append(_piece(base, 'CIN', 0, cin_champs, source='REANALYSE' if i % 25 == 0 else 'AMONT'))
+        if p['caution']:                  # CIN d'une caution, rangée avant celle du demandeur : jamais lue pour lui
+            pieces.append(_piece(base, 'CIN', 0, dict(nom=NOMS[(i + 3) % len(NOMS)], prenom=PRENOMS[(i + 1) % 6],
+                                                      cin=f'ZZ9{i:05d}', date_naissance='01/01/1950',
+                                                      sexe='F' if p['sexe'] == 'H' else 'M', nationalite='MAROCAINE')))
+        pieces.append(_piece(base, 'CIN', 1, cin_champs, source='REANALYSE' if i % 25 == 0 else 'AMONT'))
         src, mt = p['source_saisie'], p['montant']
         if src == 'bulletin':
             pieces.append(_piece(base, 'BULLETIN_DE_PAIE', 0, dict(
@@ -267,7 +282,8 @@ def _case(indicateur, valeur, numerateur=None, denominateur=None, dimension1='',
                 valeur1=valeur1, numerateur=numerateur, denominateur=denominateur, valeur=valeur, masque=masque)
 
 
-def verite(lignes):
+def verite(tout):
+    lignes = [p for p in tout if p['actif']]                       # par défaut, les dossiers actifs seulement
     n = len(lignes)
     jug = [p for p in lignes if p['juge_suspect'] is not None]
     k_susp = sum(p['juge_suspect'] for p in jug)
@@ -318,12 +334,20 @@ def verite(lignes):
     for region in sorted(set(REGION.values())):
         c = sum(REGION.get(p['ville']) == region for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'region', region))
+    for etat in ('neuf', 'occasion'):
+        c = sum(p.get('etat', '').lower() == etat for p in lignes)
+        cases.append(_case('nb_dossiers', c, None, c, 'vehicule_etat', etat))
+    for unique, nom in ((1, 'oui'), (0, 'non')):
+        c = sum(p.get('associes') is not None and int(p['associes'] == 1) == unique for p in lignes)
+        cases.append(_case('nb_dossiers', c, None, c, 'associe_unique', nom))
     for sexe in ('H', 'F'):
         c = sum(p.get('sexe') == sexe for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'sexe', sexe))
     for c in cases:
         c.setdefault('dimension2', '')
         c.setdefault('valeur2', '')
+        if isinstance(c['valeur'], float):          # 6 décimales : un flottant de 15 chiffres ressemble à un ICE
+            c['valeur'] = round(c['valeur'], 6)
     return dict(graine=GRAINE, dossiers=n, periode_debut=DEBUT.isoformat(),
                 periode_fin=(DEBUT + datetime.timedelta(days=27)).isoformat(), cases=cases)
 
@@ -339,7 +363,7 @@ def construire_base(chemin, liste):
     migrer.appliquer(cx)
     passage = c0.ouvrir_passage(cx, 'essai-statistiques', 'lot', T0)
     for d in liste:
-        c0.recevoir(cx, passage, d, actif=True, maintenant=T0)
+        c0.recevoir(cx, passage, d, actif=d['ref'] not in INACTIFS, maintenant=T0)
     for couche in COUCHES[1:]:
         couche.construire_tout(cx)
     cx.commit()

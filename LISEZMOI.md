@@ -111,7 +111,7 @@ qualité des données. Ces chiffres servent de taux de base aux autres modules. 
     [--html statistiques_dossiers.html] [--avec-noms-societes]
 ```
 
-Sur le jeu d'essai (600 dossiers fictifs, construits en 3 s) :
+Sur le jeu d'essai (600 dossiers fictifs dont 11 archivés, construits en 3 s) :
 
 ```
 .venv/bin/python jeu_essai/v2/statistiques/generer_v2_fictif.py --base      # jeu_essai/sortie/statistiques_essai.sqlite
@@ -125,12 +125,18 @@ Sur le jeu d'essai (600 dossiers fictifs, construits en 3 s) :
 - **Sources** : `c3_dossier`, `c3_revenu`, `c3_compte`, `c3_vehicule`, `c1_fait_retenu`, `c1_mention_personne`,
   `c1_piece`, `c1_releve_mois`, et les contrôles du miroir (`"AnalysisControl"`, dernière analyse ; la famille vient
   de la version brute). Montants, dates et villes : normalisation et référentiel du dépôt.
-- **Secret statistique** : aucune valeur sur moins de 5 dossiers (« < 5 ») ; une répartition qui n'aurait qu'une case
-  masquée en masque une seconde (la plus petite), ligne par ligne et colonne par colonne pour un croisement. Une case
-  masquée n'a aucune valeur dans la table (ni nombre, ni effectif, ni fourchette). Médianes à partir de 5 valeurs,
-  jamais de minimum ni de maximum.
-- **Critères interdits** : le sexe et la nationalité ne servent qu'en répartition simple des demandeurs, jamais croisés
-  avec un verdict, un contrôle ni une autre dimension (constantes `DIMENSIONS_TAUX` et `DIMENSIONS_REPARTITION_SEULE`).
+- **Secret statistique** (`pipeline/analytique/secret.py`, `agregats.proteger`) : aucune valeur sur moins de 5 dossiers
+  (l'effectif compte toujours des dossiers, jamais des pièces ni des occurrences) ; un taux de verdict ou de contrôle
+  n'est pas publié sur 1 à 4 dossiers, ni quand il désigne tous les dossiers d'un groupe à moins de 5 près (« 7 sur 7 ») ;
+  une répartition qui n'aurait qu'une case masquée en masque une seconde (la plus petite), ligne par ligne et colonne par
+  colonne pour un croisement ; un compte masqué l'est sous tous les indicateurs qui le publient (médiane, taux,
+  remplissage de la variable), jusqu'à stabilité. Une case masquée n'a aucune valeur dans la table (ni nombre, ni
+  effectif, ni fourchette) ; la page l'affiche grisée, hachurée, « secret ». Médianes à partir de 5 valeurs, jamais de
+  minimum ni de maximum. Texte venu des pièces (nationalité, situation familiale, marque, sociétés, éléments manquants) :
+  une valeur citée par moins de 5 dossiers est regroupée avant le calcul, elle ne sort jamais.
+- **Critères interdits** : le sexe et la nationalité ne servent qu'en répartition simple des demandeurs, dans la tranche
+  « tous × toutes » seulement : jamais croisés avec un verdict, un contrôle, un produit, une catégorie ni une autre
+  dimension (constantes `DIMENSIONS_TAUX` et `DIMENSIONS_REPARTITION_SEULE`).
 - **Noms de sociétés** (banques, employeurs, concessionnaires) : seulement avec `--avec-noms-societes` (à valider avec la
   conformité), et seulement ceux qui comptent 5 dossiers ou plus ; les autres sont regroupés, leur nom ne sort jamais.
 - **Page** : un seul fichier HTML (`pipeline/statistiques_modele.html` + cases non masquées en JSON), hors ligne, sans

@@ -126,8 +126,9 @@ def test_variables_du_jeu_d_essai_egales_au_plan(base_stats, plan_stats):
     cx = base_stats
     noms = [c[1] for c in cx.execute('PRAGMA table_info(c7_variable_dossier)')]
     lignes = {r[0]: dict(zip(noms, r)) for r in cx.execute('SELECT * FROM c7_variable_dossier')}
-    assert set(lignes) == set(plan_stats)
-    for ref, p in plan_stats.items():
+    actifs = {r: p for r, p in plan_stats.items() if p['actif']}
+    assert set(lignes) == set(actifs) and len(actifs) < len(plan_stats)          # archivés écartés par défaut
+    for ref, p in actifs.items():
         x = lignes[ref]
         assert (x['type_personne'], x['produit'], x['categorie'], x['semaine']) == \
                (p['type_personne'], p['produit'], p['categorie'], p['semaine']), ref
@@ -145,8 +146,38 @@ def test_variables_du_jeu_d_essai_egales_au_plan(base_stats, plan_stats):
 
 @SANS_KAMAL
 def test_variable_incalculable_vaut_null_jamais_devinee(base_stats, plan_stats):
-    pm = [r for r, p in plan_stats.items() if p['type_personne'] == 'PM']
+    pm = [r for r, p in plan_stats.items() if p['type_personne'] == 'PM' and p['actif']]
     for ref in pm:
         age, sexe, revenu = base_stats.execute('SELECT age, sexe, revenu_verifie FROM c7_variable_dossier WHERE ref = ?',
                                                (ref,)).fetchone()
         assert (age, sexe, revenu) == (None, None, None)
+
+
+@SANS_KAMAL
+def test_verdict_provisoire_ou_analyse_en_cours_compte_sans_verdict(base_stats, plan_stats):
+    vus = set()
+    for ref, p in plan_stats.items():
+        if p['actif'] and (p['provisoire'] or p['statut'] == 'EN_COURS'):
+            verdict, juge = base_stats.execute('SELECT verdict, juge_suspect FROM c7_variable_dossier WHERE ref = ?',
+                                               (ref,)).fetchone()
+            assert (verdict, juge) == ('sans verdict', None), ref
+            vus.add(p['provisoire'])
+    assert vus == {True, False}
+
+
+@SANS_KAMAL
+def test_age_et_sexe_lus_sur_la_cin_du_demandeur_pas_sur_celle_de_la_caution(base_stats, plan_stats):
+    cautions = [r for r, p in plan_stats.items() if p['actif'] and p.get('caution')]
+    assert cautions
+    for ref in cautions:
+        age, sexe = base_stats.execute('SELECT age, sexe FROM c7_variable_dossier WHERE ref = ?', (ref,)).fetchone()
+        assert (age, sexe) == (plan_stats[ref]['age'], plan_stats[ref]['sexe']), ref
+
+
+@SANS_KAMAL
+def test_archives_seulement_sur_demande(base_stats, plan_stats):
+    from pipeline.analytique import agregats
+    from .commun import CALCULE_LE
+    assert agregats.construire(base_stats, avec_archives=True, calcule_le=CALCULE_LE)['dossiers'] == len(plan_stats)
+    assert base_stats.execute('SELECT count(*) FROM c7_variable_dossier WHERE actif = 0').fetchone()[0] > 0
+    agregats.construire(base_stats, calcule_le=CALCULE_LE)

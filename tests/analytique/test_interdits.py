@@ -1,5 +1,5 @@
 """Critères interdits (annexe C) : le sexe et la nationalité ne découpent jamais un verdict ni un contrôle ; ils ne
-se croisent avec rien. Parcours de toute la table construite sur le jeu d'essai, pas d'un échantillon."""
+se croisent avec rien, pas même avec un produit ou une catégorie (répartition dans la tranche « tous × toutes »). Parcours de toute la table construite sur le jeu d'essai, pas d'un échantillon."""
 import inspect
 
 from .commun import SANS_KAMAL, lignes_agregat
@@ -30,7 +30,8 @@ def test_sexe_et_nationalite_en_repartition_simple_seulement(base_stats):
     for r in lignes_agregat(base_stats):
         if r['dimension1'] in ('sexe', 'nationalite') or r['dimension2'] in ('sexe', 'nationalite'):
             vus = True
-            assert r['indicateur'] in ('nb_dossiers', 'part_dossiers', 'taux_remplissage') and not r['dimension2'], r
+            assert r['indicateur'] in ('nb_dossiers', 'part_dossiers') and not r['dimension2'], r
+            assert (r['filtre_produit'], r['filtre_categorie']) == ('tous', 'toutes'), r
     assert vus
 
 

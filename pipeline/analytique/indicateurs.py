@@ -55,8 +55,8 @@ INDICATEURS = (
      'Part des dossiers où le contrôle n’a pas pu s’exécuter, parmi ceux où il est applicable.',
      'NON_EXECUTABLE / applicable, par contrôle', MIROIR, '%'),
     ('elements_manquants', 'Ce qui manque aux contrôles non exécutables',
-     'Nombre de fois où chaque élément manque à un contrôle non exécutable.', 'comptage des éléments manquants',
-     MIROIR, 'occurrences'),
+     'Dossiers où l’élément manque à au moins un contrôle non exécutable (élément cité par moins de 5 dossiers : '
+     '« autres éléments »).', 'comptage des dossiers par élément manquant', MIROIR, 'dossiers'),
     ('controle_decisif', 'Contrôle décisif',
      'Part des dossiers jugés suspects où ce contrôle est la seule anomalie majeure ou critique.',
      'dossiers jugés suspects où le contrôle est la seule anomalie MAJEURE ou CRITIQUE / dossiers jugés suspects',

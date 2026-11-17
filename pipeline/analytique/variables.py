@@ -42,12 +42,13 @@ def _jour(v: Optional[str]) -> Optional[datetime.date]:
         return None
 
 
-def annees_entre(debut: Optional[str], fin: Optional[str]) -> Optional[float]:
-    """Années (décimales) entre deux dates ISO ; NULL si l'une manque ou si la seconde précède la première."""
+def annees_entre(debut: Optional[str], fin: Optional[str]) -> Optional[int]:
+    """Années révolues entre deux dates ISO (un an tout juste compte 1) ; NULL si l'une manque ou si la seconde
+    précède la première."""
     a, b = _jour(debut), _jour(fin)
     if a is None or b is None or b < a:
         return None
-    return round((b - a).days / 365.25, 4)
+    return b.year - a.year - ((b.month, b.day) < (a.month, a.day))
 
 
 def age_revolu(naissance: Optional[str], reference: Optional[str]) -> Optional[int]:
@@ -231,6 +232,10 @@ class _Faits:
     def ajouter(self, upi: str, type_: str, cle: str, valeur: Any, nombre: Optional[float], date: Optional[str]) -> None:
         self.par[(type_, cle)].append((upi, valeur, nombre, date))
 
+    def de_piece(self, type_: str, upi: Optional[str], cle: str) -> Any:
+        """Valeur d'une clé dans une pièce donnée (la CIN du demandeur) ; sans pièce désignée : NULL."""
+        return next((x[1] for x in self.par.get((type_, cle), ()) if x[0] == upi and x[1] not in (None, '')), None)
+
     def valeurs(self, type_: str, *cles: str) -> list[Any]:
         return [x[1] for c in cles for x in self.par.get((type_, c), ()) if x[1] not in (None, '')]
 
@@ -267,10 +272,12 @@ def _entier(v: Any) -> Optional[int]:
 
 def lire(cx: Any, avec_archives: bool = False) -> list[dict[str, Any]]:
     """Une ligne par dossier de c3 (actifs seulement, sauf `avec_archives`)."""
+    # date de référence : réception des données métier, à défaut création ; jamais `updatedAt` (un dossier changerait
+    # de période à chaque mise à jour)
     dossiers = cx.execute(
-        'SELECT ref, coalesce(actif, 1), coalesce("businessReceivedAt", "createdAt", "updatedAt"), "personType", '
+        'SELECT ref, coalesce(actif, 1), coalesce("businessReceivedAt", "createdAt"), "personType", '
         'csp, "productType", "paymentMode", category, verdict, coalesce("verdictProvisional", 0), en_cours, '
-        '"analysisStatus", "alertsMinor", "alertsMajor", "alertsCritical", declared_monthly_income '
+        '"analysisStatus", "alertsMinor", "alertsMajor", "alertsCritical", declared_monthly_income, civil_cin '
         'FROM c3_dossier ORDER BY ref').fetchall()
     if not avec_archives:
         dossiers = [d for d in dossiers if d[1]]
@@ -280,10 +287,17 @@ def lire(cx: Any, avec_archives: bool = False) -> list[dict[str, Any]]:
             f'SELECT ref, upstream_piece_id, type, cle, valeur, nombre, date FROM c1_fait_retenu WHERE cle IN ({marque}) '
             'ORDER BY ref, upstream_piece_id', CLES_FAITS):
         faits[ref].ajouter(upi, type_, cle, valeur, nombre, date)
-    naissance: dict[str, str] = {}
-    for ref, d in cx.execute("SELECT ref, date_naissance FROM c1_mention_personne WHERE role = 'titulaire_cin' "
-                             "AND rang = 0 AND date_naissance IS NOT NULL ORDER BY ref, upstream_piece_id"):
-        naissance.setdefault(ref, d)
+    # CIN du demandeur, comme en c3 : celle qui porte le CIN déclaré, sinon la première (jamais celle d'une caution
+    # ou d'un co-emprunteur quand le CIN déclaré la désigne)
+    declare = {d[0]: d[16] for d in dossiers}
+    cartes: dict[str, list[tuple[str, Any, Any]]] = defaultdict(list)
+    for ref, upi, cin, d in cx.execute("SELECT ref, upstream_piece_id, cin, date_naissance FROM c1_mention_personne "
+                                       "WHERE role = 'titulaire_cin' AND rang = 0 ORDER BY ref, upstream_piece_id"):
+        cartes[ref].append((upi, cin, d))
+    carte_demandeur: dict[str, tuple[str, Any]] = {}
+    for ref, liste in cartes.items():
+        upi, _cin, d = next((c for c in liste if declare.get(ref) and c[1] == declare[ref]), liste[0])
+        carte_demandeur[ref] = (upi, d)
     associes: dict[str, int] = defaultdict(int)
     for ref, n in cx.execute("SELECT ref, max(n) FROM (SELECT ref, upstream_piece_id, count(*) AS n FROM "
                              "c1_mention_personne WHERE type_piece = 'STATUTS' AND role = 'associe' "
@@ -313,16 +327,17 @@ def lire(cx: Any, avec_archives: bool = False) -> list[dict[str, Any]]:
                                      "('employeur', 'concessionnaire') AND nom_norm IS NOT NULL "
                                      'ORDER BY ref, upstream_piece_id'):
         societes[ref].setdefault(role, nom)
-    return [_ligne(d, faits[d[0]], naissance.get(d[0]), associes.get(d[0]), revenus.get(d[0], {}),
+    return [_ligne(d, faits[d[0]], carte_demandeur.get(d[0]), associes.get(d[0]), revenus.get(d[0], {}),
                    banques.get(d[0], []), vehicules.get(d[0]), pieces.get(d[0], (0, 0)), releves.get(d[0]),
                    societes.get(d[0], {})) for d in dossiers]
 
 
-def _ligne(d: tuple, f: _Faits, naissance: Optional[str], nb_associes: Optional[int], revenus: dict,
+def _ligne(d: tuple, f: _Faits, carte: Optional[tuple[str, Any]], nb_associes: Optional[int], revenus: dict,
            banques: list, vehicule: Optional[tuple], pieces: tuple, releve: Optional[int], societes: dict
            ) -> dict[str, Any]:
     (ref, actif, recu, tp, csp, produit, mode, categorie, verdict, provisoire, en_cours, statut, mineures, majeures,
-     critiques, declare) = d
+     critiques, declare, _cin_declare) = d
+    upi_cin, naissance = carte if carte else (None, None)
     reference = date_iso(recu) or (str(recu)[:10] if recu else None)
     a_verdict = verdict in VERDICTS and not provisoire and not en_cours
     pp, pm, auto = tp == 'PP', tp == 'PM', produit in ('AUTO_CLASSIQUE', 'LOA')
@@ -335,15 +350,15 @@ def _ligne(d: tuple, f: _Faits, naissance: Optional[str], nb_associes: Optional[
     # personne
     x['age'] = age_revolu(naissance, reference) if pp else None
     x['tranche_age'] = tranche_age(x['age'])
-    x['sexe'] = normaliser_sexe(f.premier(('CIN',), 'sexe')) if pp else None
-    x['nationalite'] = normaliser_texte(f.premier(('CIN',), 'nationalite')) if pp else None
+    x['sexe'] = normaliser_sexe(f.de_piece('CIN', upi_cin, 'sexe')) if pp else None
+    x['nationalite'] = normaliser_texte(f.de_piece('CIN', upi_cin, 'nationalite')) if pp else None
     emploi = ('BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE')
     x['situation_familiale'] = normaliser_texte(f.premier(emploi, 'situation_familiale'))
     x['personnes_a_charge'] = next((n for n in (_entier(v) for t in emploi
                                                  for v in f.valeurs(t, *CLES_PERSONNES_A_CHARGE)) if n is not None), None)
     # revenu : bulletin le plus récent (mois de paie), attestation, pension, relevé
     mois_paie = {u: date_iso('01/' + str(v)) or '' for u, v, _n, _d in f.par.get(('BULLETIN_DE_PAIE', 'mois_paie'), ())}
-    x['revenu_verifie'], x['source_revenu'] = choisir_revenu(
+    x['revenu_verifie'], x['source_revenu'] = (None, 'aucun') if not pp else choisir_revenu(
         bulletins=[(mois_paie.get(u, ''), m) for u, m in revenus.get('BULLETIN_DE_PAIE', ())],
         attestations=[m for _u, m in revenus.get('ATTESTATION_TRAVAIL_SALAIRE', ())],
         pensions=[m for _u, m in revenus.get('ATTESTATION_PENSION', ())],
@@ -360,7 +375,7 @@ def _ligne(d: tuple, f: _Faits, naissance: Optional[str], nb_associes: Optional[
     # ville
     x['ville'], x['source_ville'] = choisir_ville(
         domiciliation=f.valeurs('DOMICILIATION', 'ville', 'adresse'),
-        cin=f.valeurs('CIN', 'ville_residence', 'adresse'),
+        cin=f.valeurs('CIN', 'ville_residence', 'adresse') if pp else [],     # la CIN d'une PM est celle du gérant
         releve=f.valeurs('RELEVE_BANCAIRE', 'ville', 'adresse'))
     x['region'] = REGION_DE_VILLE.get(x['ville']) if x['ville'] else None
     # véhicule (AUTO et LOA)

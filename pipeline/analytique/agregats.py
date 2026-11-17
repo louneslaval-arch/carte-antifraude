@@ -74,27 +74,35 @@ def _oui_non(v: Any) -> Optional[str]:
     return None if v is None else 'oui' if v else 'non'
 
 
-def societes_retenues(lignes: list[Ligne]) -> dict[str, set[str]]:
-    """Noms de sociétés comptant au moins 5 dossiers sur la période ; les autres sont regroupées, leur nom ne sort
-    jamais, même dans la clé d'une case masquée."""
+# Dimensions dont les valeurs sont du texte venu des pièces (sans liste fermée) : une valeur rare est regroupée.
+TEXTE_LIBRE = {**{d: 'autres valeurs' for d in ind.DIMENSIONS_REPARTITION_SEULE}, 'situation_familiale': 'autres situations',
+               'marque_vehicule': 'autres marques', **{d: 'autres sociétés' for d in ind.DIMENSIONS_SOCIETES}}
+
+
+def valeurs_retenues(lignes: list[Ligne]) -> dict[str, set[str]]:
+    """Valeurs de texte libre (noms de sociétés, nationalités, situations, marques) comptant au moins 5 dossiers sur
+    la période ; les autres sont regroupées : leur texte ne sort jamais, même dans la clé d'une case masquée."""
     retenues: dict[str, set[str]] = {}
-    for dim in ind.DIMENSIONS_SOCIETES:
+    for dim in TEXTE_LIBRE:
         comptes: dict[str, int] = defaultdict(int)
         for x in lignes:
-            if x[dim]:
+            if x.get(dim):
                 comptes[x[dim]] += 1
         retenues[dim] = {v for v, n in comptes.items() if n >= ind.SEUIL}
     return retenues
 
 
-def lecteur(villes: dict[str, str], societes: Optional[dict[str, set[str]]] = None) -> Callable[[Ligne, str], str]:
-    """Valeur d'une dimension pour un dossier ; « non renseigné » quand la variable est NULL."""
-    retenues = societes or {}
+societes_retenues = valeurs_retenues
 
-    def societe(dim: str) -> Callable[[Ligne], Any]:
-        return lambda x: x[dim] if not x[dim] or x[dim] in retenues.get(dim, ()) else 'autres sociétés'
+
+def lecteur(villes: dict[str, str], retenues: Optional[dict[str, set[str]]] = None) -> Callable[[Ligne, str], str]:
+    """Valeur d'une dimension pour un dossier ; « non renseigné » quand la variable est NULL."""
+    gardees = retenues or {}
+
+    def regroupee(dim: str) -> Callable[[Ligne], Any]:
+        return lambda x: x[dim] if not x[dim] or x[dim] in gardees.get(dim, ()) else TEXTE_LIBRE[dim]
     derivees: dict[str, Callable[[Ligne], Any]] = {
-        **{dim: societe(dim) for dim in ind.DIMENSIONS_SOCIETES},
+        **{dim: regroupee(dim) for dim in TEXTE_LIBRE},
         'ville': lambda x: villes.get(x['ville'], 'autres villes') if x['ville'] else 'ville inconnue',
         'ecart_revenu': lambda x: x['tranche_ecart_revenu'],
         'anciennete_emploi': lambda x: x['tranche_anciennete'],
@@ -122,9 +130,16 @@ class Calcul:
              den: Optional[int], valeur: Optional[float], effectif: Optional[int], proportion: bool = False,
              mediane: bool = False) -> None:
         bas, haut = wilson(num, den) if proportion and num is not None and den else (None, None)
+        sensible = False
+        if proportion and num is not None and den is not None and not indicateur.startswith('part_'):
+            if indicateur in ind.INDICATEURS_VERDICT_CONTROLE:
+                # 1 à 4 dossiers, ou tous sauf 0 à 4 (7 sur 7 jugés suspects désigne chacun d'eux)
+                sensible = secret.petit_compte(num) or (num > 0 and den - num < ind.SEUIL)
+            else:
+                sensible = secret.petit_compte(num) or secret.petit_compte(den - num)
         self.cases.append(dict(indicateur=indicateur, dimension1=d1, valeur1=v1, dimension2=d2, valeur2=v2,
                                numerateur=num, denominateur=den, valeur=valeur, borne_basse=bas, borne_haute=haut,
-                               effectif=effectif, mediane=mediane))
+                               effectif=effectif, sensible=sensible, mediane=mediane))
 
     # -- répartitions : nombre et part -----------------------------------------------------------------------------
     def repartition(self, dossiers: list[Ligne], dims: tuple[str, ...], indicateurs: tuple[str, ...]) -> None:
@@ -190,7 +205,7 @@ def _avec_verdict(x: Ligne) -> bool:
 
 
 def tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[str, list[tuple]], pieces: dict[str, list[tuple]],
-            dims_taux: tuple[str, ...], dims_repartition: tuple[str, ...]) -> None:
+            dims_taux: tuple[str, ...], dims_repartition: tuple[str, ...], manquants: set[str]) -> None:
     """Toutes les cases d'une tranche de filtre."""
     croisements = tuple(c for c in ind.CROISEMENTS if c[0] in dims_taux and c[1] in dims_taux)
     calc.case('nb_dossiers', den=len(dossiers), valeur=len(dossiers), effectif=len(dossiers))
@@ -231,22 +246,33 @@ def tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[str, list[tuple
             k = sum(x[var] is not None for x in concernes)
             calc.case('taux_remplissage', 'variable', var, num=k, den=len(concernes), valeur=k / len(concernes),
                       effectif=len(concernes), proportion=True)
-    controles_de_tranche(calc, dossiers, controles)
+    controles_de_tranche(calc, dossiers, controles, manquants)
     pieces_de_tranche(calc, dossiers, pieces)
 
 
-def controles_de_tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[str, list[tuple]]) -> None:
+def manquants_de(controles_dossier: Iterable[tuple]) -> set[str]:
+    return {m for _cid, _f, _a, r, _c, manque in controles_dossier if r == 'NON_EXECUTABLE' for m in manque}
+
+
+def manquants_retenus(lignes: list[Ligne], controles: dict[str, list[tuple]]) -> set[str]:
+    """Éléments manquants cités par au moins 5 dossiers ; les autres sont regroupés (texte venu de l'amont)."""
+    comptes: dict[str, int] = defaultdict(int)
+    for x in lignes:
+        for m in manquants_de(controles.get(x['ref'], ())):
+            comptes[m] += 1
+    return {m for m, n in comptes.items() if n >= ind.SEUIL}
+
+
+def controles_de_tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[str, list[tuple]],
+                         retenus: set[str]) -> None:
     applicables: dict[tuple[str, str], list[str]] = defaultdict(list)
-    manquants: dict[str, int] = defaultdict(int)
-    manquants_controle: dict[tuple[str, str], int] = defaultdict(int)
+    manquants: dict[str, int] = defaultdict(int)          # dossiers où l'élément manque à un contrôle non exécutable
     for x in dossiers:
-        for cid, famille, applicable, resultat, _crit, manque in controles.get(x['ref'], ()):
+        for cid, famille, applicable, resultat, _crit, _manque in controles.get(x['ref'], ()):
             if applicable:
                 applicables[(famille, cid)].append(resultat)
-            if resultat == 'NON_EXECUTABLE':
-                for m in manque:
-                    manquants[m] += 1
-                    manquants_controle[(cid, m)] += 1
+        for m in {m if m in retenus else 'autres éléments' for m in manquants_de(controles.get(x['ref'], ()))}:
+            manquants[m] += 1
     for (famille, cid), resultats in sorted(applicables.items()):
         utiles = [r for r in resultats if r != 'NON_APPLICABLE']
         if utiles:
@@ -258,8 +284,6 @@ def controles_de_tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[st
                   valeur=k / len(resultats), effectif=len(resultats), proportion=True)
     for m, c in sorted(manquants.items()):
         calc.case('elements_manquants', 'manquant', m, den=c, valeur=c, effectif=c)
-    for (cid, m), c in sorted(manquants_controle.items()):
-        calc.case('elements_manquants', 'controle', cid, 'manquant', m, den=c, valeur=c, effectif=c)
     # contrôle décisif : seule anomalie majeure ou critique d'un dossier jugé suspect
     suspects = [x for x in dossiers if x['juge_suspect'] == 1]
     familles = {cid: fam for (fam, cid) in applicables}
@@ -277,34 +301,81 @@ def controles_de_tranche(calc: Calcul, dossiers: list[Ligne], controles: dict[st
 
 
 def pieces_de_tranche(calc: Calcul, dossiers: list[Ligne], pieces: dict[str, list[tuple]]) -> None:
+    # effectif du secret : des dossiers, jamais des pièces (un dossier peut porter plusieurs pièces d'un type)
     par_type: dict[str, list[tuple]] = defaultdict(list)
     for x in dossiers:
         for type_, statut, relue in pieces.get(x['ref'], ()):
-            par_type[type_].append((statut, relue))
+            par_type[type_].append((x['ref'], statut, relue))
     for type_, ps in sorted(par_type.items()):
-        k = sum(r for _s, r in ps)
+        k = sum(r for _d, _s, r in ps)
+        relus = {d for d, _s, r in ps if r}
         calc.case('taux_relecture_piece', 'type_piece', type_, num=k, den=len(ps), valeur=k / len(ps),
-                  effectif=len(ps), proportion=True)
-        statuts: dict[str, int] = defaultdict(int)
-        for s, _r in ps:
-            statuts[s or ind.NON_RENSEIGNE] += 1
-        for s, c in sorted(statuts.items()):
-            calc.case('part_statut_extraction', 'type_piece', type_, 'statut_extraction', s, num=c, den=len(ps),
-                      valeur=c / len(ps), effectif=c, proportion=True)
+                  effectif=len({d for d, _s, _r in ps}), proportion=True)
+        if 0 < len(relus) < ind.SEUIL or 0 < len({d for d, _s, r in ps if not r}) < ind.SEUIL:
+            calc.cases[-1]['sensible'] = True
+        statuts: dict[str, list[str]] = defaultdict(list)
+        for d, s, _r in ps:
+            statuts[s or ind.NON_RENSEIGNE].append(d)
+        for s, ds in sorted(statuts.items()):
+            calc.case('part_statut_extraction', 'type_piece', type_, 'statut_extraction', s, num=len(ds),
+                      den=len(ps), valeur=len(ds) / len(ps), effectif=len(set(ds)), proportion=True)
+
+
+# Indicateurs qui ne s'additionnent pas d'une case à l'autre : secret primaire seulement.
+NON_ADDITIFS = ('taux_anomalie_controle', 'taux_non_executable_controle', 'controle_decisif', 'taux_remplissage')
+# Une valeur « non renseigné » d'une répartition est le complément du taux de remplissage de sa variable.
+REMPLISSAGE_DE = {**{d: d for d in ind.DIMENSIONS_REPARTITION_SEULE}, 'tranche_age': 'age', 'tranche_revenu': 'revenu_verifie',
+                  'anciennete_emploi': 'anciennete_emploi', 'type_contrat': 'type_contrat',
+                  'situation_familiale': 'situation_familiale', 'ville': 'ville', 'region': 'region', 'banque': 'banque',
+                  'vehicule_etat': 'vehicule_etat', 'tranche_prix_vehicule': 'prix_vehicule',
+                  'tranche_apport': 'apport_pct', 'age_societe': 'age_societe', 'associe_unique': 'associe_unique',
+                  'capital_tranche': 'capital_tranche'}
+NON_RENSEIGNES = (ind.NON_RENSEIGNE, 'ville inconnue')
+
+
+def _cle(c: Ligne) -> tuple[str, str, str, str]:
+    return c['dimension1'], c['valeur1'], c['dimension2'], c['valeur2']
+
+
+def propager(cases: list[Ligne]) -> bool:
+    """Un même compte publié sous deux indicateurs : masqué dans l'un, masqué dans l'autre. Rend vrai si une case
+    change."""
+    masques = {_cle(c) for c in cases if c['indicateur'] in ('nb_dossiers', 'part_dossiers') and c['masque']
+               and c['dimension1']}
+    verdicts = {c['valeur1'] for c in cases if c['indicateur'] == 'part_verdict' and c['masque']}
+    remplissage = {var for dim, var in REMPLISSAGE_DE.items() for nr in NON_RENSEIGNES if (dim, nr, '', '') in masques}
+    if ('source_revenu', 'aucun', '', '') in masques:
+        remplissage.add('revenu_verifie')
+    change = False
+    for c in cases:
+        if c['masque']:
+            continue
+        i, ensemble = c['indicateur'], not c['dimension1']
+        lie = (not ensemble and _cle(c) in masques) \
+            or (i == 'taux_remplissage' and c['valeur1'] in remplissage) \
+            or (ensemble and i == 'taux_tres_suspect' and 'TRES_SUSPECT' in verdicts) \
+            or (ensemble and i == 'taux_juge_suspect' and bool(verdicts & {'SUSPECT', 'TRES_SUSPECT'})) \
+            or (ensemble and i == 'taux_releve_relu'
+                and any(('releve_lignes_lues', v, '', '') in masques for v in ('oui', 'non')))
+        if lie:
+            change |= secret.masquer(c)
+    return change
 
 
 def proteger(cases: list[Ligne]) -> None:
-    """Secret primaire sur chaque case ; secondaire par répartition (une dimension) ou par tableau (deux)."""
+    """Secret primaire sur chaque case ; secondaire par répartition (une dimension) ou par tableau (deux) pour les
+    indicateurs additifs ; propagation entre indicateurs qui publient le même compte ; jusqu'à stabilité."""
     groupes: dict[tuple, list[Ligne]] = defaultdict(list)
     for c in cases:
         groupes[(c['indicateur'], c['dimension1'], c['dimension2'])].append(c)
-    for (_i, d1, d2), g in groupes.items():
-        if not d1 or g[0]['mediane']:
-            secret.primaire(g)
-        elif d2:
-            secret.masquer_tableau(g)
-        else:
-            secret.masquer_repartition(g)
+    secret.primaire(cases)
+    additifs = [g for (i, d1, _d2), g in groupes.items() if d1 and i not in NON_ADDITIFS]
+    change = True
+    while change:
+        change = False
+        for g in additifs:
+            change |= secret.completer_tableau(g) if g[0]['dimension2'] else secret.secondaire(g)
+        change |= propager(cases)
 
 
 # ---- lecture, écriture, construction --------------------------------------------------------------------------------
@@ -312,26 +383,34 @@ def proteger(cases: list[Ligne]) -> None:
 def lire_controles(cx: Any, refs: set[str]) -> dict[str, list[tuple]]:
     """Contrôles de la dernière analyse de chaque dossier (miroir) ; la famille vient de la version brute (c0)."""
     familles: dict[str, str] = {}
-    for (texte,) in cx.execute('SELECT b.json FROM c0_dossier_brut b WHERE b.updated_at = '
-                               '(SELECT max(x.updated_at) FROM c0_dossier_brut x WHERE x.ref = b.ref)'):
-        for c in ((json.loads(texte).get('latestAnalysis') or {}).get('controls') or ()):
+    derniere: dict[str, str] = {}
+    for ref, texte in cx.execute('SELECT b.ref, b.json FROM c0_dossier_brut b WHERE b.updated_at = '
+                                 '(SELECT max(x.updated_at) FROM c0_dossier_brut x WHERE x.ref = b.ref)'):
+        analyse = json.loads(texte).get('latestAnalysis') or {}
+        if analyse.get('id'):
+            derniere[ref] = analyse['id']
+        for c in analyse.get('controls') or ():
             if c.get('controlId') and c.get('family'):
                 familles[c['controlId']] = c['family']
     sortie: dict[str, list[tuple]] = defaultdict(list)
-    for ref, cid, applicable, resultat, crit, manque in cx.execute(
-            'SELECT d.ref, c."controlId", c.applicable, c.outcome, c.criticality, c.missing '
-            'FROM "AnalysisControl" c JOIN "Dossier" d ON d.id = c."dossierId" '
-            'JOIN "Analysis" a ON a.id = c."analysisId" '
-            'WHERE a."startedAt" = (SELECT max(y."startedAt") FROM "Analysis" y WHERE y."dossierId" = d.id) '
-            'ORDER BY d.ref, c."controlId"'):
-        if ref in refs:
-            try:
-                liste = json.loads(manque) if manque else []
-            except ValueError:
-                liste = []
+    for ref, analyse_id, cid, applicable, resultat, crit, manque in cx.execute(
+            'SELECT d.ref, c."analysisId", c."controlId", c.applicable, c.outcome, c.criticality, c.missing '
+            'FROM "AnalysisControl" c JOIN "Dossier" d ON d.id = c."dossierId" ORDER BY d.ref, c."controlId"'):
+        if ref in refs and derniere.get(ref) == analyse_id:
             sortie[ref].append((cid, familles.get(cid, 'famille inconnue'), bool(applicable), resultat, crit,
-                                tuple(str(m) for m in liste if isinstance(m, (str, int)))))
+                                tuple(str(m) for m in _liste(manque) if isinstance(m, (str, int)))))
     return sortie
+
+
+def _liste(manque: Any) -> list:
+    """`missing` : texte JSON (SQLite) ou tableau (PostgreSQL, `TEXT[]`). Illisible : une liste vide."""
+    if isinstance(manque, (list, tuple)):
+        return list(manque)
+    try:
+        v = json.loads(manque) if manque else []
+    except ValueError:
+        return []
+    return v if isinstance(v, list) else []
 
 
 def lire_pieces(cx: Any, refs: set[str]) -> dict[str, list[tuple]]:
@@ -347,7 +426,8 @@ def lire_pieces(cx: Any, refs: set[str]) -> dict[str, list[tuple]]:
 def calculer(lignes: list[Ligne], controles: dict[str, list[tuple]], pieces: dict[str, list[tuple]],
              periode: tuple[str, str], calcule_le: str, avec_noms_societes: bool = False) -> list[Ligne]:
     villes = variables.ville_de_decoupage(lignes, ind.SEUIL_VILLE)
-    val = lecteur(villes, societes_retenues(lignes))
+    val = lecteur(villes, valeurs_retenues(lignes))
+    manquants = manquants_retenus(lignes, controles)
     societes = set() if avec_noms_societes else set(ind.DIMENSIONS_SOCIETES)
     dims_taux = tuple(d for d in ind.DIMENSIONS_TAUX if d not in societes)
     dims_repartition = tuple(d for d in ind.DIMENSIONS_TAUX + ind.DIMENSIONS_REPARTITION_SEULE
@@ -359,7 +439,11 @@ def calculer(lignes: list[Ligne], controles: dict[str, list[tuple]], pieces: dic
         for c in ind.FILTRES_CATEGORIE:
             dossiers = [x for x in lignes if (p == 'tous' or x['produit'] == p) and (c == 'toutes' or x['categorie'] == c)]
             calc = Calcul((p, c), val)
-            tranche(calc, dossiers, controles, pieces, dims_taux, dims_repartition)
+            # sexe et nationalité : répartition simple, dans la tranche « tous × toutes » seulement (jamais croisés
+            # avec un produit ni une catégorie de risque)
+            dims = dims_repartition if (p, c) == ('tous', 'toutes') else tuple(
+                d for d in dims_repartition if d not in ind.DIMENSIONS_REPARTITION_SEULE)
+            tranche(calc, dossiers, controles, pieces, dims_taux, dims, manquants)
             proteger(calc.cases)
             for case in calc.cases:
                 case.update(filtre_produit=p, filtre_categorie=c, periode_debut=periode[0], periode_fin=periode[1],
@@ -386,7 +470,7 @@ def construire(cx: Any, periode_debut: Optional[str] = None, periode_fin: Option
     if periode_fin:
         lignes = [x for x in lignes if x['date_reference'] and x['date_reference'] <= periode_fin]
     dates = sorted(x['date_reference'] for x in lignes if x['date_reference'])
-    periode = (periode_debut or (dates[0] if dates else ''), periode_fin or (dates[-1] if dates else ''))
+    periode = (periode_debut or (dates[0] if dates else ''), periode_fin or (dates[-1] if dates else periode_debut or ''))
     refs = {x['ref'] for x in lignes}
     calcule_le = calcule_le or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     cases = calculer(lignes, lire_controles(cx, refs), lire_pieces(cx, refs), periode, calcule_le, avec_noms_societes)

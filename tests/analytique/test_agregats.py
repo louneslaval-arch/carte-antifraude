@@ -46,7 +46,7 @@ def test_cases_de_la_verite_du_jeu_d_essai(base_stats, attendu):
         if c['valeur'] is None:
             assert r['valeur'] is None, (c, r)
         else:
-            assert r['valeur'] == pytest.approx(c['valeur']), (c, r)
+            assert r['valeur'] == pytest.approx(c['valeur'], abs=1e-6), (c, r)       # vérité à 6 décimales
     assert {(r['periode_debut'], r['periode_fin']) for r in table.values()} == {
         (attendu['periode_debut'], attendu['periode_fin'])}
 
@@ -105,7 +105,7 @@ def test_deux_constructions_donnent_la_meme_table(base_stats):
 def test_periode_restreint_les_dossiers(base_stats, jeu_stats):
     n = agregats.construire(base_stats, periode_debut='2026-10-13', periode_fin='2026-10-19',
                             calcule_le=CALCULE_LE)['dossiers']
-    attendu = sum(1 for p in jeu_stats.plan() if p['recu'].isoformat() <= '2026-10-19')
+    attendu = sum(1 for p in jeu_stats.plan() if p['actif'] and p['recu'].isoformat() <= '2026-10-19')
     assert n == attendu
     agregats.construire(base_stats, calcule_le=CALCULE_LE)
 
@@ -146,4 +146,4 @@ def test_verite_figee_egale_a_une_nouvelle_generation(jeu_stats, attendu):
     """Graine fixe : la vérité versionnée est celle que le générateur produit, jamais retouchée à la main."""
     import json
     assert json.loads(json.dumps(jeu_stats.verite(jeu_stats.plan()), default=str)) == attendu
-    assert [d['ref'] for d in jeu_stats.dossiers()] == [d['ref'] for d in jeu_stats.dossiers()]
+    assert json.dumps(jeu_stats.dossiers(), sort_keys=True) == json.dumps(jeu_stats.dossiers(), sort_keys=True)

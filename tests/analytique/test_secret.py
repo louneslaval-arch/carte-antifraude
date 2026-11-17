@@ -3,7 +3,7 @@ en entraîne une seconde), et aucune valeur masquée dans la table ni retrouvabl
 from collections import defaultdict
 
 from .commun import SANS_KAMAL, lignes_agregat
-from pipeline.analytique import secret
+from pipeline.analytique import agregats, secret
 
 
 def cases(*effectifs):
@@ -86,7 +86,7 @@ def test_aucune_valeur_masquee_retrouvable_par_difference(base_stats):
     masquées : la différence avec le total ne rend qu'une somme, jamais une case."""
     groupes = defaultdict(list)
     for r in lignes_agregat(base_stats):
-        if r['indicateur'].startswith('mediane_') or not r['dimension1']:
+        if r['indicateur'] in agregats.NON_ADDITIFS or not r['dimension1']:
             continue
         base = (r['indicateur'], r['filtre_produit'], r['filtre_categorie'], r['dimension1'], r['dimension2'])
         if r['dimension2']:
@@ -97,3 +97,36 @@ def test_aucune_valeur_masquee_retrouvable_par_difference(base_stats):
     assert groupes
     fautifs = [k for k, m in groupes.items() if sum(m) == 1 and len(m) > 1]
     assert not fautifs, fautifs[:3]
+
+
+@SANS_KAMAL
+def test_aucune_case_publiee_ne_porte_la_cle_d_un_compte_masque_de_la_meme_tranche(base_stats):
+    """Le même compte publié sous un autre indicateur (médiane, taux, part) rendrait la case masquée."""
+    lignes = lignes_agregat(base_stats)
+    masques = {(r['filtre_produit'], r['filtre_categorie'], r['dimension1'], r['valeur1'], r['dimension2'],
+                r['valeur2']) for r in lignes if r['indicateur'] == 'nb_dossiers' and r['masque'] and r['dimension1']}
+    assert masques
+    for r in lignes:
+        cle = (r['filtre_produit'], r['filtre_categorie'], r['dimension1'], r['valeur1'], r['dimension2'], r['valeur2'])
+        if r['dimension1'] and cle in masques:
+            assert r['masque'], r
+
+
+@SANS_KAMAL
+def test_taux_de_verdict_ou_de_controle_jamais_sur_un_a_quatre_dossiers(base_stats):
+    from pipeline.analytique.indicateurs import INDICATEURS_VERDICT_CONTROLE
+    for r in lignes_agregat(base_stats):
+        if r['indicateur'] in INDICATEURS_VERDICT_CONTROLE and not r['masque'] and r['numerateur'] is not None:
+            assert r['numerateur'] == 0 or r['numerateur'] >= 5, r
+            assert r['numerateur'] == 0 or r['denominateur'] - r['numerateur'] >= 5, r      # ni « 7 sur 7 »
+
+
+def test_liens_entre_indicateurs_propagent_le_masque():
+    def case(i, d1='', v1='', masque=0, n=None, d=None):
+        return dict(indicateur=i, dimension1=d1, valeur1=v1, dimension2='', valeur2='', masque=masque,
+                    motif='moins de 5' if masque else None, numerateur=n, denominateur=d, effectif=d)
+    cs = [case('part_verdict', 'verdict', 'TRES_SUSPECT', 1), case('taux_tres_suspect', n=6, d=40),
+          case('nb_dossiers', 'tranche_age', 'non renseigné', 1), case('taux_remplissage', 'variable', 'age', n=30, d=36),
+          case('nb_dossiers', 'tranche_age', '18–25', 1), case('mediane_age', 'tranche_age', '18–25', d=19)]
+    assert agregats.propager(cs)
+    assert all(c['masque'] for c in cs)

@@ -571,5 +571,11 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   masquées hachurées, aucune erreur ; 357 Ko ; commande en 1,3 s sur le jeu d'essai.
 - **Trouvé en route** : le nom d'une société de moins de 5 dossiers serait sorti dans la clé d'une case masquée :
   regroupé avant le calcul ; un second `conftest.py` cassait les tests de l'API : tests en paquet.
-- **Non fait, noté** : questions n°116 à 121.
-
+- **Relectures** (`relecteur`, `verificateur-spec`, `gardien-donnees`) : un bloquant corrigé, une case masquée se
+  retrouvait par un autre indicateur de la même tranche (médiane, taux, remplissage) : masque propagé entre
+  indicateurs, taux de verdict ou de contrôle jamais sur 1 à 4 dossiers ; aussi : effectifs en dossiers (pas en pièces
+  ni en occurrences), texte libre rare regroupé, sexe et nationalité dans la seule tranche « tous × toutes », CIN du
+  demandeur (pas celle d'une caution), revenu des PP seulement, dernière analyse par son identifiant, `missing` en
+  tableau (PostgreSQL), années révolues, page « secret » au lieu de « < 5 » ; jeu d'essai complété (verdict
+  provisoire, analyse en cours, deux anomalies graves, caution, archives, noms tirés de syllabes).
+- **Non fait, noté** : questions n°116 à 131.

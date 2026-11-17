@@ -46,6 +46,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
   <h1>Statistiques des dossiers</h1>
   <p id="periode"></p>
   <p class="mention">Chiffres agrégés. Verdicts de l'antifraude, pas des fraudes constatées. Aucune valeur sur moins de 5 dossiers.</p>
+  <p class="note">Case grisée et hachurée, « secret » : moins de 5 dossiers, ou masquée pour qu'une petite case ne se retrouve ni par différence avec le total, ni par un autre chiffre de la page. Un taux de verdict ou de contrôle n'est jamais publié sur 1 à 4 dossiers, ni quand il désigne tous les dossiers d'un groupe à moins de 5 près.</p>
   <div class="filtres">
     <label>Produit <select id="f-produit"></select></label>
     <label>Catégorie <select id="f-categorie"></select></label>
@@ -136,7 +137,9 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
   const pct = v => fr(v * 100) + ' %';
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const lib = v => VAL[v] || v;
-  function effectif(c, part) { return c.m ? '< 5' : part ? `${fr(c.n, 0)} / ${fr(c.d, 0)}` : `${fr(c.n, 0)} / ${fr(c.d, 0)}`; }
+  const SECRET = 'secret';
+  function effectif(c) { return c.m ? SECRET : `${fr(c.n, 0)} / ${fr(c.d, 0)}`; }
+  const fourchette = c => c.b === undefined ? '' : ` · ${pct(c.b)} – ${pct(c.h)}`;
 
   function hachures(x, y, w, h) {
     // traits obliques dans le rectangle, sans motif SVG : chaque trait est coupé aux bords à la main
@@ -161,7 +164,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
       s += `<text x="${L - 8}" y="${y + 14}" text-anchor="end">${esc(lib(c.v1)).slice(0, 38)}</text>`;
       if (c.m) {
         s += `<rect x="${L}" y="${y + 3}" width="40" height="${H - 8}" fill="#eef0f3" stroke="#8a909b" stroke-dasharray="3 2"/>`;
-        s += hachures(L, y + 3, 40, H - 8) + `<text x="${L + 48}" y="${y + 14}" class="doux">&lt; 5</text>`;
+        s += hachures(L, y + 3, 40, H - 8) + `<text x="${L + 48}" y="${y + 14}" class="doux">${SECRET}</text>`;
         return;
       }
       const v = opt.part ? c.x : opt.taux ? c.x : c.n;
@@ -185,7 +188,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     return s + '</svg>';
   }
 
-  // courbe : dossiers par semaine ; une semaine masquée laisse un trou marqué « < 5 »
+  // courbe : dossiers par semaine ; une semaine masquée laisse un trou marqué « secret »
   function courbe(cs) {
     if (!cs.length) return '<p class="vide">Aucune donnée pour cette tranche.</p>';
     const W = 760, H = 220, g = 50, b = 40;
@@ -197,7 +200,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     let trace = '', coupe = true;
     cs.forEach((c, k) => {
       const x = g + k * pas;
-      if (c.m) { coupe = true; s += `<text x="${x}" y="${H - b - 6}" text-anchor="middle" class="doux">&lt; 5</text>`; }
+      if (c.m) { coupe = true; s += `<text x="${x}" y="${H - b - 6}" text-anchor="middle" class="doux">${SECRET}</text>`; }
       else {
         const y = H - b - (H - b - 20) * c.n / max;
         trace += (coupe ? ' M' : ' L') + x.toFixed(1) + ' ' + y.toFixed(1);
@@ -218,7 +221,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     return `<details><summary>Tableau</summary><table><thead><tr>${entetes.map(e => `<th>${esc(e)}</th>`).join('')}</tr></thead><tbody>${corps}</tbody></table>` +
       `<button type="button" class="copier" data-tsv="${esc(tsv)}">Copier le tableau</button></details>`;
   }
-  const cellule = (c, f) => c.m ? '< 5' : f(c);
+  const cellule = (c, f) => c.m ? SECRET : f(c);
 
   function blocRepartition(dim, cs, titre) {
     const ordre = ordonner(dim, cs);
@@ -233,7 +236,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
         cellule(c, c => `${fr(c.n, 0)} / ${fr(c.d, 0)}`), cellule(c, c => `${pct(c.b)} – ${pct(c.h)}`)]));
   }
   function chiffre(c, libelle, f) {
-    return `<div class="chiffre"><b>${c ? (c.m ? '&lt; 5' : esc(f(c))) : '—'}</b><span>${esc(libelle)}</span></div>`;
+    return `<div class="chiffre"><b>${c ? (c.m ? SECRET : esc(f(c))) : '—'}</b><span>${esc(libelle)}</span></div>`;
   }
   function repartitions(dims) {
     return dims.map(d => { const cs = lire('part_dossiers', d); return cs.length ? blocRepartition(d, cs) : ''; }).join('');
@@ -260,8 +263,8 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
     }],
     ['Verdicts', () => {
       const ens = un('taux_juge_suspect');
-      let s = '<div class="chiffres">' + chiffre(ens, "jugés suspects par l'antifraude", c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})`) +
-        chiffre(un('taux_tres_suspect'), 'jugés très suspects', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})`) +
+      let s = '<div class="chiffres">' + chiffre(ens, "jugés suspects par l'antifraude", c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) +
+        chiffre(un('taux_tres_suspect'), 'jugés très suspects', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) +
         chiffre(un('nb_moyen_alertes_majeures_critiques'), 'alertes majeures et critiques par dossier', c => fr(c.x, 2)) + '</div>';
       const v = lire('part_verdict', 'verdict');
       if (v.length) s += blocRepartition('verdict', v, "Répartition des verdicts de l'antifraude");
@@ -289,7 +292,7 @@ button.copier { font: inherit; font-size: 12px; padding: 2px 8px; cursor: pointe
       return s;
     }],
     ['Qualité des données', () => {
-      let s = '<div class="chiffres">' + chiffre(un('taux_releve_relu'), 'relevés avec lignes d’opérations lues', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})`) + '</div>';
+      let s = '<div class="chiffres">' + chiffre(un('taux_releve_relu'), 'relevés avec lignes d’opérations lues', c => `${pct(c.x)} (${fr(c.n, 0)} / ${fr(c.d, 0)})${fourchette(c)}`) + '</div>';
       s += blocTaux('type_piece', lire('taux_relecture_piece', 'type_piece'), null, 'Pièces relues, par type', false);
       s += blocTaux('variable', lire('taux_remplissage', 'variable'), null, 'Variables renseignées (part des dossiers concernés)', false);
       const st = lire('part_statut_analyse', 'statut_analyse');

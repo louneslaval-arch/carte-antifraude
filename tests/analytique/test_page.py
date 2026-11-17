@@ -49,14 +49,14 @@ def test_le_json_embarque_ne_porte_aucune_valeur_masquee(page):
             assert set(c) <= {'i', 'p', 'c', 'd1', 'v1', 'd2', 'v2', 'm'}, c
 
 
-def test_chaque_onglet_a_des_donnees(page):
+def test_chaque_onglet_a_des_donnees(page, plan_stats):
     d = donnees(page)
     indicateurs = {d['indicateurs'][c['i']]['nom'] for c in d['cases'] if not c.get('m')}
     for onglet in (('nb_dossiers', 'part_dossiers'), ('part_dossiers',), ('taux_juge_suspect', 'part_verdict'),
                    ('taux_anomalie_controle', 'taux_non_executable_controle', 'controle_decisif'),
                    ('taux_remplissage', 'taux_relecture_piece', 'part_statut_extraction')):
         assert set(onglet) <= indicateurs, onglet
-    assert d['entete']['dossiers'] == 600
+    assert d['entete']['dossiers'] == sum(p['actif'] for p in plan_stats.values())
 
 
 def test_mention_et_vocabulaire(page):
