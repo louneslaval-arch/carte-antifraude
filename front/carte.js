@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const aff = (n) => { const x = nomDe(n); if (!x) return ''; return (etat.lat && x.lat) ? `${x.nom} (${x.lat})` : x.nom; };
   const affHtml = (n) => { const x = nomDe(n); if (!x) return '<span class="lat">…</span>'; return (etat.lat && x.lat) ? `<bdi>${esc(x.nom)}</bdi> <span class="lat">(${esc(x.lat)})</span>` : `<bdi>${esc(x.nom)}</bdi>`; };
   const villeNom = (v) => v ? String(v).toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : '';
-  const lienAnnonce = (u) => /^https?:\/\/[^\s"<>]+$/.test(u || '') ? u : null;
+  const lienAnnonce = (u) => /^https:\/\/[^\s"<>]+$/.test(u || '') ? u : null;        // https seulement
 
   async function panneau(i) {
     const p = $('#panneau');

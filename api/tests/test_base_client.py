@@ -523,7 +523,7 @@ def test_fiche_retrouvee_sur_la_carte_globale_par_son_cin_ou_son_rc(avec_base, c
         epoque_carte = json.load(open(os.path.join(carte_demo, 'manifeste.json'), encoding='utf-8'))['empreinte'][:16]
         assert 'carte' in journal and epoque_carte in journal          # indice servi sur la carte, avec son époque
     with avec_base(CARTE_PUBLICATION_GLOBALE=carte_demo, CARTE_QUOTA_FICHES='1') as (c, etat):
-        connecte(c, etat, 'ana', 'ANALYSTE')
+        connecte(c, etat, 'ana2', 'ANALYSTE')
         b = etat.base_client
         assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 200
         assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 429   # compte au quota de fiches

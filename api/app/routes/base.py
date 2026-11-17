@@ -97,11 +97,14 @@ def carte(indice: int, request: Request, session: Session = Depends(exige('carte
     globale = etat.publication_globale
     if globale is None:
         raise HTTPException(503, 'Aucune carte globale chargée')
+    quotas.fiches(etat, session)                     # dire si un client figure sur la carte vaut une consultation
     cle = b.cle_carte(indice)
     n = identites.indice_par_cle(globale, cle) if cle else None
-    if n is None:
-        raise HTTPException(404, 'Absente de la carte')
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'carte', [indice], ip=session.ip,
                    epoque=b.epoque)
+    if n is None:
+        raise HTTPException(404, 'Absente de la carte')
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'carte', [n], ip=session.ip,
+                   epoque=globale.epoque)
     return {'indice': n}
 

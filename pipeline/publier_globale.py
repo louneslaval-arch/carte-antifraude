@@ -66,7 +66,11 @@ def _compact(valeur):
 def construire(globale):
     """(indices, couche 1, lignes de la couche 2) en mémoire, à partir de la sortie de carte_globale.py."""
     noeuds = globale['noeuds']
+    from construire_base import VILLES                        # référentiel des villes du kit
+    villes = {code for code, *_ in VILLES}
     for n in noeuds:
+        if n.get('ville') and n['ville'] not in villes:
+            raise ValueError('ville hors du référentiel : elle ne passe pas en couche 1')
         if n['t'] not in TYPES:
             raise ValueError('type de nœud inconnu de la carte globale')
         if n.get('o', 'r') not in ORIGINES:
