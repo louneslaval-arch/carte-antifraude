@@ -28,7 +28,12 @@ class Publication:
 
     @property
     def noeuds(self):
-        return len(self.geometrie['noeuds']['t'])
+        n = self.geometrie['noeuds']                       # colonnes (carte des chaînes) ou liste (carte globale)
+        return len(n) if isinstance(n, list) else len(n['t'])
+
+    @property
+    def epoque(self):
+        return self.manifeste['empreinte'][:16]
 
     @property
     def identites(self):
@@ -54,10 +59,13 @@ def _manifeste(dossier):
     return m
 
 
-def charger(dossier, donnees_reelles):
-    """Lit et vérifie une publication. Refuse des données réelles sans l'autorisation du serveur."""
+def charger(dossier, donnees_reelles, type=None):
+    """Lit et vérifie une publication. Refuse des données réelles sans l'autorisation du serveur, et une publication
+    d'un autre type que celui attendu (« chaines » : la carte des chaînes, sans type au manifeste ; « globale »)."""
     dossier = os.path.realpath(dossier)          # « courant » est un lien : on fige la cible
     m = _manifeste(dossier)
+    if type is not None and m.get('type', 'chaines') != type:
+        raise PublicationRefusee(f'publication de type {m.get("type", "chaines")!r} (attendu {type!r})')
     if not m.get('fictif') and not donnees_reelles:
         raise PublicationRefusee('publication de données réelles : CARTE_DONNEES_REELLES=1 requis sur ce serveur')
     for nom in FICHIERS:

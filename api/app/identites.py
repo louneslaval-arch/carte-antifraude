@@ -40,6 +40,41 @@ def fiche(publication, indice):
     return f
 
 
+def fiche_globale(publication, indice):
+    """Fiche d'un nœud de la carte globale : la fiche commune et ce que seule la carte globale porte."""
+    f = fiche(publication, indice)
+    if f is None:
+        return None
+    with _ouvrir(publication) as con:
+        ligne = con.execute('SELECT liste_noire, personnes, nb_dossiers, dossiers FROM fiche_globale WHERE indice = ?',
+                            (indice,)).fetchone()
+    f.update(zip(('liste_noire', 'personnes', 'nb_dossiers', 'dossiers'), ligne or (None,) * 4))
+    return f
+
+
+def indice_par_cle(publication, cle):
+    """Indice du nœud qui porte ce CIN (personne du registre d'abord, puis inscrit) ou ce RC (société, du même
+    tribunal d'abord), comparés sans espaces et en majuscules ; None s'il n'est pas sur la carte."""
+    compact = re.sub(r'\s+', '', str(cle[1])).upper()
+    with _ouvrir(publication) as con:
+        if cle[0] == 'cin':                      # table de recherche : CIN déjà sans blancs, en majuscules, indexé
+            r = con.execute("""SELECT r.indice FROM recherche r JOIN noeud n USING (indice)
+                               WHERE r.champ = 'cin' AND r.valeur = ?
+                               ORDER BY CASE n.type WHEN 'personne' THEN 0 WHEN 'inscrit' THEN 1 ELSE 2 END, r.indice
+                               LIMIT 1""", (compact,)).fetchone()
+            return r[0] if r else None
+        # un numéro de RC n'est unique que dans son tribunal : même tribunal exigé ; sans tribunal, un seul candidat
+        candidats = con.execute("""SELECT r.indice, i.tribunal FROM recherche r JOIN noeud n USING (indice)
+                                     JOIN identite i USING (indice)
+                                     WHERE n.type = 'societe' AND r.champ = 'rc' AND r.valeur = ?""",
+                                (compact,)).fetchall()
+    if cle[2]:
+        retenus = sorted(i for i, t in candidats if t == cle[2])
+    else:
+        retenus = [i for i, _t in candidats] if len(candidats) == 1 else []
+    return retenus[0] if retenus else None
+
+
 def forme_recherche(q):
     """(champs, valeur, exacte) : un CIN ou un RC se cherche exactement, un nom par morceau."""
     nettoye = re.sub(r'\s+', ' ', q.strip().upper())

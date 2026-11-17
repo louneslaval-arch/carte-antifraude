@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
 
   const chemins = carte('Liens avec la liste noire', f.chemins.length
-    ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
+    ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'),
+    Commun.role() === 'ANALYSTE' ? el('p', {}, versLaCarte()) : null);
 
   const revenusVerifies = f.revenus.filter(r => r.nature === 'verifie');
   const revenus = carte('Revenus et charges', f.revenus.length ? tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'],
@@ -127,6 +128,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     return el('div', { classe: 'pile' },
       el('div', {}, el('h3', { texte: 'Contexte déclaré' }), contexte, lien),
       el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces));
+  }
+  // Carte globale centrée sur le client s'il y figure (retrouvé par son CIN ou son RC), sinon sa vue réseau
+  function versLaCarte() {
+    const reseau = `reseau.html?i=${encodeURIComponent(indice)}`;
+    return el('a', { href: reseau, texte: 'Voir son réseau sur la carte →', onclick: async ev => {
+      ev.preventDefault();
+      try {
+        const r = await api(`/api/base/carte/${encodeURIComponent(indice)}`);
+        location.href = `carte.html?n=${encodeURIComponent(r.indice)}`;
+      } catch (e) {
+        if (e.message !== 'session') location.href = reseau;
+      }
+    } });
   }
   function periode(x) { return x.mois ? `${String(x.mois).padStart(2, '0')}/${x.annee}` : '—'; }
   function lienDossier(i) { return i ? el('a', { href: `dossier.html?i=${i}`, texte: 'Ouvrir' }) : '—'; }

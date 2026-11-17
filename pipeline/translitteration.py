@@ -5,11 +5,11 @@ translitteration.py — écriture latine des noms arabes de la base (personnes c
 base elle-même, puis règles de secours.
 
   python3 translitteration.py --base bl_rc.sqlite            # remplit rc_personne.nom_latin, rc_societe.denomination_latin
-  python3 translitteration.py --base bl_rc.sqlite --essai "محمد الادريسي"
+  python3 translitteration.py --base bl_rc.sqlite --essai "محمد الزوباقيري"
 
 Apprentissage : dans une même société, une personne citée une fois en latin et une fois en arabe (profils compatibles,
 cf. construire_base.profils_compatibles) donne, mot à mot, des couples « mot arabe → mot latin » (محمد → MOHAMED,
-الادريسي → EL IDRISSI, عبد الله → ABDELLAH). Le mot latin le plus fréquent pour chaque mot arabe est retenu
+الزوباقيري → EL ZOUBAQIRI, عبد الله → ABDELLAH). Le mot latin le plus fréquent pour chaque mot arabe est retenu
 (table ref_translitteration). Un mot jamais vu en latin est translittéré par règles (convention marocaine :
 ش → CH, خ → KH, غ → GH, ق → K, و → OU, ع → A), voyelle A insérée entre deux consonnes.
 
@@ -40,7 +40,7 @@ MIN_OCC = 2            # un couple vu une seule fois n'est retenu que s'il n'a p
 
 # ---- règles de secours ---------------------------------------------------------------------------------------------
 def mot_par_regles(m):
-    """Un mot arabe → latin par règles. « محمد » → MAHAMAD (le dictionnaire donne MOHAMED), « الادريسي » → EL IDRISSI."""
+    """Un mot arabe → latin par règles. « محمد » → MAHAMAD (le dictionnaire donne MOHAMED), « الزوباقيري » → EL ZOUBAKIRI."""
     m = cb.latin_maj(m)
     if not m or not cb.ARABE_RE.search(m):
         return m
@@ -93,7 +93,7 @@ def _unites_ar(nom):
 
 
 def _unites_lat(nom):
-    """Mots latins d'un nom, particules recollées (« EL IDRISSI », « BEN ALI », « ABD EL LAH » → une unité)."""
+    """Mots latins d'un nom, particules recollées (« EL ZOUBAQIRI », « BEN TOUKAZ », « ABD EL LAH » → une unité)."""
     mots = [m for m in cb.latin_maj(nom).split() if not cb.ARABE_RE.search(m)]
     out, i = [], 0
     while i < len(mots):
