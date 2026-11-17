@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const b = el('button', { type: 'button', classe: `ilot ilot-module ilot-flotte etat-${m.etat}`,
       'aria-label': `${m.nom} : ${m.accroche}` },
       el('span', { classe: 'ilot-nom' }, m.etat === 'actif' ? el('span', { classe: 'point-actif', 'aria-hidden': 'true' }) : null, m.nom),
-      el('span', { classe: 'ilot-accroche', texte: m.accroche }),
       el('span', { classe: 'etat', texte: libelleEtat }));
     flotter(b, k + 1);
     b.addEventListener('click', () => (m.etat === 'actif' && m.lien ? (location.href = m.lien) : ouvrir(m, b, 'module')));
@@ -37,8 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   C.usages.forEach((u, k) => {
     const b = el('button', { type: 'button', classe: `ilot ilot-usage ilot-flotte${u.enCours ? ' en-cours' : ''}`,
       'aria-label': `${u.nom} : ${u.accroche}` },
-      el('span', { classe: 'numero', texte: u.n }), el('span', { classe: 'ilot-nom', texte: u.nom }),
-      el('span', { classe: 'ilot-accroche', texte: u.accroche }));
+      el('span', { classe: 'numero', texte: u.n }), el('span', { classe: 'ilot-nom', texte: u.nom }));
     b.style.width = b.style.height = `${u.taille}px`;
     flotter(b, k + 7);
     b.addEventListener('click', () => ouvrir(u, b, 'usage'));
