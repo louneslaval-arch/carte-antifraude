@@ -26,7 +26,7 @@ body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2)
 .portail-titre p { color: var(--texte-2); line-height: 1.55; margin: 0 0 14px; }
 .portail-legende { list-style: none; padding: 0; margin: 0; display: flex; justify-content: center; gap: 18px; font-size: 13px; color: var(--texte-2); }
 .pastille { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 7px; vertical-align: -1px; }
-.pastille-actif { background: var(--rouge); box-shadow: 0 0 0 3px rgba(238, 59, 69, .25); }
+.pastille-actif { background: var(--vert-actif); box-shadow: 0 0 0 3px rgba(34, 197, 94, .3), 0 0 10px rgba(34, 197, 94, .7); }
 .pastille-venir { border: 1.5px solid var(--filet-2); }
 .pastille-usage { background: var(--surface-2); border: 1px solid var(--filet-2); }
 
@@ -78,7 +78,19 @@ body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2)
 .ilot-module .ilot-accroche { color: var(--texte-2); font-size: 12px; margin-top: 2px; }
 .ilot-module.etat-a_venir, .ilot-module.etat-libre { background: transparent; }
 .ilot-module.etat-libre { border-style: dashed; }
-.point-actif { width: 8px; height: 8px; border-radius: 50%; background: var(--rouge); box-shadow: 0 0 0 4px rgba(238, 59, 69, .25); }
+.point-actif { width: 8px; height: 8px; border-radius: 50%; background: var(--vert-actif);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, .25), 0 0 12px rgba(34, 197, 94, .9); }
+/* module connecté : illumination verte qui respire doucement */
+:root { --vert-actif: #22c55e; }
+.ilot-module.etat-actif { border-color: rgba(34, 197, 94, .75);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, .35), 0 0 18px rgba(34, 197, 94, .45), 0 0 42px rgba(34, 197, 94, .2);
+  animation: flotter var(--duree, 8s) ease-in-out var(--retard, 0s) infinite alternate, lueur 2.8s ease-in-out infinite; }
+.ilot-module.etat-actif:hover, .ilot-module.etat-actif:focus-visible { border-color: var(--vert-actif);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, .6), 0 0 26px rgba(34, 197, 94, .65), 0 0 60px rgba(34, 197, 94, .3); }
+@keyframes lueur {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(34, 197, 94, .35), 0 0 14px rgba(34, 197, 94, .35), 0 0 34px rgba(34, 197, 94, .15); }
+  50% { box-shadow: 0 0 0 1px rgba(34, 197, 94, .55), 0 0 24px rgba(34, 197, 94, .6), 0 0 52px rgba(34, 197, 94, .28); }
+}
 .ilot-module .etat { display: block; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--texte-2); margin-top: 4px; }
 
 .ilot-usage {
@@ -125,6 +137,6 @@ body.portail .bouton-lien, body.portail .entete-droite a { color: var(--texte-2)
   .ilot-usage { border-radius: 16px; width: auto !important; height: auto !important; min-height: 96px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ilot-flotte, .ilot-centre::before, .ilot-centre::after { animation: none; }
+  .ilot-flotte, .ilot-centre::before, .ilot-centre::after, .ilot-module.etat-actif { animation: none; }
   .courbe-flux.anime { animation: none; }
 }
