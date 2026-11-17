@@ -539,6 +539,21 @@ class BaseClient:
             cx.close()
 
     # ---- réseau autour d'une fiche ---------------------------------------------------------------------------------
+    def cle_carte(self, indice):
+        """Ce qui retrouve une fiche sur la carte globale : son CIN (personne), son RC et son tribunal (société)."""
+        fiche = self.fiche_de.get(indice)
+        if fiche is None:
+            return None
+        cx = self.connexion()
+        try:
+            if fiche.startswith('pp_'):
+                r = cx.execute('SELECT cin FROM c2_personne WHERE identifiant = ?', (fiche,)).fetchone()
+                return ('cin', r[0]) if r and r[0] else None
+            r = cx.execute('SELECT rc, tribunal FROM c2_societe WHERE identifiant = ?', (fiche,)).fetchone()
+            return ('rc', r[0], r[1]) if r and r[0] else None
+        finally:
+            cx.close()
+
     def _voisins(self, cx, u, cache):
         """[(v, code, nœud d'identifiant ou None)] : rôles dans les deux sens, et fiches qui partagent un identifiant
         porté par 30 fiches au plus (question n°106). Ordre stable."""

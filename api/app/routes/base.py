@@ -8,7 +8,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from .. import journal, quotas
+from .. import identites, journal, quotas
 from ..auth import Session, exige
 
 routeur = APIRouter(prefix='/api/base')
@@ -87,3 +87,21 @@ def reseau(indice: int, request: Request, session: Session = Depends(exige('base
     if not CARTE_ACTIVE:
         raise HTTPException(404, 'Carte désactivée')
     return _servir(request, session, 'reseau', b.reseau(indice), indice)
+
+
+@routeur.get('/carte/{indice}')
+def carte(indice: int, request: Request, session: Session = Depends(exige('base.reseau')), b=Depends(base_client)):
+    """Position d'une fiche sur la carte globale (indice de la carte), retrouvée par son CIN ou par son RC : la page
+    de la fiche ouvre la carte centrée sur le client, sinon la vue réseau. Aucune identité dans la réponse."""
+    etat = request.app.state.etat
+    globale = etat.publication_globale
+    if globale is None:
+        raise HTTPException(503, 'Aucune carte globale chargée')
+    cle = b.cle_carte(indice)
+    n = identites.indice_par_cle(globale, cle) if cle else None
+    if n is None:
+        raise HTTPException(404, 'Absente de la carte')
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'carte', [indice], ip=session.ip,
+                   epoque=b.epoque)
+    return {'indice': n}
+

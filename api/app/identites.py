@@ -52,6 +52,24 @@ def fiche_globale(publication, indice):
     return f
 
 
+def indice_par_cle(publication, cle):
+    """Indice du nœud qui porte ce CIN (personne du registre d'abord, puis inscrit) ou ce RC (société, du même
+    tribunal d'abord), comparés sans espaces et en majuscules ; None s'il n'est pas sur la carte."""
+    compact = re.sub(r'\s+', '', str(cle[1])).upper()
+    with _ouvrir(publication) as con:
+        if cle[0] == 'cin':
+            r = con.execute("""SELECT i.indice FROM identite i JOIN noeud n USING (indice)
+                               WHERE upper(replace(i.cin, ' ', '')) = ?
+                               ORDER BY CASE n.type WHEN 'personne' THEN 0 WHEN 'inscrit' THEN 1 ELSE 2 END, i.indice
+                               LIMIT 1""", (compact,)).fetchone()
+        else:
+            r = con.execute("""SELECT i.indice FROM identite i JOIN noeud n USING (indice)
+                               WHERE n.type = 'societe' AND upper(replace(i.rc, ' ', '')) = ?
+                               ORDER BY coalesce(i.tribunal, '') = coalesce(?, '') DESC, i.indice LIMIT 1""",
+                            (compact, cle[2])).fetchone()
+    return r[0] if r else None
+
+
 def forme_recherche(q):
     """(champs, valeur, exacte) : un CIN ou un RC se cherche exactement, un nom par morceau."""
     nettoye = re.sub(r'\s+', ' ', q.strip().upper())
