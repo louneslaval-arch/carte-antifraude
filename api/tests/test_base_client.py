@@ -45,7 +45,7 @@ def carte_demo(base_demo, tmp_path_factory):
         import tarfile
         os.makedirs(d)
         with tarfile.open(CARTE_LIVREE) as t:
-            t.extractall(d)
+            t.extractall(d, **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))
     return d
 
 
@@ -519,7 +519,14 @@ def test_fiche_retrouvee_sur_la_carte_globale_par_son_cin_ou_son_rc(avec_base, c
                                                                        (societe,)).fetchone()[0])
         assert c.get('/api/base/carte/1').status_code == 404
         from conftest import tout_le_journal
-        assert 'carte' in tout_le_journal(etat)
+        journal = tout_le_journal(etat)
+        epoque_carte = json.load(open(os.path.join(carte_demo, 'manifeste.json'), encoding='utf-8'))['empreinte'][:16]
+        assert 'carte' in journal and epoque_carte in journal          # indice servi sur la carte, avec son époque
+    with avec_base(CARTE_PUBLICATION_GLOBALE=carte_demo, CARTE_QUOTA_FICHES='1') as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 200
+        assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 429   # compte au quota de fiches
 
 
 def test_fiche_vers_la_carte_sans_carte_globale_503(avec_base, base_demo):

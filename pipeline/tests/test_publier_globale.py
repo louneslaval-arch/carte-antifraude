@@ -283,3 +283,14 @@ def test_dossiers_et_regles_af_publies_sans_reference_en_couche1(jeu, tmp_path):
     i = next(k for k, r in ref.items() if r == n['id'])
     assert geo['noeuds'][i]['o'] == 'd' and 'dos' not in geo['noeuds'][i] and 'nd' not in geo['noeuds'][i]
     assert con.execute('SELECT nb_dossiers, dossiers FROM fiche_globale WHERE indice = ?', (i,)).fetchone() == (2, n['dos'])
+
+
+def test_une_ville_hors_du_referentiel_arrete_la_publication(jeu, tmp_path):
+    src = json.loads(json.dumps(jeu['source']))
+    next(n for n in src['noeuds'] if n.get('ville'))['ville'] = 'RUE EXEMPLE 12'
+    chemin = str(tmp_path / 'globale.json')
+    with open(chemin, 'w', encoding='utf-8') as f:
+        json.dump(src, f, ensure_ascii=False)
+    with pytest.raises(ValueError):
+        pg.publier(chemin, str(tmp_path / 'pub'))
+
