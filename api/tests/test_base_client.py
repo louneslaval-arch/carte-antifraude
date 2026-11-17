@@ -300,8 +300,7 @@ def test_carte_reseau_stable_sans_valeur_et_client_isole(avec_base):
         for n in carte['noeuds']:
             if n['type'] == 'identifiant':
                 assert n['nom'] in ('RIB', 'LOGEMENT', 'SIEGE') and re.fullmatch(r'id\d+', n['id'])
-        tous = c.post('/api/base/clients', json={'taille': 200, 'niveau': 'aucun'}).json()['items']
-        isole = next(x['indice'] for x in tous if len(b.reseau(x['indice'])['noeuds']) == 1)
+        isole = next(i for i in sorted(b.indice_fiche.values()) if len(b.reseau(i)['noeuds']) == 1)
         assert b.reseau(isole)['liens'] == []
 
 
