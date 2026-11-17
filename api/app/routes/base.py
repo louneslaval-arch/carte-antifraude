@@ -8,7 +8,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from .. import journal, quotas
+from .. import identites, journal, quotas
 from ..auth import Session, exige
 
 routeur = APIRouter(prefix='/api/base')
@@ -45,7 +45,7 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
     resultat = b.rechercher(demande.texte, demande.type, demande.niveau, demande.produit, demande.avec_incoherence,
                             demande.page, demande.taille, demande.tri)
     indices = [c['indice'] for c in resultat['items']]
-    quotas.etiquettes(etat, session, indices)
+    quotas.etiquettes(etat, session, indices, b.epoque)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,
                    epoque=b.epoque)
     return resultat
@@ -60,7 +60,7 @@ def _servir(request, session, action, objet, indice):
     b = etat.base_client
     tiers = b.fiches_nommees(objet) - {indice}
     quotas.fiches(etat, session)
-    quotas.etiquettes(etat, session, tiers)
+    quotas.etiquettes(etat, session, tiers, b.epoque)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip,
                    epoque=b.epoque)
     if tiers:
@@ -79,11 +79,32 @@ def dossier(indice: int, request: Request, session: Session = Depends(exige('bas
     return _servir(request, session, 'fiche', b.dossier(indice), indice)
 
 
-CARTE_ACTIVE = False                  # carte des réseaux désactivée pour l'instant (choix de Lounès du 16/11)
+CARTE_ACTIVE = True                   # vue réseau rallumée le 16/11 (Lounès), niveaux de criticité masqués
 
 
 @routeur.get('/reseau/{indice}')
-def reseau(indice: int, request: Request, session: Session = Depends(exige('base.fiche')), b=Depends(base_client)):
+def reseau(indice: int, request: Request, session: Session = Depends(exige('base.reseau')), b=Depends(base_client)):
     if not CARTE_ACTIVE:
         raise HTTPException(404, 'Carte désactivée')
-    return _servir(request, session, 'chaine', b.reseau(indice), indice)
+    return _servir(request, session, 'reseau', b.reseau(indice), indice)
+
+
+@routeur.get('/carte/{indice}')
+def carte(indice: int, request: Request, session: Session = Depends(exige('carte.globale')), b=Depends(base_client)):
+    """Position d'une fiche sur la carte globale (indice de la carte), retrouvée par son CIN ou par son RC : la page
+    de la fiche ouvre la carte centrée sur le client, sinon la vue réseau. Aucune identité dans la réponse."""
+    etat = request.app.state.etat
+    globale = etat.publication_globale
+    if globale is None:
+        raise HTTPException(503, 'Aucune carte globale chargée')
+    quotas.fiches(etat, session)                     # dire si un client figure sur la carte vaut une consultation
+    cle = b.cle_carte(indice)
+    n = identites.indice_par_cle(globale, cle) if cle else None
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'carte', [indice], ip=session.ip,
+                   epoque=b.epoque)
+    if n is None:
+        raise HTTPException(404, 'Absente de la carte')
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'carte', [n], ip=session.ip,
+                   epoque=globale.epoque)
+    return {'indice': n}
+

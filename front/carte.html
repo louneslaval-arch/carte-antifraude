@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carte antifraude · EQDOM Plateforme clients</title>
+<link rel="stylesheet" href="commun.css">
+<link rel="stylesheet" href="carte.css">
+<script src="commun.js" defer></script>
+<script src="carte.js" defer></script>
+</head>
+<body class="carte-globale">
+<div id="page">
+<div id="cg-tete">
+  <h1>Carte globale · registre du commerce × liste noire</h1>
+  <span id="chiffres"></span>
+  <div id="outils">
+    <input type="search" id="recherche" placeholder="Nom, société, RC, CIN…" aria-label="Rechercher" maxlength="100" autocomplete="off">
+    <button id="btn-vue" type="button" title="Place chaque société à la ville de son siège (sinon de son tribunal), chaque personne à la ville la plus fréquente de ses sociétés, sur une carte du Maroc en relief. Ce qui n'a pas de ville connue est rangé dans la zone à droite de la carte.">Carte du Maroc 3D</button>
+    <span id="vue3d">
+      <label title="Inclinaison de la carte : 0 = vue à plat, 75 = vue rasante.">inclinaison <input type="range" id="pente" min="0" max="75" value="52"></label>
+      <label title="Rotation de la carte autour de la verticale.">rotation <input type="range" id="rotation" min="-180" max="180" value="0"></label>
+      <button id="btn-plat" type="button" title="Remet l'inclinaison et la rotation à zéro (vue à plat, nord en haut).">À plat</button>
+    </span>
+    <label title="Affiche entre parenthèses l'écriture latine des noms arabes : écriture apprise dans la base quand la même personne a été publiée dans les deux écritures, sinon translittération par règles (chîn → CH, khâ → KH, qâf → K, wâw → OU). Ce n'est pas une traduction."><input type="checkbox" id="f-lat"> translittération</label>
+    <label title="Origine des personnes et des sociétés. Registre : lues dans les annonces légales (export de Kamal). Dossiers : lues dans les pièces des dossiers de l'antifraude (CIN, statuts, extrait RC). Les deux : société retrouvée par RC + tribunal, personne par son CIN ou par son nom dans la même société.">origine <select id="f-orig"><option value="">toutes</option><option value="d">dossiers (seuls ou communs)</option><option value="dd">dossiers seuls</option><option value="rd">communs registre + dossiers</option><option value="r">registre seul</option></select></label>
+    <label class="principal" title="Ne garde que ce qui est à moins de N arêtes d'un élément de la liste noire (personne inscrite, société inscrite, employeur déclaré, personne du registre aussi inscrite)."><input type="checkbox" id="f-bl"> liste noire seulement</label>
+    <label title="Nombre maximal d'arêtes entre un élément de la liste noire et ce qui est affiché. 4 = le périmètre du dessin (inscrit – société – personne – société – personne). ∞ = tout le réseau qui contient un inscrit.">à <select id="f-rayon"><option value="2">2</option><option value="4" selected>4</option><option value="6">6</option><option value="99">∞</option></select> arêtes d'un inscrit</label>
+    <label title="Départ certain : l'inscrit est relié au registre par son CIN (même numéro de carte d'identité), ou la société inscrite par son numéro RC et son tribunal. Sinon le départ est probable : même nom plus un élément qui confirme, à valider par un analyste."><input type="checkbox" id="f-cert"> départs certains seulement</label>
+    <label title="Rôle terminé : parts cédées (ancien associé) ou gérance reprise par un autre gérant nommé ensuite (ancien gérant), d'après la dernière annonce qui cite la personne dans la société."><input type="checkbox" id="f-anc"> masquer les rôles terminés</label>
+    <label title="Ne garde que les personnes du registre présentes dans au moins ce nombre de sociétés. 3 ou 5 fait ressortir les personnes qui relient beaucoup de sociétés (intermédiaires, prête-noms possibles).">sociétés reliées ≥ <select id="f-ns"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="5">5</option></select></label>
+    <label title="Force d'un lien = poids du rôle (gérant 0,7 ; associé 0,3 à 0,7 selon les parts ; liquidateur 0,5 ; ancien rôle 0,3 à 0,5) × fiabilité de l'annonce × rareté de la taille de la société. Pour un départ : poids du rapprochement (1 pour un CIN).">force ≥ <input type="range" id="seuil" min="0" max="100" value="0"><span id="seuil-v">tout</span></label>
+    <button id="recentrer" type="button">Tout voir</button>
+    <button id="btn-def" type="button" aria-expanded="false">Définitions</button>
+  </div>
+</div>
+<div id="cg-main">
+  <canvas id="toile" aria-label="Carte de tous les liens du registre"></canvas>
+  <div id="aide"></div>
+  <div id="legende">
+    <span><i class="pt inscrit"></i> personne inscrite en liste noire</span>
+    <span><i class="pt bl carre"></i> société inscrite ou employeur déclaré</span>
+    <span><i class="pt bl"></i> personne du registre aussi inscrite</span>
+    <span><i class="pt carre"></i> société du registre</span>
+    <span><i class="pt"></i> personne du registre de Kamal (2 sociétés ou plus)</span>
+    <span><i class="pt dossier"></i> vient des dossiers de l'antifraude seulement</span>
+    <span><i class="pt deux"></i> présent au registre et dans un dossier</span>
+    <span><i class="tr cert"></i> lien certain (CIN, RC + tribunal)</span>
+    <span><i class="tr rap"></i> lien probable, à valider</span>
+    <span><i class="tr"></i> rôle publié &nbsp; <i class="tr ancien"></i> rôle terminé</span>
+    <span id="leg-arc"><i class="tr arc"></i> lien entre deux villes (arc)</span>
+    <span id="leg-fin">Réseaux de la liste noire en haut à gauche, puis les autres du plus gros au plus petit.</span>
+  </div>
+  <div id="panneau" aria-live="polite"></div>
+  <div id="definitions">
+    <button class="fermer" id="fermer-def" type="button" aria-label="Fermer">×</button>
+    <h2>Définitions</h2>
+    <dl>
+      <dt>Personne inscrite (point de départ)</dt><dd>Personne physique de la liste noire EQDOM retrouvée dans une annonce légale.</dd>
+      <dt>Départ certain</dt><dd>L'inscrit est relié au registre par son CIN (même numéro de carte d'identité dans l'annonce), ou la société inscrite par son numéro RC et son tribunal. Trait bleu plein.</dd>
+      <dt>Départ probable</dt><dd>Même nom (après passage arabe ↔ latin) plus un élément qui confirme : la société est elle-même inscrite, même ville, ou employeur déclaré. À valider par un analyste. Trait bleu pointillé.</dd>
+      <dt>Société inscrite</dt><dd>Société de la liste noire retrouvée au registre (même RC et tribunal, ou même raison sociale et ville). Carré rouge.</dd>
+      <dt>Employeur déclaré</dt><dd>Société du registre dont le nom correspond à l'employeur déclaré par un inscrit dans la liste noire. Carré rouge.</dd>
+      <dt>Personne du registre aussi inscrite</dt><dd>Personne citée dans une annonce et qui est elle-même dans la liste noire. Cercle rouge.</dd>
+      <dt>Personne du registre</dt><dd>Gérant, associé, liquidateur… cité dans les annonces. Seules les personnes présentes dans au moins deux sociétés sont dessinées, car elles seules relient des sociétés entre elles ; une même personne dans deux sociétés est reconnue par son CIN, ou par le même nom et la même ville du siège quand le nom est rare ou qu'un indice le confirme (même adresse, même cabinet, associé commun).</dd>
+      <dt>Origine (couleur)</dt><dd>Gris : personne ou société lue dans les annonces légales du registre (export de Kamal). Vert : lue seulement dans les pièces d'un dossier de l'antifraude (CIN, statuts, extrait RC), avec une identité sûre (CIN pour une personne, RC + tribunal pour une société). Violet : présente des deux côtés (société retrouvée par RC + tribunal ; personne par le même CIN, ou par son nom dans la même société : le dossier apporte alors son CIN). Rouge : liste noire, quelle que soit l'origine ; un liseré vert ou violet l'entoure quand l'élément vient aussi d'un dossier.</dd>
+      <dt>Rôle publié</dt><dd>Rôle de la personne dans la société d'après la dernière annonce qui la cite, avec la date : gérant, associé (et ses parts), liquidateur, cessionnaire…</dd>
+      <dt>Rôle terminé</dt><dd>Parts cédées (ancien associé) ou gérance reprise par un autre gérant nommé ensuite (ancien gérant). Trait pointillé gris.</dd>
+      <dt>Annonce mélangée</dt><dd>Rôle lu dans un bloc qui mêle deux annonces : compte pour moitié dans la force.</dd>
+      <dt>Force d'un lien</dt><dd>Poids du rôle (gérant 0,7 ; associé 0,3 à 0,7 selon les parts ; liquidateur 0,5 ; ancien rôle 0,3 à 0,5) × fiabilité de l'annonce × rareté de la taille de la société. Pour un départ : poids du rapprochement (1 pour un CIN).</dd>
+      <dt>Réseau</dt><dd>Ensemble de sociétés et de personnes reliées entre elles de proche en proche. Dans la vue réseau, ceux qui contiennent un élément de la liste noire sont rangés en haut à gauche, puis les autres du plus gros au plus petit.</dd>
+      <dt>Arête</dt><dd>Un lien entre deux nœuds. « À 4 arêtes d'un inscrit » : inscrit – société – personne – société – personne, le périmètre du dessin.</dd>
+      <dt>Taille du point</dt><dd>Nombre de liens du nœud.</dd>
+      <dt>Carte du Maroc (vue 3D)</dt><dd>Chaque société est placée à la ville de son siège (sinon à celle de son tribunal), chaque personne du registre à la ville la plus fréquente de ses sociétés, chaque inscrit à la ville de la personne du registre à laquelle il est relié (sinon à la ville saisie dans la liste noire). Dans une ville, les nœuds d'un même réseau restent groupés. Le disque d'une ville grandit avec son nombre de nœuds (plafonné : Casablanca sature) et les disques voisins sont écartés pour ne pas se recouvrir : la position est donc approximative autour des grandes agglomérations. Les liens entre deux villes différentes sont dessinés en arc. Ce qui n'a aucune ville connue est rangé dans la zone grise à droite de la carte.</dd>
+      <dt>Relief</dt><dd>La carte est un plateau incliné (inclinaison et rotation réglables, ou clic droit / Maj + glisser) ; les éléments de la liste noire sont dressés sur une épingle pour rester visibles au-dessus de la masse. Un clic sur un élément ne laisse que son réseau sur la carte (ses villes, ses arcs) ; un clic dans le vide ramène tout.</dd>
+      <dt>Noms et fiches</dt><dd>La carte arrive sans aucun nom : les noms, les fiches et la recherche sont demandés au serveur au moment de les montrer, réservés à la cellule fraude, comptés et inscrits au journal des consultations.</dd>
+    </dl>
+  </div>
+  <div id="info"></div>
+  <p id="message" hidden></p>
+</div>
+</div>
+</body>
+</html>

@@ -12,6 +12,7 @@ from conftest import RACINE, connecte
 
 STRUCTURE = os.path.join(RACINE, 'import', 'kamal_structure', 'reference', 'champs_par_type_prod.csv')
 LIVREE = os.path.join(RACINE, 'jeu_essai', 'demo', 'base_demo.sqlite.gz')
+CARTE_LIVREE = os.path.join(RACINE, 'jeu_essai', 'demo', 'carte_globale_demo.tar.gz')
 pytestmark = pytest.mark.skipif(not os.path.exists(STRUCTURE) and not os.path.exists(LIVREE),
                                 reason='ni structure de Kamal ni base de démonstration livrée')
 MOTIFS = (re.compile(r'\bZZ\d{4,}'), re.compile(r'999\d{8,}'), re.compile(r'\b(pp|pm)_[0-9a-f]{16}\b'))
@@ -30,6 +31,22 @@ def base_demo(tmp_path_factory):
         with gzip.open(LIVREE, 'rb') as source, open(chemin, 'wb') as cible:
             shutil.copyfileobj(source, cible)
     return chemin
+
+
+@pytest.fixture(scope='session')
+def carte_demo(base_demo, tmp_path_factory):
+    """Carte globale publiée du même jeu que `base_demo` : générée avec lui, sinon celle livrée avec la base livrée."""
+    d = str(tmp_path_factory.mktemp('carte_demo') / 'carte')
+    if os.path.exists(STRUCTURE):
+        sys.path.insert(0, os.path.join(RACINE, 'outils', 'demo'))
+        import construire_demo
+        construire_demo.construire(None, n_dossiers=300, n_societes=300, graine=20261116, carte=d)
+    else:
+        import tarfile
+        os.makedirs(d)
+        with tarfile.open(CARTE_LIVREE) as t:
+            t.extractall(d, **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))
+    return d
 
 
 @pytest.fixture
@@ -60,12 +77,12 @@ def test_resume_agrege_pour_la_direction_sans_nom_ni_chiffre_sous_cinq(avec_base
         assert r.headers['Content-Security-Policy'].startswith("default-src 'self'")
 
 
-@pytest.mark.parametrize('role', ['DIRECTION', 'AGENCE'])
+@pytest.mark.parametrize('role', ['DIRECTION', 'AGENCE', 'ADMIN'])
 def test_noms_fiches_dossiers_reseau_refuses_hors_cellule_fraude(avec_base, role):
     with avec_base() as (c, etat):
         connecte(c, etat, 'u', role)
         assert c.post('/api/base/clients', json={}).status_code == 403
-        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1'):
+        for chemin in ('/api/base/clients/1', '/api/base/dossiers/1', '/api/base/reseau/1', '/api/base/carte/1'):
             assert c.get(chemin).status_code == 403, chemin
 
 
@@ -122,6 +139,183 @@ def test_tri_de_la_liste_des_clients_au_choix(avec_base):
         assert c.post('/api/base/clients', json={'tri': 'inconnu'}).status_code == 422
 
 
+def test_carte_reseau_servie_sans_valeur_d_identifiant_et_journalisee(avec_base, base_demo):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        clients = c.post('/api/base/clients', json={'taille': 200, 'niveau': 'majeure'}).json()['items']
+        lie = next(x for x in clients if x['type'] == 'personne')
+        r = c.get(f'/api/base/reseau/{lie["indice"]}')
+        assert r.status_code == 200
+        carte = r.json()
+        ids = {n['id'] for n in carte['noeuds']}
+        assert [n for n in carte['noeuds'] if n.get('depart')][0]['id'] == lie['indice']
+        assert any(n['inscrit'] for n in carte['noeuds'])
+        assert all(l['de'] in ids and l['vers'] in ids for l in carte['liens'])
+        assert all(n['type'] != 'identifiant' or not any(ch.isdigit() for ch in n['nom']) for n in carte['noeuds'])
+        assert not any(m.search(r.text) for m in MOTIFS)   # ni référence, ni RIB ou identifiant, ni identifiant interne
+        from conftest import tout_le_journal
+        journal = tout_le_journal(etat)
+        assert 'reseau' in journal and 'noms' in journal              # consultation et tiers nommés journalisés
+        assert lie['nom'] not in journal
+        assert c.get('/api/base/reseau/1').status_code == 404
+
+
+def _voisins_affiches(carte):
+    """Voisins de chaque fiche dans le dessin, un nœud d'identifiant partagé valant un pas (A – RIB – B)."""
+    ident = {n['id'] for n in carte['noeuds'] if n['type'] == 'identifiant'}
+    adj = {}
+    for l in carte['liens']:
+        adj.setdefault(l['de'], set()).add(l['vers'])
+        adj.setdefault(l['vers'], set()).add(l['de'])
+    sortie = {}
+    for n in carte['noeuds']:
+        if n['type'] == 'identifiant':
+            continue
+        v = set()
+        for x in adj.get(n['id'], ()):
+            v |= (adj[x] - {n['id']}) if x in ident else {x}
+        sortie[n['id']] = v
+    return sortie
+
+
+def _clients_relies(c):
+    relies = []
+    for niveau in ('critique', 'majeure', 'mineure'):
+        page = 1
+        while True:
+            r = c.post('/api/base/clients', json={'niveau': niveau, 'taille': 200, 'page': page}).json()
+            relies += r['items']
+            if page * 200 >= r['total']:
+                break
+            page += 1
+    return relies
+
+
+def test_carte_reseau_garde_tout_inscrit_atteignable_meme_derriere_un_noeud_replie(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        inscrits = lambda carte: {n['id'] for n in carte['noeuds'] if n['inscrit']}
+        for indice in sorted(b.indice_fiche.values()):                   # toutes les fiches de la base
+            assert inscrits(b.reseau(indice)) == inscrits(b.reseau(indice, plafond=10 ** 6, limite=10 ** 6)), indice
+
+
+def test_carte_reseau_compte_exactement_ce_qui_n_est_pas_affiche(avec_base, base_demo):
+    """Pour chaque nœud déployé : voisins affichés (avec leur lien) + `autres` = tous ses voisins. Vrai aussi quand la
+    limite du nombre de nœuds s'applique."""
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers "
+                          'ORDER BY n DESC LIMIT 1').fetchone()
+        salarie = cx.execute("SELECT de FROM c5_arete WHERE type = 'role' AND vers = ? LIMIT 1", (gros[0],)).fetchone()[0]
+        departs = [b.indice_fiche[salarie], b.indice_fiche[gros[0]]] + sorted(b.indice_fiche.values())
+        for depart in departs:
+            for limite in ((120, 25) if depart in departs[:2] else (120,)):
+                carte = b.reseau(depart, limite=limite)
+                complet = _voisins_affiches(b.reseau(depart, plafond=10 ** 6, limite=10 ** 6))
+                affiches = _voisins_affiches(carte)
+                presents = set(affiches)
+                for n in carte['noeuds']:
+                    if n['type'] == 'identifiant' or n['niveau'] >= 2:
+                        continue                              # seuls les nœuds déployés (niveaux 0 et 1) comptent
+                    tous = complet[n['id']]
+                    assert affiches[n['id']] == tous & presents, (depart, limite)     # voisin présent = lien dessiné
+                    assert n['autres'] == len(tous - presents), (depart, limite)      # le reste est compté
+        noeud = next(n for n in b.reseau(b.indice_fiche[salarie])['noeuds'] if n['id'] == b.indice_fiche[gros[0]])
+        assert noeud['autres'] > 150                          # l'employeur de 200 salariés est replié
+
+
+def _voisins_sql(cx, fiche, cache):
+    """Voisinage d'une fiche recalculé en SQL, sans passer par `reseau()` : rôles dans les deux sens, et fiches qui
+    partagent un identifiant porté par 30 fiches au plus, elle comprise."""
+    if fiche not in cache:
+        v = {r[0] for r in cx.execute("SELECT vers FROM c5_arete WHERE type = 'role' AND de = ? UNION "
+                                      "SELECT de FROM c5_arete WHERE type = 'role' AND vers = ?", (fiche, fiche))}
+        for (noeud,) in cx.execute("SELECT DISTINCT vers FROM c5_arete WHERE type = 'identifiant' AND de = ?",
+                                   (fiche,)).fetchall():
+            porteurs = {r[0] for r in cx.execute('SELECT DISTINCT de FROM c5_arete WHERE vers = ?', (noeud,))}
+            if len(porteurs) <= 30:
+                v |= porteurs
+        cache[fiche] = v - {fiche}
+    return cache[fiche]
+
+
+def test_carte_reseau_coherente_avec_un_voisinage_recalcule_sur_toutes_les_fiches(avec_base, base_demo):
+    """Pour chaque fiche, avec les réglages par défaut et avec de tout petits plafonds : aucun lien vers une fiche
+    absente du dessin ; distances justes ; tout inscrit à deux liens au plus dessiné ; pour chaque nœud déployé,
+    voisins dessinés avec leur lien et `autres` exact, d'après le voisinage recalculé en SQL."""
+    with avec_base() as (c, etat):
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        cache = {}
+        for fiche, indice in sorted(b.indice_fiche.items()):
+            n1 = _voisins_sql(cx, fiche, cache)
+            atteints = {fiche} | n1 | {x for v in n1 for x in _voisins_sql(cx, v, cache)}
+            for reglage in ({}, {'plafond': 2, 'limite': 6}):
+                carte = b.reseau(indice, **reglage)
+                fiches = {b.fiche_de[n['id']]: n for n in carte['noeuds'] if n['type'] != 'identifiant'}
+                ids = {n['id'] for n in carte['noeuds']}
+                assert all(l['de'] in ids and l['vers'] in ids for l in carte['liens']), (indice, reglage)
+                assert {f for f, n in fiches.items() if n['inscrit']} == atteints & b.inscrits, (indice, reglage)
+                affiches = _voisins_affiches(carte)
+                for f, n in fiches.items():
+                    assert n['niveau'] == (0 if f == fiche else 1 if f in n1 else 2), (indice, reglage)
+                    if n['niveau'] <= 1:
+                        tous = _voisins_sql(cx, f, cache)
+                        assert {b.fiche_de[i] for i in affiches[n['id']]} == tous & set(fiches), (indice, reglage)
+                        assert n['autres'] == len(tous - set(fiches)), (indice, reglage)
+
+
+def test_carte_reseau_ne_lit_que_les_fiches_dessinees(avec_base, base_demo):
+    """Le coût d'une carte suit ce qu'elle dessine, pas la taille du voisinage : depuis l'employeur de 200 salariés, le
+    voisinage de chaque salarié n'est pas lu (en données réelles, un employeur peut en déclarer des milliers)."""
+    with avec_base() as (c, etat):
+        b = etat.base_client
+        cx = sqlite3.connect(base_demo)
+        gros = cx.execute("SELECT vers, count(DISTINCT de) n FROM c5_arete WHERE type = 'role' GROUP BY vers "
+                          'ORDER BY n DESC LIMIT 1').fetchone()[0]
+        b.reseau(b.indice_fiche[gros])                     # premier appel : ce qui se calcule une fois est fait
+        requetes, ouvrir = [], b.connexion
+
+        def connexion():
+            cx2 = ouvrir()
+            cx2.set_trace_callback(requetes.append)
+            return cx2
+        b.connexion = connexion
+        carte = b.reseau(b.indice_fiche[gros])
+        dessinees = sum(1 for n in carte['noeuds'] if n['type'] != 'identifiant')
+        # quelques requêtes par fiche dessinée (son voisinage si elle est déployée, son nom), jamais une par collègue
+        assert dessinees >= 10 and len(requetes) <= 6 * dessinees + 20, (dessinees, len(requetes))
+
+
+def test_carte_reseau_stable_sans_valeur_et_client_isole(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        relie = _clients_relies(c)[0]['indice']
+        assert b.reseau(relie) == b.reseau(relie)            # même dessin d'un appel à l'autre
+        carte = b.reseau(relie)
+        for n in carte['noeuds']:
+            if n['type'] == 'identifiant':
+                assert n['nom'] in ('RIB', 'LOGEMENT', 'SIEGE') and re.fullmatch(r'id\d+', n['id'])
+        tous = c.post('/api/base/clients', json={'taille': 200, 'niveau': 'aucun'}).json()['items']
+        isole = next(x['indice'] for x in tous if len(b.reseau(x['indice'])['noeuds']) == 1)
+        assert b.reseau(isole)['liens'] == []
+
+
+def test_carte_reseau_a_son_propre_droit_et_son_action_de_journal(avec_base):
+    from app.roles import DROITS, Role
+    assert DROITS['base.reseau'] == frozenset({Role.ANALYSTE})
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        relie = _clients_relies(c)[0]['indice']
+        assert c.get(f'/api/base/reseau/{relie}').status_code == 200
+        from conftest import tout_le_journal
+        assert 'reseau' in tout_le_journal(etat)
+
+
 def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
     with avec_base() as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
@@ -142,7 +336,6 @@ def test_fiche_dossier_et_reseau_par_indice_opaque(avec_base):
         assert chemin['inscrit']['indice'] and chemin['etapes']
         d = c.get(f'/api/base/dossiers/{f["dossiers"][0]["indice"]}').json()
         assert d['entete']['reference'].startswith('ZZ') and d['pieces'] and d['parties']
-        assert c.get(f'/api/base/reseau/{lie["indice"]}').status_code == 404      # carte désactivée
         assert {'charges', 'operations', 'incoherences', 'identifiants'} <= set(f)
         assert all(r['dossier'] for r in f['revenus'] if r['nature'] == 'verifie')
         assert all(set(i) == {'type', 'valeur', 'dossier'} for i in f['identifiants'])
@@ -244,7 +437,7 @@ def test_identites_de_tiers_servies_journalisees_et_comptees(avec_base, base_dem
         tiers = {p['indice'] for p in f['personnes'] if p['indice']}
         assert len(tiers) >= 3
         from app import journal, quotas
-        servis = journal.indices_servis(etat.base, 'ana', quotas.ETIQUETTES)
+        servis = {i for _e, i in journal.indices_servis(etat.base, 'ana', quotas.ETIQUETTES)}
         assert tiers <= servis
 
 
@@ -296,3 +489,76 @@ def test_scripts_des_pages_sans_erreur_de_syntaxe():
         if nom.endswith('.js'):
             r = subprocess.run(['node', '--check', os.path.join(dossier, nom)], capture_output=True, text=True)
             assert r.returncode == 0, nom
+
+
+def test_fiche_retrouvee_sur_la_carte_globale_par_son_cin_ou_son_rc(avec_base, carte_demo, base_demo):
+    compact = lambda v: re.sub(r'\s+', '', str(v)).upper()          # noqa: E731
+    g = sqlite3.connect(os.path.join(carte_demo, 'identites.sqlite'))
+    cins = {compact(c) for (c,) in g.execute('SELECT cin FROM identite WHERE cin IS NOT NULL')}
+    rcs = {compact(r) for (r,) in g.execute("SELECT rc FROM identite JOIN noeud USING (indice) "
+                                            "WHERE type = 'societe' AND rc IS NOT NULL")}
+    cx = sqlite3.connect(base_demo)
+    with avec_base(CARTE_PUBLICATION_GLOBALE=carte_demo) as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        b = etat.base_client
+        personnes = [(f, cin) for f, cin in cx.execute('SELECT identifiant, cin FROM c2_personne WHERE cin IS NOT NULL')]
+        presente = next((f, cin) for f, cin in personnes if compact(cin) in cins)
+        absente = next(f for f, cin in personnes if compact(cin) not in cins)
+        r = c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}')
+        assert r.status_code == 200 and set(r.json()) == {'indice'}
+        trouve = g.execute('SELECT cin FROM identite WHERE indice = ?', (r.json()['indice'],)).fetchone()[0]
+        assert compact(trouve) == compact(presente[1])
+        assert c.get(f'/api/base/carte/{b.indice_fiche[absente]}').status_code == 404
+        societe = next(f for f, rc in cx.execute('SELECT identifiant, rc FROM c2_societe WHERE rc IS NOT NULL')
+                       if compact(rc) in rcs)
+        r = c.get(f'/api/base/carte/{b.indice_fiche[societe]}')
+        assert r.status_code == 200
+        typ, rc = g.execute('SELECT type, rc FROM noeud JOIN identite USING (indice) WHERE indice = ?',
+                            (r.json()['indice'],)).fetchone()
+        assert typ == 'societe' and compact(rc) == compact(cx.execute('SELECT rc FROM c2_societe WHERE identifiant = ?',
+                                                                       (societe,)).fetchone()[0])
+        assert c.get('/api/base/carte/1').status_code == 404
+        from conftest import tout_le_journal
+        journal = tout_le_journal(etat)
+        epoque_carte = json.load(open(os.path.join(carte_demo, 'manifeste.json'), encoding='utf-8'))['empreinte'][:16]
+        assert 'carte' in journal and epoque_carte in journal          # indice servi sur la carte, avec son époque
+    with avec_base(CARTE_PUBLICATION_GLOBALE=carte_demo, CARTE_QUOTA_FICHES='1') as (c, etat):
+        connecte(c, etat, 'ana2', 'ANALYSTE')
+        b = etat.base_client
+        assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 200
+        assert c.get(f'/api/base/carte/{b.indice_fiche[presente[0]]}').status_code == 429   # compte au quota de fiches
+
+
+def test_fiche_vers_la_carte_sans_carte_globale_503(avec_base, base_demo):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        indice = next(iter(etat.base_client.indice_fiche.values()))
+        assert c.get(f'/api/base/carte/{indice}').status_code == 503
+
+
+def test_meme_rc_dans_un_autre_tribunal_n_est_pas_la_meme_societe(client_avec, carte_demo, base_demo, tmp_path):
+    compact = lambda v: re.sub(r'\s+', '', str(v)).upper()          # noqa: E731
+    copie = str(tmp_path / 'carte')
+    shutil.copytree(carte_demo, copie)
+    cx = sqlite3.connect(base_demo)
+    g = sqlite3.connect(os.path.join(copie, 'identites.sqlite'))
+    noeuds = {(compact(rc), t): i for i, rc, t in g.execute(
+        "SELECT indice, rc, tribunal FROM identite JOIN noeud USING (indice) WHERE type = 'societe' AND rc IS NOT NULL")}
+    fiche, rc, trib = next((f, r, t) for f, r, t in cx.execute(
+        'SELECT identifiant, rc, tribunal FROM c2_societe WHERE rc IS NOT NULL AND tribunal IS NOT NULL')
+        if (compact(r), t) in noeuds)
+    i = noeuds[(compact(rc), trib)]
+    g.execute("UPDATE identite SET tribunal = 'AUTRE' WHERE indice = ?", (i,))   # même RC, autre tribunal
+    g.commit()
+    g.close()
+    m = os.path.join(copie, 'manifeste.json')
+    manifeste = json.load(open(m, encoding='utf-8'))
+    sys.path.insert(0, os.path.join(RACINE, 'pipeline'))
+    import publier_carte as pc
+    manifeste['fichiers']['identites.sqlite'] = pc.empreinte(os.path.join(copie, 'identites.sqlite'))
+    json.dump(manifeste, open(m, 'w', encoding='utf-8'))
+    with client_avec(CARTE_BASE_CLIENT=base_demo, CARTE_PUBLICATION_GLOBALE=copie) as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        r = c.get(f'/api/base/carte/{etat.base_client.indice_fiche[fiche]}')
+        assert r.status_code == 404 or r.json()['indice'] != i
+

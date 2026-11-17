@@ -1,0 +1,82 @@
+/* Carte antifraude : la carte globale (modèle pipeline/carte_globale_modele.html), dans la plateforme. Même aspect
+   que le modèle ; l'en-tête de la plateforme au-dessus. Aucune ressource externe ; aucun style en ligne (CSP). */
+:root {
+  --fond: #f4f6f8; --carte: #ffffff; --texte: #17202a; --doux: #5b6773; --trait: #d5dbe1; --ligne: #9aa5b1;
+  --accent: #1f5f8b; --accent-doux: #e3eef6; --alerte: #b42318; --alerte-doux: #fde8e6; --pont: #b06d00;
+  --dossier: #1a7f5a; --dossier-doux: #dcf3ea; --deux: #6b46c1; --deux-doux: #ebe4fa; --plateau: #ece4d0; --plateau-bord: #cbbfa3; --plateau-bas: #b5a88a; --ville: #8a7b5a; --cote: #e2e6ea; --cote-bas: #b9c0c8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #5c6978;
+    --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+    --dossier: #5fd0a0; --dossier-doux: #12382b; --deux: #b79cf5; --deux-doux: #2c2150; --plateau: #2b3341; --plateau-bord: #4a5668; --plateau-bas: #141a22; --ville: #a9b4c2; --cote: #222a35; --cote-bas: #10151c;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #0f141a; --carte: #18202a; --texte: #e6ebf0; --doux: #9aa6b2; --trait: #2c3744; --ligne: #5c6978;
+  --accent: #6cb4e8; --accent-doux: #16324a; --alerte: #ff7b6e; --alerte-doux: #3a1714; --pont: #f0b44c;
+  --dossier: #5fd0a0; --dossier-doux: #12382b; --deux: #b79cf5; --deux-doux: #2c2150; --plateau: #2b3341; --plateau-bord: #4a5668; --plateau-bas: #141a22; --ville: #a9b4c2; --cote: #222a35; --cote-bas: #10151c;
+}
+body.carte-globale { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--fond); color: var(--texte);
+  font: 13.5px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Arabic", Arial, sans-serif; }
+body.carte-globale > .entete { flex: none; position: static; }
+#page { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; }
+#cg-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 8px 14px; background: var(--carte); border-bottom: 1px solid var(--trait); }
+#cg-tete h1 { font-size: 16px; margin: 0 10px 0 0; letter-spacing: -.01em; font-weight: 700; line-height: 1.45; }
+#chiffres .chiffre { display: inline; font-size: 12px; color: var(--doux); white-space: nowrap; }
+#chiffres .chiffre b { color: var(--texte); font-size: 14px; }
+#chiffres .chiffre.rouge b { color: var(--alerte); }
+#outils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-left: auto; font-size: 12.5px; color: var(--doux); }
+#outils label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+#outils label.principal { background: var(--alerte-doux); color: var(--alerte); font-weight: 600; padding: 3px 8px; border-radius: 6px; }
+#outils input[type="search"] { padding: 5px 8px; border: 1px solid var(--trait); border-radius: 6px; background: var(--fond); color: var(--texte); font: inherit; width: 210px; }
+#outils button { border: 1px solid var(--trait); background: var(--fond); color: var(--texte); border-radius: 6px; padding: 4px 9px; font: inherit; cursor: pointer; }
+#outils button.actif { background: var(--accent-doux); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+#seuil { width: 80px; }
+#vue3d { display: none; align-items: center; gap: 8px; }
+#vue3d.visible { display: inline-flex; }
+#vue3d input[type="range"] { width: 90px; }
+#cg-main { position: relative; min-height: 0; }
+#toile { display: block; width: 100%; height: 100%; cursor: grab; }
+#toile.saisi { cursor: grabbing; }
+#legende { position: absolute; left: 12px; bottom: 12px; background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; padding: 8px 10px; font-size: 11.5px; color: var(--doux); display: grid; gap: 4px; max-width: 380px; }
+#legende span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+#legende #leg-arc { display: none; }
+.pt { width: 11px; height: 11px; border-radius: 50%; display: inline-block; border: 2px solid var(--ligne); background: var(--carte); flex: none; }
+.pt.carre { border-radius: 2px; }
+.pt.inscrit { background: var(--alerte); border-color: var(--alerte); }
+.pt.bl { border-color: var(--alerte); background: var(--alerte-doux); }
+.pt.dossier { border-color: var(--dossier); background: var(--dossier-doux); }
+.pt.deux { border-color: var(--deux); background: var(--deux-doux); }
+.tr { width: 24px; height: 0; border-top: 2px solid var(--ligne); display: inline-block; }
+.tr.cert { border-top: 3px solid var(--accent); }
+.tr.rap { border-top: 2px dashed var(--accent); }
+.tr.ancien { border-top: 2px dotted var(--doux); }
+.tr.arc { border-top: 2px solid var(--pont); }
+#panneau { display: none; position: absolute; right: 12px; top: 12px; width: 360px; max-height: calc(100% - 24px); overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; font-size: 13px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+#panneau h2 { font-size: 15px; margin: 0 0 4px; font-weight: 700; letter-spacing: normal; }
+#panneau .ligne { color: var(--doux); margin: 2px 0; }
+#panneau .rouge { color: var(--alerte); font-weight: 600; }
+#panneau a { color: var(--accent); }
+#panneau ul { margin: 6px 0 0; padding-left: 18px; }
+#panneau li { margin: 3px 0; }
+#panneau li b { cursor: pointer; color: var(--accent); }
+.lat { color: var(--doux); font-weight: 400; font-size: .92em; }
+#panneau .fermer { float: right; border: 0; background: none; color: var(--doux); font-size: 16px; cursor: pointer; }
+#panneau button.petit { border: 1px solid var(--trait); background: var(--fond); color: var(--texte); border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 12px; cursor: pointer; margin-top: 6px; margin-right: 6px; }
+#info { position: absolute; pointer-events: none; background: var(--carte); border: 1px solid var(--trait); border-radius: 6px; padding: 6px 9px; font-size: 12px; display: none; max-width: 320px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
+#info b { display: block; }
+#info .doux { color: var(--doux); }
+.badge { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-right: 4px; }
+.badge.certain { background: var(--accent-doux); color: var(--accent); }
+#definitions { display: none; position: absolute; left: 12px; top: 48px; width: 440px; max-height: calc(100% - 70px); overflow: auto; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 12px 14px; font-size: 12.5px; box-shadow: 0 2px 10px rgba(0,0,0,.08); }
+#definitions h2 { font-size: 15px; margin: 0 0 6px; font-weight: 700; letter-spacing: normal; }
+#definitions dl { margin: 0; }
+#definitions dt { font-weight: 600; margin-top: 7px; }
+#definitions dd { margin: 1px 0 0; color: var(--doux); }
+#definitions .fermer { float: right; border: 0; background: none; color: var(--doux); font-size: 16px; cursor: pointer; }
+#aide { position: absolute; left: 12px; top: 12px; font-size: 11.5px; color: var(--doux); background: var(--carte); border: 1px solid var(--trait); border-radius: 8px; padding: 6px 10px; max-width: 70%; }
+#message { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); margin: 0; background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; padding: 14px 18px; font-size: 14px; color: var(--texte); max-width: 480px; text-align: center; }
+@media (max-width: 900px) { #panneau { width: calc(100% - 24px); max-height: 50%; top: auto; bottom: 12px; } #legende, #aide { display: none; } }
+#panneau .origine-d { color: var(--dossier); }
+#panneau .origine-rd { color: var(--deux); }

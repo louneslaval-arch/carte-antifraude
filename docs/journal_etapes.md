@@ -519,3 +519,41 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   fiche complète, base client. Les essais automatiques dans le navigateur restent à écrire (étape K).
 - **Non fait, noté** : questions n°99 à 102. Code écrit avant ses tests pour cette partie (demande pressante) ; les
   tests ont suivi.
+
+## 16/11/2026 — front : corrections, retraits et vue réseau rallumée (branches `front-corrections`, fusionnée, et `etape-k-carte-reseau`)
+- **Front (fusionné dans `main` sur accord de Lounès)** : fiche citée sans les données des autres clients, tiers
+  journalisés et comptés, époque au journal, masquage secondaire ; demandes de Lounès : contrôles de la v2, quatre
+  préalables, incohérences, niveaux de criticité et origine des données retirés des pages (l'API les sert toujours) ;
+  tri de la liste des clients (`tri` : recent, ancien, alpha, alpha_inverse, dossiers, revenu ; gravite par défaut) ;
+  bulles du portail déplaçables avec retour en place. Document `docs/demande_kamal_temps_reel.md`.
+- **Vue réseau (`etape-k-carte-reseau`)** : route `/api/base/reseau/{indice}` ouverte avec son droit `base.reseau`
+  (cellule fraude) et son action de journal `reseau` ; `reseau()` en trois temps (exploration, choix des fiches,
+  liens) : tout inscrit atteignable et son chemin toujours dessinés, 12 voisins nouveaux par nœud dans un ordre
+  stable, `autres` exact (limite comprise) ; page avec recherche par nom (aucun nom préchargé), niveaux masqués,
+  écart minimal entre nœuds, lien depuis la fiche, module « Map antifraude » actif au portail.
+- **Tests** : tests d'abord, rouges pour la bonne raison (route fermée ; inscrit perdu ; lien manquant) ; 1 144
+  réussis, 2 sautés (avant : 1 138). Le test « tout inscrit gardé » et le test de comptage parcourent toutes les
+  fiches de la base de démonstration.
+- **Relectures** : `relecteur` (un bloquant : inscrit à deux liens perdu derrière un nœud replié ; liens manquants,
+  limite non comptée, liste tronquée, documents) et `gardien-donnees` (aucun bloquant ; droit propre, action de
+  journal, minimisation de la liste) : tout corrigé tests d'abord, sauf ce qui est noté.
+- **Non fait, noté** : questions n°106 et 107 ; carte globale, carte du Maroc et mise à jour en direct (étapes H à K).
+
+## 17/11/2026 — noms du kit et carte globale (branches `jeu-essai-noms-syllabes` et `etape-k-carte-globale`)
+- **Noms du kit** : les six noms de famille du jeu d'essai du kit (latin et arabe), noms courants qui semblaient réels,
+  remplacés par des noms bâtis comme ceux du générateur ; mêmes cas de test ; publication du kit identique au
+  renommage près (vérifié) ; référence `attendu_kit.json` régénérée. Aussi : un commentaire de
+  `nettoyer_liste_noire.py` citait un nom complet qui semblait réel ; exemples des commentaires remplacés.
+- **Fichier de Lounès** : la carte globale demandée (`Carte_globale_liste_noire.html`, dans ses téléchargements) n'a
+  pas pu être ouverte (lecture interdite par les réglages) ; c'est la sortie de `pipeline/carte_globale.py`, reproduite
+  sur données fictives et reconnue par Lounès comme la même page.
+- **Carte globale** : `pipeline/publier_globale.py` (deux couches, sur les briques de `publier_carte.py`) ; routes
+  `/api/carte/globale`, `/globale/noms`, `/globale/noeud/{indice}`, `/globale/recherche` (droit `carte.globale`,
+  cellule fraude ; journal avec l'époque de la carte) ; page `front/carte.html` (le modèle, alimenté par l'API) ;
+  `/api/base/carte/{indice}` retrouve une fiche sur la carte par son CIN ou son RC ; démonstration :
+  `construire_demo.py --archive-carte` (paramètres de la base livrée retrouvés : 1 500 dossiers, 5 000 sociétés).
+- **Tests** : tests d'abord, rouges pour la bonne raison ; publication (22, kit et données générées), routes (9),
+  fiche → carte (5) ; vérifié dans le navigateur : vue réseau, noms à la demande, recherche, détail, carte du Maroc,
+  passage de la fiche à la carte centrée.
+- **Non fait, noté** : questions n°108 à 111.
+

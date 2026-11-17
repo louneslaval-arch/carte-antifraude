@@ -11,12 +11,13 @@ from fastapi import HTTPException
 from . import journal
 
 ETIQUETTES = ('noms', 'recherche')
-FICHES = ('fiche', 'chaine')
+FICHES = ('fiche', 'chaine', 'reseau', 'carte')
 
 
-def etiquettes(etat, session, indices):
+def etiquettes(etat, session, indices, epoque=''):
+    """Les indices se comptent avec l'époque de ce qui les a servis (publication ou base client)."""
     deja = journal.indices_servis(etat.base, session.utilisateur, ETIQUETTES)
-    if len(deja | set(indices)) > etat.reglages.quota_etiquettes:
+    if len(deja | {(epoque or '', i) for i in indices}) > etat.reglages.quota_etiquettes:
         raise HTTPException(429, 'Quota d\'étiquettes de l\'heure atteint')
 
 

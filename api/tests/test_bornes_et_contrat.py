@@ -233,7 +233,7 @@ def test_recherche_de_nom_a_trois_lettres_acceptee(client, etat):
 
 
 def test_recherche_espaces_ramenes_a_un_seul():
-    assert couche2.forme_recherche('  fassi \t  youssef ') == (('nom',), 'FASSI YOUSSEF', False)
+    assert couche2.forme_recherche('  qibousi \t  youssef ') == (('nom',), 'QIBOUSI YOUSSEF', False)
     assert couche2.forme_recherche('zz 900 008') == (('cin', 'rc'), 'ZZ900008', True)
 
 

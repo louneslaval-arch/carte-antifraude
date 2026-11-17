@@ -34,6 +34,18 @@ def publication(kit):
 
 
 @pytest.fixture(scope='session')
+def publication_globale(kit):
+    """Carte globale du kit (carte_globale.py) publiée en deux couches (publier_globale.py)."""
+    import publier_globale
+    globale = os.path.join(kit['dossier'], 'globale.json')
+    fabrique.lancer(os.path.join(RACINE, 'pipeline', 'carte_globale.py'), '--base', kit['base'], '--json', globale,
+                    '--html', os.path.join(kit['dossier'], 'carte_globale.html'))
+    dossier = os.path.join(kit['dossier'], 'publication_globale')
+    publier_globale.publier(globale, dossier)
+    return dossier
+
+
+@pytest.fixture(scope='session')
 def publication_reelle(kit, tmp_path_factory):
     """Publication dont un CIN ne porte pas le préfixe fictif : doit être refusée sans autorisation."""
     d = str(tmp_path_factory.mktemp('reelle'))

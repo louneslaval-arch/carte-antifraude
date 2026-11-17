@@ -18,6 +18,7 @@ class Reglages:
     cle_jwt: str
     base_url: str                                # base du journal, des comptes et des révocations
     publication: Optional[str] = None            # dossier « publication/courant »
+    publication_globale: Optional[str] = None    # dossier de la carte globale publiée (publier_globale.py)
     donnees_reelles: bool = False                # CARTE_DONNEES_REELLES=1, posé seulement sur le serveur
     duree_jeton_s: int = 8 * 3600
     renouveler_apres_s: int = 15 * 60            # un jeton plus vieux est renouvelé à la requête suivante
@@ -61,6 +62,7 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
         raise ReglageInvalide('CARTE_BASE_URL absente')
     lus = dict(
         publication=_texte(env, 'CARTE_PUBLICATION'),
+        publication_globale=_texte(env, 'CARTE_PUBLICATION_GLOBALE'),
         donnees_reelles=env.get('CARTE_DONNEES_REELLES') == '1',
         duree_jeton_s=_entier(env, 'CARTE_DUREE_JETON_S'),
         quota_etiquettes=_entier(env, 'CARTE_QUOTA_ETIQUETTES'),

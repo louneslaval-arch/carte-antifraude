@@ -19,7 +19,7 @@ def recharger(request: Request, session: Session = Depends(exige('admin'))):
     if not etat.reglages.publication:
         raise HTTPException(409, 'CARTE_PUBLICATION non défini')
     try:
-        nouvelle = charger(etat.reglages.publication, etat.reglages.donnees_reelles)
+        nouvelle = charger(etat.reglages.publication, etat.reglages.donnees_reelles, type='chaines')
     except PublicationRefusee as e:
         journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recharger_refus', ip=session.ip)
         raise HTTPException(409, f'Publication refusée : {e}') from None
