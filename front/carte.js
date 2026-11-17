@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#legende').hidden = true;
     if (e.statut === 403) message('La carte antifraude est réservée à la cellule fraude.');
     else if (e.statut === 503) message('Aucune carte globale n’est chargée sur ce serveur.');
+    else if (e.statut === 429) message('Trop de consultations pour l’heure : réessayez dans quelques minutes.');
     else if (e.message !== 'session') message('La carte ne répond pas. Réessayez.');
     return;
   }
@@ -41,30 +42,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---- noms et fiches, demandés à l'API au moment de les montrer -------------------------------------------------
   const noms = new Map();                        // indice → { nom, lat }, gardés pour la séance
   const fiches = new Map();                      // indice → fiche complète
-  const enAttente = new Set();
-  let minuterieNoms = null, demandeEnCours = false;
+  const fichesEnCours = new Map();               // indice → demande en cours (une seule par fiche)
+  const fichesEnErreur = new Map();              // indice → message, tant que le nœud reste choisi
+  const enAttente = new Set(), enVol = new Set();
+  let minuterieNoms = null, demandeEnCours = false, pause = 0;
   function demanderNoms(indices) {
-    for (const i of indices) if (!noms.has(i)) enAttente.add(i);
-    if (enAttente.size && !minuterieNoms) minuterieNoms = setTimeout(chargerNoms, 120);
+    for (const i of indices) if (!noms.has(i) && !enVol.has(i)) enAttente.add(i);
+    if (enAttente.size && !minuterieNoms) minuterieNoms = setTimeout(chargerNoms, Math.max(120, pause - Date.now()));
   }
   async function chargerNoms() {
     minuterieNoms = null;
     if (demandeEnCours) { minuterieNoms = setTimeout(chargerNoms, 200); return; }
-    const lot = [...enAttente].slice(0, 400);
-    lot.forEach((i) => enAttente.delete(i));
+    const lot = [...enAttente].filter((i) => !noms.has(i)).slice(0, 400);
+    enAttente.clear();
     if (!lot.length) return;
     demandeEnCours = true;
+    lot.forEach((i) => enVol.add(i));
     try {
       const r = await Commun.api('/api/carte/globale/noms', { corps: { indices: lot } });
       for (const i of lot) noms.set(i, r[String(i)] || { nom: null, lat: null });
     } catch (e) {
-      for (const i of lot) noms.set(i, { nom: null, lat: null });      // quota atteint ou erreur : pas de nom, pas de reprise
+      if (e.statut === 429 && /quota/i.test(e.detail || '')) {
+        for (const i of lot) noms.set(i, { nom: null, lat: null });    // quota de l'heure atteint : plus de noms
+      } else if (e.message !== 'session') {
+        pause = Date.now() + 5000;                                     // débit ou réseau : on reprend plus tard
+        lot.forEach((i) => enAttente.add(i));
+      }
     } finally {
+      lot.forEach((i) => enVol.delete(i));
       demandeEnCours = false;
       dessiner();
       if (etat.choisi >= 0) panneau(etat.choisi);
-      if (enAttente.size && !minuterieNoms) minuterieNoms = setTimeout(chargerNoms, 50);
+      if (enAttente.size && !minuterieNoms) minuterieNoms = setTimeout(chargerNoms, Math.max(50, pause - Date.now()));
     }
+  }
+  function erreurCarte(e, objet) {
+    if (e.statut === 403) return `${objet} réservée à la cellule fraude.`;
+    if (e.statut === 404) return `${objet} introuvable.`;
+    if (e.statut === 429) return 'Trop de consultations pour l\u2019heure : réessayez dans quelques minutes.';
+    if (e.statut === 503) return 'Aucune carte globale n\u2019est chargée sur ce serveur.';
+    return 'La carte ne répond pas. Réessayez.';
   }
   const nomDe = (n) => { const x = noms.get(n.i); return x && x.nom ? x : null; };
 
@@ -303,11 +320,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const n = N[i];
     let f = fiches.get(i);
     if (!f) {
+      if (fichesEnErreur.has(i)) {
+        p.innerHTML = `<button class="fermer" type="button" data-fermer aria-label="Fermer">×</button><div class="ligne">${esc(fichesEnErreur.get(i))}</div>`;
+        p.style.display = 'block';
+        return;
+      }
       p.innerHTML = '<div class="ligne">Chargement de la fiche…</div>'; p.style.display = 'block';
+      if (!fichesEnCours.has(i)) fichesEnCours.set(i, Commun.api(`/api/carte/globale/noeud/${i}`).finally(() => fichesEnCours.delete(i)));
+      const demande = fichesEnCours.get(i);
       try {
-        f = await Commun.api(`/api/carte/globale/noeud/${i}`);
+        f = await demande;
       } catch (e) {
-        if (etat.choisi === i) p.innerHTML = `<button class="fermer" type="button" data-fermer aria-label="Fermer">×</button><div class="ligne">${esc(Commun.erreur(e, 'Fiche'))}</div>`;
+        if (e.message === 'session') return;
+        fichesEnErreur.set(i, erreurCarte(e, 'Fiche'));
+        if (etat.choisi === i) panneau(i);
         return;
       }
       fiches.set(i, f);
@@ -336,6 +362,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     etat.tx = r.width / 2 - 180 - (x * cy - y * sy) * etat.k; etat.ty = r.height / 2 - (x * sy + y * cy) * etat.cp * etat.k; dessiner();
   }
   function choisir(i) {
+    if (i !== etat.choisi) fichesEnErreur.clear();          // un nouveau choix retente une fiche en erreur
     etat.choisi = i;
     if (maroc()) {
       // vue Maroc : un clic sur un élément ne laisse sur la carte que son réseau ; un clic dans le vide ramène tout

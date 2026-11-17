@@ -152,5 +152,5 @@ def test_recherche_compte_dans_le_quota_d_etiquettes(client_avec, publication):
     with client_avec(CARTE_QUOTA_ETIQUETTES='1') as (c, etat):
         connecte(c, etat, 'ana', 'ANALYSTE')
         assert c.post('/api/carte/recherche', json={'q': 'ZZ900008'}).status_code == 200
-        assert journal.indices_servis(etat.base, 'ana', ('noms', 'recherche')) == {indice_de(publication, 'E:9')}
+        assert {i for _e, i in journal.indices_servis(etat.base, 'ana', ('noms', 'recherche'))} == {indice_de(publication, 'E:9')}
         assert c.post('/api/carte/noms', json={'indices': [indice_de(publication, 'S:1')]}).status_code == 429

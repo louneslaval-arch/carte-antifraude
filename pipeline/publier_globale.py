@@ -33,12 +33,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import publier_carte as pc  # noqa: E402
 
 TYPES = ('societe', 'personne', 'inscrit')
-# Styles d'arête de carte_globale.py ; un style nouveau ne doit jamais se perdre en silence
-STYLES = ('', 'rap', 'certain', 'ancien', 'ancien rap', 'ancien certain', 'pont', 'ancien pont', 'dossier')
+# Styles d'arête de carte_globale.py (rôle actuel ou terminé, annonce mélangée, confirmé ou lu dans un dossier,
+# rapprochements) ; un style nouveau ne doit jamais se perdre en silence. Les numéros existants ne changent jamais.
+STYLES = ('', 'rap', 'certain', 'ancien', 'ancien rap', 'ancien certain', 'pont', 'ancien pont', 'dossier',
+          'melange', 'ancien melange', 'ancien dossier', 'melange dossier', 'ancien melange dossier')
 CHAMPS_COUCHE1 = {'x', 'y', 'mx', 'my', 'deg', 'c', 't', 'ville', 'bl', 'o', 'ns', 'certain'}
 ORIGINES = ('r', 'd', 'rd')
 # Libellés sans identité admis en couche 1, en plus des rôles de publier_carte (sans leur date)
-RAPPROCHEMENT_RE = re.compile(r'^rapprochement R\d{2}[a-z]? \((certain|probable)(, même CIN, dossier)?'
+RAPPROCHEMENT_RE = re.compile(r'^rapprochement (R|AF)\d{2}[a-z]? \((certain|probable)(, même CIN, dossier)?'
                               r'(, poids \d\.\d{2})?\)$')
 LIBELLES_FIXES = {'société associée'}
 

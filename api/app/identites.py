@@ -57,17 +57,22 @@ def indice_par_cle(publication, cle):
     tribunal d'abord), comparés sans espaces et en majuscules ; None s'il n'est pas sur la carte."""
     compact = re.sub(r'\s+', '', str(cle[1])).upper()
     with _ouvrir(publication) as con:
-        if cle[0] == 'cin':
-            r = con.execute("""SELECT i.indice FROM identite i JOIN noeud n USING (indice)
-                               WHERE upper(replace(i.cin, ' ', '')) = ?
-                               ORDER BY CASE n.type WHEN 'personne' THEN 0 WHEN 'inscrit' THEN 1 ELSE 2 END, i.indice
+        if cle[0] == 'cin':                      # table de recherche : CIN déjà sans blancs, en majuscules, indexé
+            r = con.execute("""SELECT r.indice FROM recherche r JOIN noeud n USING (indice)
+                               WHERE r.champ = 'cin' AND r.valeur = ?
+                               ORDER BY CASE n.type WHEN 'personne' THEN 0 WHEN 'inscrit' THEN 1 ELSE 2 END, r.indice
                                LIMIT 1""", (compact,)).fetchone()
-        else:
-            r = con.execute("""SELECT i.indice FROM identite i JOIN noeud n USING (indice)
-                               WHERE n.type = 'societe' AND upper(replace(i.rc, ' ', '')) = ?
-                               ORDER BY coalesce(i.tribunal, '') = coalesce(?, '') DESC, i.indice LIMIT 1""",
-                            (compact, cle[2])).fetchone()
-    return r[0] if r else None
+            return r[0] if r else None
+        # un numéro de RC n'est unique que dans son tribunal : même tribunal exigé ; sans tribunal, un seul candidat
+        candidats = con.execute("""SELECT r.indice, i.tribunal FROM recherche r JOIN noeud n USING (indice)
+                                     JOIN identite i USING (indice)
+                                     WHERE n.type = 'societe' AND r.champ = 'rc' AND r.valeur = ?""",
+                                (compact,)).fetchall()
+    if cle[2]:
+        retenus = sorted(i for i, t in candidats if t == cle[2])
+    else:
+        retenus = [i for i, _t in candidats] if len(candidats) == 1 else []
+    return retenus[0] if retenus else None
 
 
 def forme_recherche(q):

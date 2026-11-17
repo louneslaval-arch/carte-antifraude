@@ -37,7 +37,7 @@ def _noms(demande, request, session, p, epoque=''):
     if any(not 0 <= i < p.noeuds for i in demande.indices):
         raise HTTPException(422, 'Indice hors de la carte')
     etat = _etat(request)
-    quotas.etiquettes(etat, session, demande.indices)
+    quotas.etiquettes(etat, session, demande.indices, epoque)
     resultat = identites.noms(p, set(demande.indices))
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'noms', resultat, ip=session.ip, epoque=epoque)
     return {str(i): v for i, v in resultat.items()}
@@ -56,12 +56,12 @@ def _noeud(indice, request, session, p, globale=False, epoque=''):
 @routeur.post('/noms')
 def noms(demande: DemandeNoms, request: Request, session: Session = Depends(exige('carte.noms')),
          p=Depends(publication)):
-    return _noms(demande, request, session, p)
+    return _noms(demande, request, session, p, epoque=p.epoque)
 
 
 @routeur.get('/noeud/{indice}')
 def noeud(indice: int, request: Request, session: Session = Depends(exige('carte.noeud')), p=Depends(publication)):
-    return _noeud(indice, request, session, p)
+    return _noeud(indice, request, session, p, epoque=p.epoque)
 
 
 class DemandeRecherche(BaseModel):
@@ -80,7 +80,7 @@ class DemandeRecherche(BaseModel):
 def _recherche(demande, request, session, p, epoque=''):
     etat = _etat(request)
     resultats = identites.recherche(p, demande.q)
-    quotas.etiquettes(etat, session, [r['indice'] for r in resultats])
+    quotas.etiquettes(etat, session, [r['indice'] for r in resultats], epoque)
     # la requête n'est jamais journalisée : seulement les indices trouvés et leur nombre
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche',
                    [r['indice'] for r in resultats], ip=session.ip, epoque=epoque)
@@ -90,7 +90,7 @@ def _recherche(demande, request, session, p, epoque=''):
 @routeur.post('/recherche')
 def recherche(demande: DemandeRecherche, request: Request, session: Session = Depends(exige('carte.recherche')),
               p=Depends(publication)):
-    return _recherche(demande, request, session, p)
+    return _recherche(demande, request, session, p, epoque=p.epoque)
 
 
 # ---- carte globale (registre × liste noire) : même découpage en deux couches, sa propre publication ----------------

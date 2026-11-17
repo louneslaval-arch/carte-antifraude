@@ -18,11 +18,12 @@ def ecrire(fabrique, utilisateur, role, action, indices=(), ip='', nombre=None, 
 
 
 def indices_servis(fabrique, utilisateur, actions, depuis=timedelta(hours=1)):
-    """Indices distincts déjà servis à cet utilisateur pour ces actions pendant la période."""
+    """Couples (époque, indice) distincts déjà servis à cet utilisateur pour ces actions pendant la période : un même
+    entier désigne des nœuds différents d'une publication (ou de la base client) à l'autre."""
     with fabrique() as s:
-        return set(s.scalars(select(JournalIndice.indice).join(Journal).where(
+        return set(s.execute(select(Journal.epoque, JournalIndice.indice).join(Journal).where(
             Journal.utilisateur == utilisateur, Journal.action.in_(actions),
-            Journal.horodatage >= maintenant() - depuis)))
+            Journal.horodatage >= maintenant() - depuis)).all())
 
 
 def nombre_actions(fabrique, utilisateur, actions, depuis=timedelta(hours=1)):

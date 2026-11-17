@@ -13,6 +13,7 @@ Les valeurs par défaut sont celles de la base livrée (`jeu_essai/demo/base_dem
 Sortie console : comptages seulement.
 """
 import argparse
+import gzip
 import os
 import sqlite3
 import subprocess
@@ -57,10 +58,17 @@ def publier_carte(chemin_socle, dossier, d):
 
 
 def archiver(dossier, archive):
-    """Range la publication (ses quatre fichiers, à plat) dans une archive compressée."""
-    with tarfile.open(archive, 'w:gz') as t:
+    """Range la publication (ses quatre fichiers, à plat) dans une archive compressée, reproductible : ni nom de poste
+    ni date dans les en-têtes."""
+    def neutre(info):
+        info.uid = info.gid = 0
+        info.uname = info.gname = ''
+        info.mtime = 0
+        return info
+    with open(archive, 'wb') as brut, gzip.GzipFile(fileobj=brut, mode='wb', mtime=0) as gz, \
+            tarfile.open(fileobj=gz, mode='w') as t:
         for nom in sorted(os.listdir(dossier)):
-            t.add(os.path.join(dossier, nom), arcname=nom)
+            t.add(os.path.join(dossier, nom), arcname=nom, filter=neutre)
 
 
 def construire(sortie, n_dossiers=1500, n_societes=5000, graine=20261116, carte=None):

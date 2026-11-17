@@ -42,7 +42,11 @@ const Commun = (() => {
     }
     const r = await fetch(chemin, init);
     if (r.status === 401 && !options.sansRedirection) { retourConnexion(); throw new Error('session'); }
-    if (!r.ok) { const e = new Error('http'); e.statut = r.status; throw e; }
+    if (!r.ok) {
+      const e = new Error('http'); e.statut = r.status;
+      try { e.detail = (await r.json()).detail || ''; } catch (x) { e.detail = ''; }       // message du serveur, sans valeur reçue
+      throw e;
+    }
     return r.status === 204 ? null : r.json();
   }
 

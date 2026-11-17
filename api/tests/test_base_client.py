@@ -437,7 +437,7 @@ def test_identites_de_tiers_servies_journalisees_et_comptees(avec_base, base_dem
         tiers = {p['indice'] for p in f['personnes'] if p['indice']}
         assert len(tiers) >= 3
         from app import journal, quotas
-        servis = journal.indices_servis(etat.base, 'ana', quotas.ETIQUETTES)
+        servis = {i for _e, i in journal.indices_servis(etat.base, 'ana', quotas.ETIQUETTES)}
         assert tiers <= servis
 
 

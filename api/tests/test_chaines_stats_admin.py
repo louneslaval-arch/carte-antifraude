@@ -157,4 +157,4 @@ def test_purge_du_journal(etat):
     with etat.base.begin() as s:
         s.execute(update(Journal).where(Journal.id == 1).values(horodatage=maintenant() - timedelta(days=400)))
     assert journal.purger(etat.base, 365) == 1
-    assert journal.indices_servis(etat.base, 'ana', ('noms',), depuis=timedelta(days=1000)) == {3}
+    assert {i for _e, i in journal.indices_servis(etat.base, 'ana', ('noms',), depuis=timedelta(days=1000))} == {3}

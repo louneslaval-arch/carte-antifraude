@@ -45,7 +45,7 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
     resultat = b.rechercher(demande.texte, demande.type, demande.niveau, demande.produit, demande.avec_incoherence,
                             demande.page, demande.taille, demande.tri)
     indices = [c['indice'] for c in resultat['items']]
-    quotas.etiquettes(etat, session, indices)
+    quotas.etiquettes(etat, session, indices, b.epoque)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,
                    epoque=b.epoque)
     return resultat
@@ -60,7 +60,7 @@ def _servir(request, session, action, objet, indice):
     b = etat.base_client
     tiers = b.fiches_nommees(objet) - {indice}
     quotas.fiches(etat, session)
-    quotas.etiquettes(etat, session, tiers)
+    quotas.etiquettes(etat, session, tiers, b.epoque)
     journal.ecrire(etat.base, session.utilisateur, session.role.value, action, [indice], ip=session.ip,
                    epoque=b.epoque)
     if tiers:
@@ -90,7 +90,7 @@ def reseau(indice: int, request: Request, session: Session = Depends(exige('base
 
 
 @routeur.get('/carte/{indice}')
-def carte(indice: int, request: Request, session: Session = Depends(exige('base.reseau')), b=Depends(base_client)):
+def carte(indice: int, request: Request, session: Session = Depends(exige('carte.globale')), b=Depends(base_client)):
     """Position d'une fiche sur la carte globale (indice de la carte), retrouvée par son CIN ou par son RC : la page
     de la fiche ouvre la carte centrée sur le client, sinon la vue réseau. Aucune identité dans la réponse."""
     etat = request.app.state.etat
