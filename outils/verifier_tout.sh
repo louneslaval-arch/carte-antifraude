@@ -15,9 +15,9 @@ etape "ruff (E9, F)"
 if [ ! -x .venv/bin/ruff ]; then echo "ruff absent : .venv/bin/python -m pip install -r requirements-dev.txt"; exit 1; fi
 .venv/bin/ruff check --select E9,F .
 
-etape "mypy (normalisation, lecteurs de structure)"
+etape "mypy (normalisation, lecteurs de structure, analytique)"
 if [ ! -x .venv/bin/mypy ]; then echo "mypy absent : .venv/bin/python -m pip install -r requirements-dev.txt"; exit 1; fi
-.venv/bin/mypy --ignore-missing-imports --explicit-package-bases pipeline/normalisation outils/v2
+.venv/bin/mypy --ignore-missing-imports --explicit-package-bases pipeline/normalisation outils/v2 pipeline/analytique
 
 etape "tests"
 $PY -m pytest -q

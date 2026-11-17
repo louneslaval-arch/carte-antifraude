@@ -98,6 +98,49 @@ Tous les CIN commencent par « ZZ », tous les liens pointent vers `exemple.inva
 | moyen | 8 272 | 12 743 | 354 | 13 s |
 | grand | 61 043 | 96 519 | 2 714 | 125 s |
 
+## Statistiques des dossiers (couche 7)
+
+Vue chiffrée des demandes et de ce que l'antifraude en dit : volumes, profils, verdicts par segment, contrôles,
+qualité des données. Ces chiffres servent de taux de base aux autres modules. Le verdict est celui de l'antifraude
+(« jugé suspect par l'antifraude ») : un signal, jamais une fraude constatée.
+
+```
+.venv/bin/python construire.py --base CHEMIN.sqlite            # couches c0 à c5 (les données réelles : Lounès, hors du dépôt)
+.venv/bin/python stats_dossiers.py --base CHEMIN.sqlite \
+    [--periode-debut 2026-10-13] [--periode-fin 2026-11-10] [--avec-archives] \
+    [--html statistiques_dossiers.html] [--avec-noms-societes]
+```
+
+Sur le jeu d'essai (600 dossiers fictifs, construits en 3 s) :
+
+```
+.venv/bin/python jeu_essai/v2/statistiques/generer_v2_fictif.py --base      # jeu_essai/sortie/statistiques_essai.sqlite
+.venv/bin/python stats_dossiers.py --base jeu_essai/sortie/statistiques_essai.sqlite --html jeu_essai/sortie/statistiques_dossiers.html
+```
+
+- **Tables** (`schema/070_c7_analytique.sql`), reconstruites entièrement à chaque exécution (deux exécutions de suite
+  donnent la même table, hors horodatage) : `c7_indicateur` (dictionnaire, version 1, `pipeline/analytique/indicateurs.py`
+  fait foi) ; `c7_variable_dossier` (une ligne par dossier, table de travail jamais servie) ; `c7_agregat` (une case par
+  indicateur, tranche de filtre produit × catégorie et découpage).
+- **Sources** : `c3_dossier`, `c3_revenu`, `c3_compte`, `c3_vehicule`, `c1_fait_retenu`, `c1_mention_personne`,
+  `c1_piece`, `c1_releve_mois`, et les contrôles du miroir (`"AnalysisControl"`, dernière analyse ; la famille vient
+  de la version brute). Montants, dates et villes : normalisation et référentiel du dépôt.
+- **Secret statistique** : aucune valeur sur moins de 5 dossiers (« < 5 ») ; une répartition qui n'aurait qu'une case
+  masquée en masque une seconde (la plus petite), ligne par ligne et colonne par colonne pour un croisement. Une case
+  masquée n'a aucune valeur dans la table (ni nombre, ni effectif, ni fourchette). Médianes à partir de 5 valeurs,
+  jamais de minimum ni de maximum.
+- **Critères interdits** : le sexe et la nationalité ne servent qu'en répartition simple des demandeurs, jamais croisés
+  avec un verdict, un contrôle ni une autre dimension (constantes `DIMENSIONS_TAUX` et `DIMENSIONS_REPARTITION_SEULE`).
+- **Noms de sociétés** (banques, employeurs, concessionnaires) : seulement avec `--avec-noms-societes` (à valider avec la
+  conformité), et seulement ceux qui comptent 5 dossiers ou plus ; les autres sont regroupés, leur nom ne sort jamais.
+- **Page** : un seul fichier HTML (`pipeline/statistiques_modele.html` + cases non masquées en JSON), hors ligne, sans
+  aucune ressource externe ; cinq onglets (demandes, profils, verdicts, contrôles, qualité des données), filtres produit
+  et catégorie, chaque taux avec son effectif et sa fourchette de Wilson à 95 %, tableau dépliable et copiable sous
+  chaque graphique.
+- **Limites** : le secret secondaire protège chaque répartition, pas la soustraction entre tranches de filtre (par
+  exemple LOA = tous − DISPO − AUTO dans une catégorie) ; les régions sont dessinées en barres (le contour du dépôt
+  suit l'ancien découpage en 16 régions) ; agence, canal, montant demandé et remboursements manquent encore à la v2.
+
 ## Décisions prises
 
 - **Deux quotas distincts** (remplace « 2 000 identités par heure ») : les **étiquettes** (nom seul, au zoom) sont

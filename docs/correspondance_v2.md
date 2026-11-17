@@ -45,6 +45,9 @@ pas aux fichiers de Kamal (dérive).
 | `ref_valeur_defaut` | référentiel | valeurs que l'amont pose par défaut (« VAB » pour l'employeur déclaré) : marquées, jamais comparées |
 | `c5_arete`, `c5_compteur`, `c5_cle_adresse`, vue `c5_noeud` | c5 | le graphe : une arête par mention de c2 (rôle dans une société, fiche qui porte un RIB, un logement ou un siège), la taille n de chaque nœud pour le coût √(2/n) (décision n°21), l'adresse normalisée de chaque mention ; la v2 ne relie pas les dossiers entre eux |
 | paramètres `c5_*` de `c6_version_parametres` | c5 | barème n°23 par rôle et par identifiant, seuils (0,20 ; 0,08 ; 0,05), longueurs (alerte 3, recherche 4), fiabilité par défaut d'une homonymie, poids du foyer : tous provisoires |
+| `c7_indicateur` | c7 | dictionnaire des indicateurs statistiques (nom, libellé, définition, formule, source, unité, version) ; `IndicateurDossier` de la v2 porte une valeur par dossier (`dossierId`, `indicateur`, `valeur`, `source`), pas une définition : les deux coexisteront (étape N) |
+| `c7_variable_dossier` | c7 | une ligne par dossier : variables dérivées de c1, c3 et du miroir (âge, tranches, revenu vérifié et sa source, ville et région, véhicule, société, pièces relues) ; colonnes de `Dossier` reprises sous les noms français de la demande (`type_personne` = `personType`, `produit` = `productType`, `mode_paiement` = `paymentMode`, `categorie` = `category`, `statut_analyse` = `analysisStatus`), valeurs d'énumération de la v2 inchangées |
+| `c7_agregat` | c7 | une case par indicateur, tranche de filtre (produit × catégorie) et découpage, avec effectif, fourchette de Wilson et secret statistique : la v2 ne publie pas de statistiques ; contrôles par `controlId` et famille (`ControlFamily`) |
 
 <!-- DEBUT PARTIE GENEREE : outils/v2/carte_correspondance.py --ecrire ; ne pas modifier à la main -->
 
