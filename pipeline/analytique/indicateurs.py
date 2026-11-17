@@ -6,6 +6,9 @@ noire et la cellule fraude disent qui est fraudeur). Ce module fait foi ; `c7_in
 VERSION = '1'
 SEUIL = 5                    # aucune valeur publiée sur moins de 5 dossiers (règle absolue n°6)
 SEUIL_VILLE = 30             # une ville n'est un découpage qu'à partir de 30 dossiers ; sinon « autres villes »
+SEUIL_MEDIANE = 10           # provisoire (question n°132) : une médiane de 5 valeurs impaires est la valeur d'une personne
+# Arrondi des médianes publiées (provisoire, question n°132) : dirhams à la centaine ou au millier, âge à l'année.
+ARRONDI_MEDIANE = {'mediane_revenu_verifie': -2, 'mediane_prix_vehicule': -3, 'mediane_age': 0}
 NON_RENSEIGNE = 'non renseigné'
 
 # Critères autorisés pour découper un taux de verdict ou de contrôle (constante unique, relue par les tests).

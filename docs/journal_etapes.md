@@ -578,4 +578,8 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   demandeur (pas celle d'une caution), revenu des PP seulement, dernière analyse par son identifiant, `missing` en
   tableau (PostgreSQL), années révolues, page « secret » au lieu de « < 5 » ; jeu d'essai complété (verdict
   provisoire, analyse en cours, deux anomalies graves, caution, archives, noms tirés de syllabes).
-- **Non fait, noté** : questions n°116 à 131.
+- **Gardien des données** : médianes à partir de 10 valeurs et arrondies ; employeur ou concessionnaire sans forme
+  sociale jamais nommé ; région d'une seule petite ville regroupée ; toute erreur de `stats_dossiers.py` réduite au nom
+  de son type ; page réelle hors du dépôt ; jeu d'essai avec employeurs et concessionnaires rares (le test du
+  regroupement passait à vide). 119 tests du module ; vérification complète verte.
+- **Non fait, noté** : questions n°116 à 134.

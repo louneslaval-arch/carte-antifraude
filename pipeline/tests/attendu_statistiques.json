@@ -256,7 +256,7 @@
    "indicateur": "mediane_revenu_verifie",
    "masque": 0,
    "numerateur": null,
-   "valeur": 14000.5,
+   "valeur": 14000.0,
    "valeur1": "",
    "valeur2": ""
   },
@@ -417,19 +417,6 @@
    "valeur2": ""
   },
   {
-   "denominateur": 12,
-   "dimension1": "region",
-   "dimension2": "",
-   "filtre_categorie": "toutes",
-   "filtre_produit": "tous",
-   "indicateur": "nb_dossiers",
-   "masque": 0,
-   "numerateur": null,
-   "valeur": 12,
-   "valeur1": "Souss-Massa",
-   "valeur2": ""
-  },
-  {
    "denominateur": 86,
    "dimension1": "region",
    "dimension2": "",
@@ -440,6 +427,19 @@
    "numerateur": null,
    "valeur": 86,
    "valeur1": "Tanger-Tétouan-Al Hoceïma",
+   "valeur2": ""
+  },
+  {
+   "denominateur": 12,
+   "dimension1": "region",
+   "dimension2": "",
+   "filtre_categorie": "toutes",
+   "filtre_produit": "tous",
+   "indicateur": "nb_dossiers",
+   "masque": 0,
+   "numerateur": null,
+   "valeur": 12,
+   "valeur1": "autres régions",
    "valeur2": ""
   },
   {

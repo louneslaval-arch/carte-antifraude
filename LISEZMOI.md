@@ -108,8 +108,11 @@ qualité des données. Ces chiffres servent de taux de base aux autres modules. 
 .venv/bin/python construire.py --base CHEMIN.sqlite            # couches c0 à c5 (les données réelles : Lounès, hors du dépôt)
 .venv/bin/python stats_dossiers.py --base CHEMIN.sqlite \
     [--periode-debut 2026-10-13] [--periode-fin 2026-11-10] [--avec-archives] \
-    [--html statistiques_dossiers.html] [--avec-noms-societes]
+    [--html CHEMIN/statistiques_dossiers.html] [--avec-noms-societes]
 ```
+
+Sur données réelles, la base et la page restent hors du dépôt, dans le dossier des données réelles ; jamais dans le
+dossier courant.
 
 Sur le jeu d'essai (600 dossiers fictifs dont 11 archivés, construits en 3 s) :
 

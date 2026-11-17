@@ -147,3 +147,45 @@ def test_verite_figee_egale_a_une_nouvelle_generation(jeu_stats, attendu):
     import json
     assert json.loads(json.dumps(jeu_stats.verite(jeu_stats.plan()), default=str)) == attendu
     assert json.dumps(jeu_stats.dossiers(), sort_keys=True) == json.dumps(jeu_stats.dossiers(), sort_keys=True)
+
+
+@SANS_KAMAL
+def test_employeur_rare_ou_sans_forme_sociale_jamais_nomme(base_stats, jeu_stats):
+    agregats.construire(base_stats, avec_noms_societes=True, calcule_le=CALCULE_LE)
+    valeurs = {r['valeur1'] for r in lignes_agregat(base_stats)} | {r['valeur2'] for r in lignes_agregat(base_stats)}
+    assert jeu_stats.EMPLOYEUR_COURANT in valeurs and jeu_stats.CONCESSION_COURANTE in valeurs
+    for nom in (jeu_stats.EMPLOYEUR_RARE, jeu_stats.EMPLOYEUR_PERSONNE, jeu_stats.CONCESSION_RARE):
+        assert nom not in valeurs, nom
+    agregats.construire(base_stats, calcule_le=CALCULE_LE)
+
+
+def test_forme_sociale_reconnue():
+    assert agregats.est_societe('ZOUKAFA NEGOCE SARL') and agregats.est_societe('Ste Zoukafa')
+    assert not agregats.est_societe('KAZEX ZOULORIZ') and not agregats.est_societe('SALAMA')
+
+
+@SANS_KAMAL
+def test_mediane_seulement_sur_dix_valeurs_et_arrondie(base_stats):
+    from pipeline.analytique.indicateurs import SEUIL_MEDIANE
+    vues = 0
+    for r in lignes_agregat(base_stats):
+        if r['indicateur'].startswith('mediane_') and not r['masque']:
+            vues += 1
+            assert r['denominateur'] >= SEUIL_MEDIANE, r
+            pas = {'mediane_revenu_verifie': 100, 'mediane_prix_vehicule': 1000, 'mediane_age': 1}[r['indicateur']]
+            assert r['valeur'] % pas == 0, r
+    assert vues
+
+
+def test_region_d_une_seule_petite_ville_regroupee():
+    lignes = [dict(ville='TIZNIT', region='Souss-Massa')] * 12 + [dict(ville='RABAT', region='Rabat-Salé-Kénitra')] * 40
+    villes = {'TIZNIT': 'autres villes', 'RABAT': 'RABAT'}
+    assert agregats.regions_isolees(lignes, villes) == {'Souss-Massa'}
+
+
+def test_aucun_module_servi_ne_lit_la_table_de_travail():
+    import pathlib
+    from .commun import RACINE
+    for f in list(pathlib.Path(RACINE, 'api').rglob('*.py')) + list(pathlib.Path(RACINE, 'front').glob('*')):
+        if f.is_file():
+            assert 'c7_variable_dossier' not in f.read_text(encoding='utf-8', errors='ignore'), f

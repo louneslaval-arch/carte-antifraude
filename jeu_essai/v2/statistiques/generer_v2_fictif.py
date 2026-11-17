@@ -149,6 +149,18 @@ def plan(graine=GRAINE, n=N_DOSSIERS):
     return lignes
 
 
+EMPLOYEUR_COURANT, EMPLOYEUR_RARE, EMPLOYEUR_PERSONNE = 'ZOUKAFA NEGOCE SARL', 'RAREZOU SARL', 'KAZEX ZOULORIZ'
+CONCESSION_COURANTE, CONCESSION_RARE = 'CONCESSION ZILAKO SARL', 'CONCESSION RARIKA SARL'
+
+
+def employeur_de(i):
+    """Employeur de l'attestation : courant ; rare (3 dossiers, jamais nommé) ; sans forme sociale (une personne ?
+    jamais nommé, même au-delà de 5 dossiers)."""
+    if i % 200 == 10:
+        return EMPLOYEUR_RARE
+    return EMPLOYEUR_PERSONNE if i % 4 == 1 else EMPLOYEUR_COURANT
+
+
 def controles(i, p):
     """(controlId, famille, libellé, applicable, résultat, criticité, manquants)."""
     v = p['verdict']
@@ -236,6 +248,7 @@ def dossier(m, p):
                 situation_familiale=('MARIE', 'CELIBATAIRE')[i % 2], nombre_enfants=str(i % 4))))
         if src in ('bulletin', 'attestation'):
             att = dict(nom=nom, prenom=prenom, type_contrat=('CDI', 'cdd', 'INTERIM')[i % 3],
+                       employeur={'raison_sociale': employeur_de(i)},
                        date_embauche=_fr(p['recu'].replace(year=p['recu'].year - (i % 12))))
             if src == 'attestation':
                 att['salaire_net'] = _montant_texte(mt, i)
@@ -265,7 +278,8 @@ def dossier(m, p):
     if p['produit'] != 'DISPO':
         pieces.append(_piece(base, 'FACTURE_PROFORMA_VEHICULE', 0, dict(
             etat_vehicule=p['etat'], prix_ttc=_montant_texte(p['prix'], i), montant_avance=p['avance'],
-            marque_vehicule='MARQUE ZOUBA', vendeur={'raison_sociale': 'CONCESSION ZILAKO'})))
+            marque_vehicule='MARQUE ZOUBA',
+            vendeur={'raison_sociale': CONCESSION_RARE if i % 200 == 1 else CONCESSION_COURANTE})))
     d['pieces'] = pieces
     return d
 
@@ -310,11 +324,11 @@ def verite(tout):
         c = sum(p['source_revenu'] == src for p in pp)
         cases.append(_case('part_source_revenu', c / len(pp), c, len(pp), 'source_revenu', src))
     ages = [p['age'] for p in lignes if p.get('age') is not None]
-    cases.append(_case('mediane_age', statistics.median(ages), None, len(ages)))
+    cases.append(_case('mediane_age', float(round(statistics.median(ages))), None, len(ages)))   # à l'année
     revenus = [p['revenu'] for p in lignes if p['revenu'] is not None]
-    cases.append(_case('mediane_revenu_verifie', statistics.median(revenus), None, len(revenus)))
+    cases.append(_case('mediane_revenu_verifie', float(round(statistics.median(revenus), -2)), None, len(revenus)))
     prix = [p['prix'] for p in lignes if 'prix' in p]
-    cases.append(_case('mediane_prix_vehicule', statistics.median(prix), None, len(prix)))
+    cases.append(_case('mediane_prix_vehicule', float(round(statistics.median(prix), -3)), None, len(prix)))
     releves_lus = sum(p['lignes_lues'] for p in lignes)
     cases.append(_case('taux_releve_relu', releves_lus / n, releves_lus, n))
     for cid in ('EMP-01', 'BNQ-01', 'AUT-01'):
@@ -331,9 +345,16 @@ def verite(tout):
     for v, nom in ((None, 'ville inconnue'), ('CASABLANCA', 'CASABLANCA')):
         c = sum(p['ville'] == v for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'ville', nom))
-    for region in sorted(set(REGION.values())):
+    # une région dont tous les dossiers viennent d'une seule ville de moins de 30 dossiers redonnerait la ville
+    par_ville = {v: sum(p['ville'] == v for p in lignes) for v in REGION}
+    isolees = {r for r in set(REGION.values()) if [v for v in REGION if REGION[v] == r and par_ville[v]] in
+               ([v] for v in REGION if par_ville[v] < 30)}
+    for region in sorted(set(REGION.values()) - isolees):
         c = sum(REGION.get(p['ville']) == region for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'region', region))
+    c = sum(REGION.get(p['ville']) in isolees for p in lignes)
+    if isolees:
+        cases.append(_case('nb_dossiers', c, None, c, 'region', 'autres régions'))
     for etat in ('neuf', 'occasion'):
         c = sum(p.get('etat', '').lower() == etat for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'vehicule_etat', etat))

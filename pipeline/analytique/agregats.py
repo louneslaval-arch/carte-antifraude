@@ -11,6 +11,7 @@ from __future__ import annotations
 import datetime
 import json
 import math
+import re
 from collections import defaultdict
 from typing import Any, Callable, Iterable, Optional
 
@@ -79,31 +80,55 @@ TEXTE_LIBRE = {**{d: 'autres valeurs' for d in ind.DIMENSIONS_REPARTITION_SEULE}
                'marque_vehicule': 'autres marques', **{d: 'autres sociétés' for d in ind.DIMENSIONS_SOCIETES}}
 
 
+# Forme sociale : un employeur ou un vendeur sans elle peut être une personne physique (vendeur d'occasion, employeur
+# particulier) ; son nom ne sort jamais, même avec `--avec-noms-societes`.
+FORME_SOCIALE = re.compile(r'\b(SARL|SARLAU|SA|SAS|SNC|SCS|SCA|GIE|STE|SOCIETE|GROUPE|COOPERATIVE|'
+                           r'ETABLISSEMENTS|ETS|BANK|BANQUE|CREDIT)\b')
+
+
+def est_societe(nom: str) -> bool:
+    return bool(FORME_SOCIALE.search(nom.upper()))
+
+
 def valeurs_retenues(lignes: list[Ligne]) -> dict[str, set[str]]:
     """Valeurs de texte libre (noms de sociétés, nationalités, situations, marques) comptant au moins 5 dossiers sur
-    la période ; les autres sont regroupées : leur texte ne sort jamais, même dans la clé d'une case masquée."""
+    la période ; les autres sont regroupées : leur texte ne sort jamais, même dans la clé d'une case masquée. Un
+    employeur ou un concessionnaire sans forme sociale est regroupé quel que soit son nombre de dossiers."""
     retenues: dict[str, set[str]] = {}
     for dim in TEXTE_LIBRE:
         comptes: dict[str, int] = defaultdict(int)
         for x in lignes:
             if x.get(dim):
                 comptes[x[dim]] += 1
-        retenues[dim] = {v for v, n in comptes.items() if n >= ind.SEUIL}
+        retenues[dim] = {v for v, n in comptes.items() if n >= ind.SEUIL
+                         and (dim not in ('employeur', 'concessionnaire') or est_societe(v))}
     return retenues
+
+
+def regions_isolees(lignes: list[Ligne], villes: dict[str, str]) -> set[str]:
+    """Régions dont tous les dossiers viennent d'une seule ville regroupée (moins de 30 dossiers) : la région
+    redonnerait la ville ; elle est regroupée à son tour."""
+    par_region: dict[str, set[str]] = defaultdict(set)
+    for x in lignes:
+        if x['region']:
+            par_region[x['region']].add(x['ville'])
+    return {r for r, vs in par_region.items() if len(vs) == 1 and villes.get(next(iter(vs))) == 'autres villes'}
 
 
 societes_retenues = valeurs_retenues
 
 
-def lecteur(villes: dict[str, str], retenues: Optional[dict[str, set[str]]] = None) -> Callable[[Ligne, str], str]:
+def lecteur(villes: dict[str, str], retenues: Optional[dict[str, set[str]]] = None,
+            regions: Optional[set[str]] = None) -> Callable[[Ligne, str], str]:
     """Valeur d'une dimension pour un dossier ; « non renseigné » quand la variable est NULL."""
-    gardees = retenues or {}
+    gardees, isolees = retenues or {}, regions or set()
 
     def regroupee(dim: str) -> Callable[[Ligne], Any]:
         return lambda x: x[dim] if not x[dim] or x[dim] in gardees.get(dim, ()) else TEXTE_LIBRE[dim]
     derivees: dict[str, Callable[[Ligne], Any]] = {
         **{dim: regroupee(dim) for dim in TEXTE_LIBRE},
         'ville': lambda x: villes.get(x['ville'], 'autres villes') if x['ville'] else 'ville inconnue',
+        'region': lambda x: 'autres régions' if x['region'] in isolees else x['region'],
         'ecart_revenu': lambda x: x['tranche_ecart_revenu'],
         'anciennete_emploi': lambda x: x['tranche_anciennete'],
         'age_societe': lambda x: x['tranche_age_societe'],
@@ -130,7 +155,9 @@ class Calcul:
              den: Optional[int], valeur: Optional[float], effectif: Optional[int], proportion: bool = False,
              mediane: bool = False) -> None:
         bas, haut = wilson(num, den) if proportion and num is not None and den else (None, None)
-        sensible = False
+        sensible = mediane and (effectif or 0) < ind.SEUIL_MEDIANE
+        if mediane and valeur is not None:
+            valeur = float(round(valeur, ind.ARRONDI_MEDIANE.get(indicateur, 0)))
         if proportion and num is not None and den is not None and not indicateur.startswith('part_'):
             if indicateur in ind.INDICATEURS_VERDICT_CONTROLE:
                 # 1 à 4 dossiers, ou tous sauf 0 à 4 (7 sur 7 jugés suspects désigne chacun d'eux)
@@ -426,7 +453,7 @@ def lire_pieces(cx: Any, refs: set[str]) -> dict[str, list[tuple]]:
 def calculer(lignes: list[Ligne], controles: dict[str, list[tuple]], pieces: dict[str, list[tuple]],
              periode: tuple[str, str], calcule_le: str, avec_noms_societes: bool = False) -> list[Ligne]:
     villes = variables.ville_de_decoupage(lignes, ind.SEUIL_VILLE)
-    val = lecteur(villes, valeurs_retenues(lignes))
+    val = lecteur(villes, valeurs_retenues(lignes), regions_isolees(lignes, villes))
     manquants = manquants_retenus(lignes, controles)
     societes = set() if avec_noms_societes else set(ind.DIMENSIONS_SOCIETES)
     dims_taux = tuple(d for d in ind.DIMENSIONS_TAUX if d not in societes)

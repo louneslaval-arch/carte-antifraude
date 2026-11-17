@@ -46,7 +46,7 @@ def main(argv=None):
             if a.html:
                 taille = page_statistiques.generer(cx, a.html)
                 print(f'page : {taille // 1024} Ko')
-    except (sqlite3.Error, migrer.ErreurMigration) as e:
+    except Exception as e:                    # noqa: BLE001  données réelles : jamais de trace ni de message (valeur lue)
         print(f'échec ({type(e).__name__})', file=sys.stderr)
         return 1
     return 0
