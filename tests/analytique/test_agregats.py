@@ -142,6 +142,7 @@ def test_societe_rare_regroupee_par_le_lecteur():
     assert val(lignes[0], 'banque') == 'autres sociétés' and val(lignes[1], 'banque') == 'BANQUE COURANTE'
 
 
+@SANS_KAMAL
 def test_verite_figee_egale_a_une_nouvelle_generation(jeu_stats, attendu):
     """Graine fixe : la vérité versionnée est celle que le générateur produit, jamais retouchée à la main."""
     import json
