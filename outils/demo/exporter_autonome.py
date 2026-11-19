@@ -165,8 +165,8 @@ def statistiques(sortie, base):
         html = f.read()
     for avant, apres in (("document.getElementById('pastille').textContent = 'données agrégées';",
                           "document.getElementById('pastille').textContent = 'démonstration · données fictives';"),
-                         ('<div class="app">', '<div class="app">\n  <p style="margin:0 0 14px;font-size:13px">'
-                          '<a href="index.html" style="color:inherit">← Portail</a></p>')):
+                         ('<div class="app">', '<div class="app">\n  <p data-style="margin:0 0 14px;font-size:13px">'
+                          '<a href="index.html" data-style="color:inherit">← Portail</a></p>')):
         if html.count(avant) != 1:
             raise SystemExit('statistiques.html : repère introuvable')
         html = html.replace(avant, apres)
