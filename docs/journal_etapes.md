@@ -620,3 +620,15 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   puis à passer dans `c6_version_parametres` s'ils sont retenus.
 - **Tests** : `api/tests/test_vue360_tuiles.py` (14), réécrit rouge avant le code. Vue dans le navigateur pour les
   trois profils et un retraité.
+
+## 19/11/2026 — démonstration en un seul fichier HTML (branche `vue-360`)
+- **Demande de Lounès** : le portail et la base client (vue 360° comprise) dans un seul fichier HTML, sur une base
+  fictive allégée d'une centaine de dossiers, sans toucher au reste.
+- **Fait** : `outils/demo/fichier_unique.py` et `fichier_unique.js`. Base générée par `construire_demo.py` sur 300
+  dossiers (le minimum du générateur pour porter tous ses scénarios), puis 100 clients retenus, les plus graves
+  d'abord, par quotas de profil (60 % salariés, 20 % entrepreneurs, 20 % sociétés) ; réponses de l'API jointes en JSON ;
+  gabarits des pages portail, base, fiche et dossier ; routeur par l'adresse (`#base`, `#fiche?i=…`), toute
+  navigation réécrite en `Commun.aller` ; carte, réseau et statistiques signalés « pas dans ce fichier ». Chiffres du
+  portail recalculés sur les clients retenus (règle des moins de 5 gardée). 100 clients, 94 dossiers, 3,1 Mo.
+- **Tests** : `tests/test_demo_fichier_unique.py` (9), rouges d'abord (module absent) ; le test des chiffres du
+  portail et celui de la réécriture dans une expression ont été écrits avec leur correction.
