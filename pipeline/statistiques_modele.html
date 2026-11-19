@@ -117,8 +117,9 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
 .encadre .expl b { color: var(--encre-2); }
 .note { margin-top: 26px; color: var(--encre-3); font-size: 12px; line-height: 1.6; }
 .bulle { position: fixed; z-index: 10; pointer-events: none; background: var(--encre); color: var(--surface); font-size: 12.5px;
-         padding: 7px 10px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); max-width: 280px; line-height: 1.4; }
+         padding: 8px 11px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .25); max-width: 340px; line-height: 1.4; }
 .bulle b { display: block; font-weight: 650; }
+.bulle .detail { display: block; margin: 3px 0 5px; opacity: .8; }
 [data-tip] { cursor: default; }
 @media (max-width: 860px) { .grille { grid-template-columns: 1fr; } }
 @media print { .filtres, .onglets, button.copier { display: none; } .carte, .kpi { box-shadow: none; } }
@@ -162,6 +163,9 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
     groupes.get(cle).push(c);
   }
   const etat = { p: 0, c: 0, onglet: 0 };
+  const CTL = D.controles || {};
+  const nomCtl = cid => CTL[cid] ? `${cid} · ${CTL[cid].l}` : cid;
+  const detailCtl = cid => CTL[cid] ? `Criticité ${CTL[cid].c} : ${CTL[cid].d}` : '';
 
   // ---- libellés -----------------------------------------------------------------------------------------------------
   const DIM = {
@@ -252,7 +256,8 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
     return t.charAt(0).toUpperCase() + t.slice(1);
   };
   const SECRET = 'secret';
-  const tip = (titre, ligne) => ` data-tip="${esc(titre)}" data-tip2="${esc(ligne || '')}"`;
+  const tip = (titre, ligne, detail) => ` data-tip="${esc(titre)}" data-tip2="${esc(ligne || '')}"` +
+    (detail ? ` data-tip3="${esc(detail)}"` : '');
   const coupe = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
   const totalDe = cs => { const c = cs.find(x => !x.m && x.d); return c ? c.d : null; };
 
@@ -356,17 +361,18 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
   // barres horizontales : une valeur par ligne, piste de fond, valeur au bout
   function barres(cs, opt) {
     if (!cs.length) return vide();
-    const L = opt.libelle || 170, W = 600, H = 26, droite = 120, haut = cs.length * H + 4;
+    const L = opt.libelle || 170, W = opt.W || 600, H = 26, droite = 120, haut = cs.length * H + 4;
     const max = Math.max(...cs.filter(c => !c.m).map(c => c.x), 0.0001);
     const larg = W - L - droite;
     let s = `<svg width="${W}" viewBox="0 0 ${W} ${haut}" role="img" aria-label="${esc(opt.titre || '')}">`;
     cs.forEach((c, k) => {
       const y = k * H + 4, hb = 14;
-      s += `<text x="${L - 10}" y="${y + 12}" text-anchor="end">${esc(coupe(lib(c.v1), 26))}</text>`;
+      const nom = opt.nomDe ? opt.nomDe(c.v1) : lib(c.v1), det = opt.detailDe ? opt.detailDe(c.v1) : '';
+      s += `<text x="${L - 10}" y="${y + 12}" text-anchor="end">${esc(coupe(nom, opt.coupe || 26))}</text>`;
       s += `<rect x="${L}" y="${y + 1}" width="${larg}" height="${hb}" rx="4" fill="var(--piste)"/>`;
       if (c.m) {
         s += caseSecret(L, y + 1, 46, hb) + `<text x="${L + 54}" y="${y + 12}" class="faible">${SECRET}</text>`;
-        s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), SECRET)}/>`;
+        s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(nom, SECRET, det)}/>`;
         return;
       }
       const w = Math.max(2, larg * c.x / max);
@@ -374,7 +380,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       const texte = opt.nombre ? fr(c.n, 0) : `${pct(c.x)}`;
       s += `<text x="${L + larg + 10}" y="${y + 12}" class="fort">${texte}</text>`;
       if (!opt.nombre) s += `<text x="${W - 4}" y="${y + 12}" text-anchor="end" class="faible">${fr(c.n, 0)}</text>`;
-      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), opt.nombre ? `${fr(c.n, 0)}` : `${fr(c.n, 0)} dossiers · ${pct(c.x)}`)}/>`;
+      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(nom, opt.nombre ? `${fr(c.n, 0)}` : `${fr(c.n, 0)} dossiers · ${pct(c.x)}`, det)}/>`;
     });
     return s + '</svg>';
   }
@@ -430,7 +436,8 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       s += `<line x1="${X(ref).toFixed(1)}" x2="${X(ref).toFixed(1)}" y1="0" y2="${haut - 22}" stroke="var(--ref)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
     cs.forEach((c, k) => {
       const y = k * H + 4, ym = y + 9;
-      s += `<text x="${L - 10}" y="${y + 13}" text-anchor="end">${esc(coupe(lib(c.v1), 26))}</text>`;
+      const nom = opt.nomDe ? opt.nomDe(c.v1) : lib(c.v1), det = opt.detailDe ? opt.detailDe(c.v1) : '';
+      s += `<text x="${L - 10}" y="${y + 13}" text-anchor="end">${esc(coupe(nom, opt.coupe || 26))}</text>`;
       if (c.m) {
         s += caseSecret(L, y + 2, 40, 14) + `<text x="${L + 48}" y="${y + 13}" class="faible">${SECRET}</text>`;
       } else {
@@ -442,7 +449,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
         s += `<text x="${L + larg + 10}" y="${y + 13}" class="fort">${pct(c.x)}</text>`;
         s += `<text x="${W - 4}" y="${y + 13}" text-anchor="end" class="faible">${fr(c.n, 0)}/${fr(c.d, 0)}</text>`;
       }
-      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(lib(c.v1), c.m ? SECRET : `${pct(c.x)} · ${fr(c.n, 0)} sur ${fr(c.d, 0)} · fourchette ${pct(c.b)} – ${pct(c.h)}`)}/>`;
+      s += `<rect x="0" y="${y}" width="${W}" height="${H}" fill="transparent"${tip(nom, c.m ? SECRET : `${pct(c.x)} · ${fr(c.n, 0)} sur ${fr(c.d, 0)} · fourchette ${pct(c.b)} – ${pct(c.h)}`, det)}/>`;
     });
     return s + '</svg>';
   }
@@ -505,7 +512,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
   }
   const cellule = (c, f) => c.m ? SECRET : f(c);
   const tabRep = (dim, cs) => tableau([DIM[dim] || dim, 'Dossiers', 'Part'], cs.map(c => [lib(c.v1), cellule(c, c => fr(c.n, 0)), cellule(c, c => pct(c.x))]));
-  const tabTaux = (dim, cs) => tableau([DIM[dim] || dim, 'Taux', 'Effectif', 'Fourchette à 95 %'], cs.map(c => [lib(c.v1), cellule(c, c => pct(c.x)),
+  const tabTaux = (dim, cs) => tableau([DIM[dim] || dim, 'Taux', 'Effectif', 'Fourchette à 95 %'], cs.map(c => [dim === 'controle' ? nomCtl(c.v1) : lib(c.v1), cellule(c, c => pct(c.x)),
     cellule(c, c => `${fr(c.n, 0)} / ${fr(c.d, 0)}`), cellule(c, c => c.b === undefined ? '' : `${pct(c.b)} – ${pct(c.h)}`)]));
   function carte(titre, expl, corps, large, classe) {
     return `<article class="carte${large ? ' large' : ''}${classe ? ' ' + classe : ''}"><h3>${esc(titre)}</h3>${expl ? `<p class="expl">${expl}</p>` : ''}<div class="graphe">${corps}</div></article>`;
@@ -611,12 +618,12 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       const ano = lire('taux_anomalie_controle', 'famille', 'controle').map(c => Object.assign({}, c, { famille: c.v1, v1: c.v2 }));
       const coul = (v) => { const c = ano.find(x => x.v1 === v); return c ? coulFamille(c.famille) : 'var(--s1)'; };
       const familles = [...new Set(ano.map(c => c.famille))].sort((a, b) => FAMILLES.indexOf(a) - FAMILLES.indexOf(b));
-      let s = carte('Taux d’anomalie de chaque contrôle', 'Parmi les dossiers où le contrôle est applicable. Couleur : famille du contrôle.',
+      let s = carte('Taux d’anomalie de chaque contrôle', 'Parmi les dossiers où le contrôle est applicable. Couleur : famille du contrôle. Survolez un contrôle pour voir ce qu’il vérifie.',
         `<div class="legende">${familles.map(f => `<span><i style="background:${coulFamille(f)}"></i>${esc(lib(f))}</span>`).join('')}</div>` +
-        forets(ano.sort((a, b) => FAMILLES.indexOf(a.famille) - FAMILLES.indexOf(b.famille) || (a.v1 < b.v1 ? -1 : 1)), null, { titre: 'Anomalies', libelle: 120, couleurDe: coul, W: 1000 }) + tabTaux('controle', ano), true);
+        forets(ano.sort((a, b) => FAMILLES.indexOf(a.famille) - FAMILLES.indexOf(b.famille) || (a.v1 < b.v1 ? -1 : 1)), null, { titre: 'Anomalies', libelle: 330, coupe: 48, couleurDe: coul, W: 1000, nomDe: nomCtl, detailDe: detailCtl }) + tabTaux('controle', ano), true);
       const ne = lire('taux_non_executable_controle', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 })).filter(c => c.m || c.n > 0);
-      s += carte('Contrôles le plus souvent non exécutables', 'Il leur manquait une donnée ou une pièce.',
-        barres(ordonner('controle', ne, true).slice(0, 12), { titre: 'Non exécutables', couleur: v => coul(v), libelle: 120 }) + tabTaux('controle', ne));
+      s += carte('Contrôles le plus souvent non exécutables', 'Il leur manquait une donnée ou une pièce. Survolez un contrôle pour voir ce qu’il vérifie.',
+        barres(ordonner('controle', ne, true).slice(0, 12), { titre: 'Non exécutables', couleur: v => coul(v), libelle: 330, coupe: 48, W: 1000, nomDe: nomCtl, detailDe: detailCtl }) + tabTaux('controle', ne), true);
       const manq = lire('elements_manquants', 'manquant').map(c => Object.assign({}, c, { n: c.x }));
       const total = manq.filter(c => !c.m).reduce((a, c) => Math.max(a, c.n), 0) || 1;
       s += carte('Ce qui leur manque', 'Dossiers où l’élément manque à au moins un contrôle non exécutable.',
@@ -624,7 +631,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
         tableau(['Élément manquant', 'Dossiers'], manq.map(c => [c.v1, cellule(c, c => fr(c.n, 0))])));
       const dec = lire('controle_decisif', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 })).filter(c => c.m || c.n > 0);
       s += carte('Contrôles décisifs', 'Part des dossiers jugés suspects où ce contrôle est la seule anomalie majeure ou critique.',
-        (dec.length ? forets(ordonner('controle', dec, true), null, { titre: 'Décisifs', libelle: 120, couleur: 'var(--serieux)', W: 1000 }) : vide()) + tabTaux('controle', dec), true);
+        (dec.length ? forets(ordonner('controle', dec, true), null, { titre: 'Décisifs', libelle: 330, coupe: 48, couleur: 'var(--serieux)', W: 1000, nomDe: nomCtl, detailDe: detailCtl }) : vide()) + tabTaux('controle', dec), true);
       return s;
     }],
     ['Qualité des données', () => {
@@ -670,7 +677,8 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
   document.addEventListener('mousemove', ev => {
     const t = ev.target.closest && ev.target.closest('[data-tip]');
     if (!t) { bulle.hidden = true; return; }
-    bulle.innerHTML = `<b>${esc(t.dataset.tip)}</b>${esc(t.dataset.tip2 || '')}`;
+    bulle.innerHTML = `<b>${esc(t.dataset.tip)}</b>` + (t.dataset.tip3 ? `<span class="detail">${esc(t.dataset.tip3)}</span>` : '') +
+      esc(t.dataset.tip2 || '');
     bulle.hidden = false;
     const x = Math.min(ev.clientX + 14, window.innerWidth - bulle.offsetWidth - 8);
     const y = ev.clientY + 16 + bulle.offsetHeight > window.innerHeight ? ev.clientY - bulle.offsetHeight - 10 : ev.clientY + 16;

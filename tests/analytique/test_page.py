@@ -91,3 +91,11 @@ def test_ligne_de_commande_construit_les_tables_et_la_page(tmp_path, jeu_stats):
                        capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, r.stderr
     assert html.exists() and 'ZZ' not in r.stdout
+
+
+def test_la_page_porte_le_catalogue_des_controles(page, jeu_stats):
+    d = donnees(page)
+    for cid, _famille, libelle in jeu_stats.CONTROLES:
+        assert d['controles'][cid]['l'] == libelle, cid
+    assert all(set(c) == {'l', 'c', 'd'} and c['d'] for c in d['controles'].values())
+    assert 'data-tip3' in page and 'nomDe: nomCtl' in page

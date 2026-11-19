@@ -9,6 +9,7 @@ import json
 import os
 from typing import Any
 
+from pipeline.analytique import controles as catalogue
 from pipeline.analytique import indicateurs as ind
 
 # Gabarit à côté des autres modèles de page (`pipeline/*_modele.html`, seuls fichiers .html admis par .gitignore).
@@ -71,7 +72,7 @@ def donnees(cx: Any) -> dict[str, Any]:
         cases.append(case)
     return dict(entete=entete or {}, filtres=dict(produit=ind.FILTRES_PRODUIT, categorie=ind.FILTRES_CATEGORIE),
                 indicateurs=[dict(nom=r[0], libelle=r[1], definition=r[2], unite=r[3]) for r in noms_ind],
-                textes=textes, cases=cases)
+                textes=textes, cases=cases, controles=catalogue.pour_la_page())
 
 
 def generer(cx: Any, chemin: str) -> int:
