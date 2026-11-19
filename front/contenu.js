@@ -7,8 +7,9 @@ const CONTENU_PORTAIL = {
   introduction: 'Une seule identité par client, construite à partir des dossiers, du registre du commerce et de la '
     + 'liste noire. Autour, les modules déjà branchés sur la base, et les usages qu’elle rend possibles.',
   centre: {
-    nom: 'Base client',
-    accroche: 'Une fiche par personne et par société',
+    nom: 'Vue 360°',
+    accroche: 'Chaque client vu sous tous les angles',
+    profils: ['Salarié', 'Entrepreneur', 'Société'],
     lien: 'base.html',
     x: 50, y: 50,
   },

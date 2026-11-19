@@ -140,3 +140,10 @@ def test_page_de_la_carte_sans_style_ni_gestionnaire_en_ligne_et_lots_de_noms_bo
     for chaine in re.findall(r'`[^`]*`|\'[^\'\n]*\'', js):
         assert not interdit.search(chaine), chaine[:60]
     assert f'.slice(0, {MAX_NOMS})' in js
+
+
+def test_la_carte_s_ouvre_sur_la_vue_du_maroc_3d_quand_le_contour_est_publie():
+    racine = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    js = open(os.path.join(racine, 'front', 'carte.js'), encoding='utf-8').read()
+    fin = js[js.rindex('aide(); angles(); taille(); filtrer();'):]
+    assert "if (G) basculer('maroc');" in fin           # première vue : la carte du Maroc 3D ; sinon la vue réseau

@@ -15,9 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const ilots = [];                                           // [{ element, donnee, genre, courbe }]
 
   // ---- tuile centrale, puis modules, puis usages : c'est aussi l'ordre de tabulation -----------------------------
-  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : ouvrir la base client` },
+  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : chercher un client et ouvrir sa vue 360°` },
     el('div', { classe: 'ilot-nom', texte: C.centre.nom }),
     el('div', { classe: 'ilot-accroche', texte: C.centre.accroche }),
+    (C.centre.profils || []).length ? el('div', { classe: 'centre-profils' },
+      C.centre.profils.map(p => el('span', { texte: p }))) : null,
     el('div', { classe: 'centre-chiffres', id: 'centre-chiffres' }),
     el('div', { classe: 'centre-maj', id: 'centre-maj' }));
   ajouter(centre, C.centre, 'centre');
@@ -27,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const b = el('button', { type: 'button', classe: `ilot ilot-module ilot-flotte etat-${m.etat}`,
       'aria-label': `${m.nom} : ${m.accroche}` },
       el('span', { classe: 'ilot-nom' }, m.etat === 'actif' ? el('span', { classe: 'point-actif', 'aria-hidden': 'true' }) : null, m.nom),
-      el('span', { classe: 'ilot-accroche', texte: m.accroche }),
       el('span', { classe: 'etat', texte: libelleEtat }));
     flotter(b, k + 1);
     b.addEventListener('click', () => (m.etat === 'actif' && m.lien ? (location.href = m.lien) : ouvrir(m, b, 'module')));
@@ -37,8 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   C.usages.forEach((u, k) => {
     const b = el('button', { type: 'button', classe: `ilot ilot-usage ilot-flotte${u.enCours ? ' en-cours' : ''}`,
       'aria-label': `${u.nom} : ${u.accroche}` },
-      el('span', { classe: 'numero', texte: u.n }), el('span', { classe: 'ilot-nom', texte: u.nom }),
-      el('span', { classe: 'ilot-accroche', texte: u.accroche }));
+      el('span', { classe: 'numero', texte: u.n }), el('span', { classe: 'ilot-nom', texte: u.nom }));
     b.style.width = b.style.height = `${u.taille}px`;
     flotter(b, k + 7);
     b.addEventListener('click', () => ouvrir(u, b, 'usage'));

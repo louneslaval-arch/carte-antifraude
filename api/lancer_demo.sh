@@ -28,12 +28,17 @@ export CARTE_CLE_JWT="$("$PY" -c 'import secrets; print(secrets.token_urlsafe(48
 export CARTE_BASE_URL="sqlite:///$TEMP/journal.db"
 export CARTE_BASE_CLIENT="$BASE"
 [ -f "$CARTE/manifeste.json" ] && export CARTE_PUBLICATION_GLOBALE="$CARTE"
-export CARTE_FRONT="$RACINE/front"
+# Pages : copie de front/ avec la page des statistiques (jeu fictif) ; sans elle (structure de Kamal absente), front/.
+if "$PY" "$RACINE/outils/demo/front_demo.py" "$TEMP/front"; then
+  export CARTE_FRONT="$TEMP/front"
+else
+  export CARTE_FRONT="$RACINE/front"
+fi
 export CARTE_COOKIE_NON_SECURISE=1          # http local uniquement
 export CARTE_DEBIT="600/minute"
-"$PY" - <<'PYTHON'
+CARTE_RACINE="$RACINE" "$PY" - <<'PYTHON'
 import os, sys
-sys.path.insert(0, os.path.join(os.environ['CARTE_FRONT'], '..', 'api'))
+sys.path.insert(0, os.path.join(os.environ['CARTE_RACINE'], 'api'))
 from app.base import ouvrir
 from app import comptes
 base = ouvrir(os.environ['CARTE_BASE_URL'])

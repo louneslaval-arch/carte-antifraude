@@ -487,10 +487,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#f-bl').addEventListener('change', () => { try { localStorage.setItem('carte-globale-bl', $('#f-bl').checked ? '1' : '0'); } catch (e) { /* stockage indisponible */ } });
   if (!G) { $('#btn-vue').style.display = 'none'; }
   aide(); angles(); taille(); filtrer(); toutVoir();
+  if (G) basculer('maroc');                         // première vue : la carte du Maroc 3D (sans contour : vue réseau)
   // arrivée depuis une fiche client : « carte.html?n=<indice de la carte> » centre la carte sur ce nœud
   const depart = Number(Commun.parametre('n'));
   if (Number.isInteger(depart) && depart >= 0 && depart < NB && Commun.parametre('n') !== null) {
     if (!visN[depart]) { $('#f-bl').checked = false; filtrer(); }
-    isoler(N[depart].c); centrerSur(depart, 1.4); choisir(depart);
+    isoler(N[depart].c); centrerSur(depart, maroc() ? 6 : 1.4); choisir(depart);
   }
 });

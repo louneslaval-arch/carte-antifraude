@@ -25,6 +25,10 @@ et la carte globale du même jeu (`jeu_essai/demo/carte_globale_demo.tar.gz`) so
 
 Ces comptes n'existent que sur la machine où la démonstration tourne (base temporaire recréée à chaque lancement).
 
+Version autonome (à envoyer, sans serveur ni dépôt) : `outils/demo/exporter_autonome.py --sortie DOSSIER --zip
+FICHIER.zip` écrit les pages avec les réponses de l'API calculées à l'avance sur les données fictives ; on ouvre
+`index.html` d'un double-clic.
+
 ## Ce qu'il y a à voir
 
 - **Portail** (`/`) : la base client au centre, les modules et les usages autour.
