@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   main.removeAttribute('aria-busy');
 
   // ---- éléments -----------------------------------------------------------------------------------------------------
-  // Mur de données : un bandeau de synthèse, puis une carte par thème (couleur et icône du thème), des tuiles sobres
+  // Mur de données : une carte par thème (couleur et icône du thème), des tuiles sobres
   // dont le ton (à traiter, à regarder, rassurant) se lit à la pastille et à la couleur de la valeur.
   function murDeTuiles(groupes) {
     if (!groupes.length) return null;
@@ -150,16 +150,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       'Sociétés et activité': ['legal', 'immeuble'], 'Dirigeants': ['personnes', 'personnes'],
       'Comptes et réseau': ['reseau', 'reseau'], 'Identité': ['identite', 'carte'],
       'Historique des dossiers': ['historique', 'horloge'], 'À venir': ['avenir', 'sablier'] };
-    const toutes = groupes.flatMap(g => g.tuiles);
-    const n = ton => toutes.filter(x => x.ton === ton).length;
-    const etat = n('critique') ? ['critique', 'À traiter', 'Au moins un point demande l’attention de la cellule fraude.']
-      : n('attention') ? ['attention', 'À regarder', 'Des points méritent une vérification, rien de bloquant.']
-        : ['bon', 'Rien à signaler', 'Aucun signal sur les données lues.'];
-    const synthese = el('div', { classe: `mur-synthese etat-${etat[0]}` },
-      el('div', { classe: 'synthese-etat' }, icone(etat[0] === 'bon' ? 'coche' : 'alerte'),
-        el('div', {}, el('div', { classe: 'synthese-titre', texte: etat[1] }), el('div', { classe: 'synthese-texte', texte: etat[2] }))),
-      el('div', { classe: 'synthese-compteurs' }, [['critique', 'à traiter'], ['attention', 'à regarder'], ['bon', 'rassurants']]
-        .map(([ton, texte]) => el('div', { classe: `compteur ton-${ton}` }, el('strong', { texte: nombre(n(ton)) }), el('span', { texte })))));
     const cartes = groupes.map(g => {
       const [theme, ico] = THEMES[g.groupe] || ['identite', 'carte'];
       const alertes = g.tuiles.filter(x => x.ton === 'critique' || x.ton === 'attention').length;
@@ -174,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
       el('div', { classe: 'mur-entete' }, el('h2', { texte: 'Données clés' }),
         el('p', { classe: 'note', texte: 'Lues dans les pièces, le registre du commerce et la liste noire ; la source est sous chaque valeur.' })),
-      synthese, el('div', { classe: 'mur-grille-cartes' }, cartes));
+      el('div', { classe: 'mur-grille-cartes' }, cartes));
   }
   function tuileMur(t) {
     const valeur = valeurTuile(t);

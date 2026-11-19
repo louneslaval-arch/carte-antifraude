@@ -178,7 +178,7 @@ td.nombre, th.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 .tuile-valeur { font-size: 20px; font-weight: 800; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
 .tuile-sous { font-size: 11px; color: var(--encre-3); }
 /* ---- mur de données (vue 360°) ---------------------------------------------------------------------------------
-   Bandeau de synthèse, puis une carte par thème : couleur et icône du thème en tête, tuiles blanches dont le ton se lit à
+   Une carte par thème : couleur et icône du thème en tête, tuiles blanches dont le ton se lit à
    la pastille et à la couleur de la valeur. Tons : critique (rouge), attention (ambre), bon (vert), neutre (ardoise). */
 .mur { margin: 16px 0; display: grid; gap: 14px; }
 .mur-entete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
@@ -187,22 +187,6 @@ td.nombre, th.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 .ton-attention { --ton: #e08a00; --ton-pale: #fff8eb; --ton-texte: #9a5b00; }
 .ton-bon { --ton: #17a06b; --ton-pale: #ecfaf3; --ton-texte: #11734d; }
 .ton-neutre { --ton: #9aa3b8; --ton-pale: #f5f7fb; --ton-texte: var(--encre); }
-
-/* synthèse : l'état général en une ligne, et les comptes par ton */
-.mur-synthese { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px;
-  padding: 16px 20px; border-radius: 16px; color: #fff; box-shadow: 0 10px 30px -12px var(--halo, rgba(0,0,0,.3)); }
-.mur-synthese.etat-critique { background: linear-gradient(120deg, #b4141e 0%, #e0444f 60%, #f0706a 100%); --halo: rgba(180,20,30,.55); }
-.mur-synthese.etat-attention { background: linear-gradient(120deg, #b86a00 0%, #e59a1c 60%, #f2b84b 100%); --halo: rgba(184,106,0,.5); }
-.mur-synthese.etat-bon { background: linear-gradient(120deg, #0f7a52 0%, #1fa874 60%, #4cc596 100%); --halo: rgba(15,122,82,.5); }
-.synthese-etat { display: flex; align-items: center; gap: 14px; }
-.synthese-etat svg { width: 38px; height: 38px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round; padding: 7px; border-radius: 12px; background: rgba(255,255,255,.18); }
-.synthese-titre { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
-.synthese-texte { font-size: 13px; opacity: .92; }
-.synthese-compteurs { display: flex; gap: 8px; flex-wrap: wrap; }
-.compteur { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px;
-  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); font-size: 12.5px; }
-.compteur strong { font-size: 17px; font-variant-numeric: tabular-nums; }
 
 /* cartes par thème, en grille de 12 colonnes : la largeur suit le nombre de tuiles */
 .mur-grille-cartes { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; grid-auto-flow: dense; }
