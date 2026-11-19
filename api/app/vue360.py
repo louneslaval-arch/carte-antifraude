@@ -91,10 +91,12 @@ def controles(donnees, prof):
 
 
 # ---- mur de tuiles : les données lues dans les documents (pièces, registre, liste noire), chacune avec sa source ----
-# Liste de Lounès (19/11/2026). Retirés (en rouge sur sa liste) : historique des dossiers, historique EQDOM,
-# recouvrement, taux d'endettement. Seuils de couleur provisoires (affichage seulement, jamais une décision) : à
+# Liste de Lounès (19/11/2026), dont, en rouge et à garder : historique des dossiers, historique EQDOM, recouvrement,
+# taux d'endettement. Historique EQDOM et recouvrement : tuiles grisées tant que leurs sources ne sont pas branchées.
+# Seuils de couleur provisoires (affichage seulement, jamais une décision) : à
 # valider avec la cellule fraude, puis à passer dans `c6_version_parametres` s'ils sont retenus.
-SEUILS_PROVISOIRES = dict(ecart_attention=0.15, ecart_critique=0.30, cin_bientot_jours=90)
+SEUILS_PROVISOIRES = dict(ecart_attention=0.15, ecart_critique=0.30, cin_bientot_jours=90,
+                          endettement_attention=0.40, endettement_critique=0.60)
 TON_NIVEAU = {'critique': 'critique', 'majeure': 'attention', 'mineure': 'neutre', 'affiche': 'neutre',
               'hors_alerte': 'neutre'}
 ROLES_TERMINES = ('sortant', 'cédant', 'liquidateur')
@@ -104,6 +106,9 @@ SOURCES = {'BULLETIN_DE_PAIE': 'bulletin de paie', 'ATTESTATION_TRAVAIL_SALAIRE'
            'CARTE_PROFESSIONNELLE': 'carte professionnelle', 'REGISTRE_COMMERCE': 'registre du commerce',
            'STATUTS': 'statuts', 'ATTESTATION_CNSS': 'attestation CNSS'}
 NON_EXTRAIT = 'non extrait par Tandem pour l’instant'
+ATTEND_EQDOM = 'attend l’historique sur 36 mois (couche c4)'
+ATTEND_RECO = 'attend le branchement de l’outil de recouvrement (Reco)'
+MOIS = ('janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.')
 
 
 LIBELLES_SOURCE = {'v2': 'dossiers', 'registre': 'registre du commerce', 'liste_noire': 'liste noire EQDOM'}
@@ -338,10 +343,17 @@ def tuiles(f):
         charges = f.get('charges') or []
         source_ = next((c['montant'] for c in sorted(charges, key=lambda c: (c.get('annee') or 0, c.get('mois') or 0),
                                                        reverse=True) if c.get('nature') == 'credit_source'), None)
+        echeances = _releves(f)['echeances']
+        verifie = next((pieces[s] for s in ('BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE', 'ATTESTATION_PENSION',
+                                            'RELEVE_BANCAIRE') if pieces.get(s)), None)
+        charges_mois = (echeances or 0) + (source_ or 0)
+        endettement = charges_mois / verifie if verifie and (echeances is not None or source_ is not None) else None
         groupes.append(dict(groupe='Charges', tuiles=[
-            _t('Échéances de crédit sur les relevés', _releves(f)['echeances'], 'montant', source='relevés',
-               detail='dernier mois lu'),
-            _t('Crédit prélevé à la source', source_, 'montant', source='bulletin de paie')]))
+            _t('Échéances de crédit sur les relevés', echeances, 'montant', source='relevés', detail='dernier mois lu'),
+            _t('Crédit prélevé à la source', source_, 'montant', source='bulletin de paie'),
+            _t('Taux d’endettement', endettement, 'pourcent',
+               _seuil(endettement, S['endettement_attention'], S['endettement_critique']), 'relevés et pièces de revenu',
+               '(échéances du relevé + crédit prélevé à la source) / revenu vérifié')]))
         groupes.append(dict(groupe='Comptes', tuiles=_comptes(f)))
         ids = f.get('identifiants') or []
         idt = [_t('N° CNSS', next((i['valeur'] for i in ids if i.get('type') == 'CNSS'), None), source='bulletin de paie'),
@@ -429,4 +441,37 @@ def tuiles(f):
     ctl = _commun_controles(f)
     if ctl:
         groupes.append(dict(groupe='Contrôles de l’antifraude', tuiles=ctl))
+    groupes.append(dict(groupe='Historique des dossiers', tuiles=_historique(f)))
+    groupes.append(dict(groupe='Historique EQDOM', tuiles=[
+        _t('Contrats EQDOM', None, source='historique EQDOM', detail=ATTEND_EQDOM),
+        _t('Impayés', None, source='historique EQDOM', detail=ATTEND_EQDOM),
+        _t('Classe BAM', None, source='historique EQDOM', detail=ATTEND_EQDOM)]))
+    groupes.append(dict(groupe='Recouvrement', tuiles=[
+        _t('Relances', None, source='Reco', detail=ATTEND_RECO),
+        _t('Promesses de paiement', None, source='Reco', detail=ATTEND_RECO)]))
     return groupes
+
+
+def _historique(f):
+    """Une tuile par dossier (6 au plus, le plus récent d'abord) : produit, rôle, verdict ; puis les véhicules."""
+    tuiles = []
+    for d in sorted(f.get('dossiers') or [], key=lambda d: d.get('recu') or '', reverse=True)[:6]:
+        jour = _jour(d.get('recu'))
+        quand = f'{jour.day} {MOIS[jour.month - 1]} {jour.year}' if jour else 'date inconnue'
+        libelle = f'Dossier du {quand}'
+        while any(t['libelle'] == libelle for t in tuiles):
+            libelle += ' (bis)'
+        verdict = d.get('verdict') if d.get('demandeur') else None
+        tuiles.append(_t(libelle, ' · '.join(filter(None, (d.get('produit'), 'demandeur' if d.get('demandeur')
+                                                              else d.get('role') or 'cité'))),
+                         ton='neutre' if not verdict else 'bon' if verdict == 'CONFORME' else 'attention',
+                         source='dossiers', detail=f'verdict {verdict}' if verdict else
+                         ('dossier d’un autre client' if not d.get('demandeur') else 'verdict en attente')))
+    vehicules = f.get('vehicules') or []
+    if vehicules:
+        x = vehicules[0]
+        prix = [v['prix'] for v in vehicules if v.get('prix')]
+        tuiles += [_t('Véhicule', ' '.join(filter(None, (x.get('marque'), x.get('modele')))) or None,
+                      source=SOURCES.get(x.get('type_piece'), x.get('type_piece')), detail=x.get('etat')),
+                   _t('Prix du véhicule', max(prix) if prix else None, 'montant', source='facture proforma')]
+    return tuiles

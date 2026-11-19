@@ -109,12 +109,32 @@ def test_tuiles_bien_formees_avec_leur_source(fabrique):
     assert len({t['libelle'] for t in toutes}) == len(toutes)
 
 
-def test_ni_historique_ni_endettement():
-    """Retirés de la liste (en rouge) : historique des dossiers, historique EQDOM, recouvrement, taux d'endettement."""
+def test_historique_eqdom_recouvrement_pour_tous_et_endettement_du_salarie():
+    """En rouge sur la liste de Lounès, à garder (19/11/2026) : historique des dossiers, historique EQDOM,
+    recouvrement, taux d'endettement."""
     for fabrique in (fiche_salarie, fiche_entrepreneur, fiche_societe):
-        groupes = vue360.tuiles(fabrique())
-        assert not {'Historique des dossiers', 'Historique EQDOM', 'Recouvrement'} & {g['groupe'] for g in groupes}
-        assert 'Taux d’endettement' not in _libelles(groupes)
+        groupes = {g['groupe']: g for g in vue360.tuiles(fabrique())}
+        assert {'Historique des dossiers', 'Historique EQDOM', 'Recouvrement'} <= set(groupes)
+        eqdom = groupes['Historique EQDOM']['tuiles']
+        assert {t['libelle'] for t in eqdom} >= {'Contrats EQDOM', 'Impayés', 'Classe BAM'}
+        assert all(t['valeur'] is None and 'historique sur 36 mois' in t['detail'] for t in eqdom)
+        assert all(t['valeur'] is None for t in groupes['Recouvrement']['tuiles'])
+    g = vue360.tuiles(fiche_salarie())
+    t = _tuile(g, 'Taux d’endettement')
+    # charges du mois (échéances du relevé 3 200 + crédit prélevé à la source 1 500) / revenu vérifié 10 000
+    assert t['valeur'] == pytest.approx(0.47) and t['format'] == 'pourcent' and t['ton'] == 'attention'
+    assert 'Taux d’endettement' not in _libelles(vue360.tuiles(fiche_societe()))
+
+
+def test_historique_des_dossiers_produit_date_role_verdict_vehicule():
+    f = fiche_salarie()
+    f['vehicules'] = [dict(type_piece='FACTURE_PROFORMA_VEHICULE', marque='MARQUE EXEMPLE', modele='MODELE X',
+                           etat='neuf', prix=150000)]
+    g = vue360.tuiles(f)
+    d = _tuile(g, 'Dossier du 15 sept. 2026')
+    assert d['valeur'] == 'DISPO · demandeur' and d['ton'] == 'bon' and 'CONFORME' in d['detail']
+    v = _tuile(g, 'Véhicule')
+    assert v['valeur'] == 'MARQUE EXEMPLE MODELE X' and _tuile(g, 'Prix du véhicule')['valeur'] == 150000
 
 
 def test_identite_lue_dans_les_pieces():

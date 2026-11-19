@@ -603,8 +603,10 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 ## 19/11/2026 — vue 360° : mur de données lues dans les documents (branche `vue-360`)
 - **Demande de Lounès** : mettre en avant, en tuiles de couleur, la quarantaine de données importantes de l'entité ;
   puis, après un premier essai à base de compteurs : « je veux vraiment des datas provenant des documents », selon sa
-  liste par profil. Lu comme retirés (en rouge sur sa liste) : historique des dossiers, historique EQDOM,
-  recouvrement, taux d'endettement (à confirmer).
+  liste par profil. Le rouge de sa liste veut dire « à garder » (réponse du 19/11) : historique des dossiers (une
+  tuile par dossier, véhicules), historique EQDOM et recouvrement (tuiles grisées tant que la couche c4 et l'outil
+  Reco ne sont pas branchés), taux d'endettement ((échéances du relevé + crédit prélevé à la source) / revenu vérifié,
+  seuils provisoires 40 % et 60 %).
 - **Fait** : `vue360.tuiles()` (fonction pure) : chaque tuile porte une valeur lue (pièce, registre, liste noire), sa
   source et un ton (critique, attention, bon, neutre). Identité, liste noire et chemins, incohérences, contrôles par
   famille pour tous ; revenus pièce par pièce, employeur (bulletin, déclaré, relié, clients EQDOM qui le déclarent),
