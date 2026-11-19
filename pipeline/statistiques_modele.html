@@ -350,11 +350,11 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       s += `<path d="${d}" fill="${p.secret ? 'var(--masque)' : p.coul}"${p.secret ? ' stroke="var(--hachure)" stroke-dasharray="3 2"' : ''}${t}/>`;
       a0 = a1 + (parts.length > 1 ? 0.025 : 0);
     }
-    s += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" class="fort" style="font-size:22px">${total ? fr(total, 0) : '—'}</text>`;
+    s += `<text x="${cx}" y="${cy - 2}" text-anchor="middle" class="fort" data-style="font-size:22px">${total ? fr(total, 0) : '—'}</text>`;
     s += `<text x="${cx}" y="${cy + 17}" text-anchor="middle" class="faible">dossiers</text></svg>`;
     const lignes = ordonner(dim, cs, true).map((c, k) => c.m
-      ? `<li><i class="legende-secret" style="background:var(--masque);border:1px dashed var(--hachure)"></i><span>${esc(lib(c.v1))}</span><b>${SECRET}</b></li>`
-      : `<li><i style="background:${couleur(c.v1, vus.indexOf(c))}"></i><span>${esc(lib(c.v1))}</span><b>${pct(c.x)}<span class="n">${fr(c.n, 0)}</span></b></li>`).join('');
+      ? `<li><i class="legende-secret" data-style="background:var(--masque);border:1px dashed var(--hachure)"></i><span>${esc(lib(c.v1))}</span><b>${SECRET}</b></li>`
+      : `<li><i data-style="background:${couleur(c.v1, vus.indexOf(c))}"></i><span>${esc(lib(c.v1))}</span><b>${pct(c.x)}<span class="n">${fr(c.n, 0)}</span></b></li>`).join('');
     return `<div class="anneau">${s}<ul>${lignes}</ul></div>`;
   }
 
@@ -472,7 +472,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
         if (c.m) { s += caseSecret(x, y, cw - 2, ch - 2) + `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" fill="transparent"${tip(`${lib(l)} · ${v}`, SECRET)}/>`; return; }
         const k = Math.min(5, Math.floor(6 * c.x / max * 0.999));
         s += `<rect x="${x}" y="${y}" width="${cw - 2}" height="${ch - 2}" rx="5" fill="${pas[k]}"${tip(`${lib(l)} · ${v}`, `${fr(c.n, 0)} dossiers · ${pct(c.x)} de la tranche`)}/>`;
-        s += `<text x="${(x + (cw - 2) / 2).toFixed(1)}" y="${y + 19}" text-anchor="middle" style="fill:${k >= 3 ? '#ffffff' : '#0b0b0b'};font-size:11.5px;pointer-events:none">${fr(c.n, 0)}</text>`;
+        s += `<text x="${(x + (cw - 2) / 2).toFixed(1)}" y="${y + 19}" text-anchor="middle" data-style="fill:${k >= 3 ? '#ffffff' : '#0b0b0b'};font-size:11.5px;pointer-events:none">${fr(c.n, 0)}</text>`;
       });
     });
     return s + '</svg>';
@@ -483,11 +483,11 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
     if (!c) return vide();
     const R = 62, cx = 80, cy = 78, a = v => Math.PI + Math.PI * v;
     const P = v => `${(cx + R * Math.cos(a(v))).toFixed(2)} ${(cy + R * Math.sin(a(v))).toFixed(2)}`;
-    let s = `<svg viewBox="0 0 160 96" style="max-width:220px" role="img" aria-label="${esc(libelle)}">`;
+    let s = `<svg viewBox="0 0 160 96" data-style="max-width:220px" role="img" aria-label="${esc(libelle)}">`;
     s += `<path d="M${P(0)}A${R} ${R} 0 0 1 ${P(1)}" fill="none" stroke="var(--piste)" stroke-width="12" stroke-linecap="round"/>`;
     if (!c.m) {
       s += `<path d="M${P(0)}A${R} ${R} 0 0 1 ${P(Math.max(0.005, c.x))}" fill="none" stroke="var(--s1)" stroke-width="12" stroke-linecap="round"${tip(libelle, `${pct(c.x)} · ${fr(c.n, 0)} sur ${fr(c.d, 0)}`)}/>`;
-      s += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="fort" style="font-size:22px">${pct(c.x)}</text>`;
+      s += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="fort" data-style="font-size:22px">${pct(c.x)}</text>`;
       s += `<text x="${cx}" y="${cy + 12}" text-anchor="middle" class="faible">${fr(c.n, 0)} sur ${fr(c.d, 0)}</text>`;
     } else s += `<text x="${cx}" y="${cy - 8}" text-anchor="middle" class="fort">${SECRET}</text>`;
     return s + '</svg>';
@@ -498,7 +498,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
     if (!cs.length) return vide();
     return '<div class="mesures">' + ordonner('variable', cs, true).map(c => c.m
       ? `<div class="mesure secret"${tip(lib(c.v1), SECRET)}><span>${esc(lib(c.v1))}</span><div class="piste"></div><span class="pc">${SECRET}</span></div>`
-      : `<div class="mesure"${tip(lib(c.v1), `${fr(c.n, 0)} sur ${fr(c.d, 0)} dossiers concernés`)}><span>${esc(lib(c.v1))}</span><div class="piste"><div class="plein ${c.x < .5 ? 'bas' : c.x < .8 ? 'moyen' : ''}" style="width:${(c.x * 100).toFixed(1)}%"></div></div><span class="pc">${pct(c.x)}</span></div>`).join('') + '</div>';
+      : `<div class="mesure"${tip(lib(c.v1), `${fr(c.n, 0)} sur ${fr(c.d, 0)} dossiers concernés`)}><span>${esc(lib(c.v1))}</span><div class="piste"><div class="plein ${c.x < .5 ? 'bas' : c.x < .8 ? 'moyen' : ''}" data-style="width:${(c.x * 100).toFixed(1)}%"></div></div><span class="pc">${pct(c.x)}</span></div>`).join('') + '</div>';
   }
   const vide = () => '<p class="vide">Aucune donnée dans cette tranche.</p>';
 
@@ -543,7 +543,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
   }
   function kpi(libelle, c, valeur, detail, couleur, extra) {
     const v = !c ? '—' : c.m ? SECRET : valeur(c);
-    return `<div class="kpi"><span class="trait-couleur" style="background:${couleur}"></span><div class="lib">${esc(libelle)}</div>` +
+    return `<div class="kpi"><span class="trait-couleur" data-style="background:${couleur}"></span><div class="lib">${esc(libelle)}</div>` +
       `<div class="val">${v}</div><div class="det">${c && !c.m && detail ? esc(detail(c)) : '&nbsp;'}</div>${extra || ''}</div>`;
   }
   function chiffresCles() {
@@ -603,9 +603,9 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       let s = v.length ? carte("Verdicts de l'antifraude", 'Parmi les dossiers qui ont un verdict. Un signal, jamais une fraude constatée.',
         anneau(ordonner('verdict', v), x => COUL_VERDICT[x] || 'var(--s1)', 'verdict') + tabRep('verdict', v), true) : '';
       s += carte('Comment lire les taux par critère', '',
-        `<div class="legende"><span><i style="background:var(--s1);border-radius:50%"></i>Taux : sa fourchette à 95 % ne contient pas le taux de l’ensemble</span>` +
-        `<span><i style="background:var(--surface);border:2px solid var(--s1);border-radius:50%"></i>Taux dans la marge de l’ensemble</span>` +
-        `<span><i style="background:var(--ref);height:2px;width:14px;vertical-align:3px"></i>Taux de l’ensemble de la tranche${ref !== null ? ` (${pct(ref)})` : ''}</span>` +
+        `<div class="legende"><span><i data-style="background:var(--s1);border-radius:50%"></i>Taux : sa fourchette à 95 % ne contient pas le taux de l’ensemble</span>` +
+        `<span><i data-style="background:var(--surface);border:2px solid var(--s1);border-radius:50%"></i>Taux dans la marge de l’ensemble</span>` +
+        `<span><i data-style="background:var(--ref);height:2px;width:14px;vertical-align:3px"></i>Taux de l’ensemble de la tranche${ref !== null ? ` (${pct(ref)})` : ''}</span>` +
         `<span><i class="secret"></i>Secret</span></div>`, true);
       const dims = Object.keys(DIM).filter(d => lire('taux_juge_suspect', d).length);
       for (const d of dims) {
@@ -619,7 +619,7 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
       const coul = (v) => { const c = ano.find(x => x.v1 === v); return c ? coulFamille(c.famille) : 'var(--s1)'; };
       const familles = [...new Set(ano.map(c => c.famille))].sort((a, b) => FAMILLES.indexOf(a) - FAMILLES.indexOf(b));
       let s = carte('Taux d’anomalie de chaque contrôle', 'Parmi les dossiers où le contrôle est applicable. Couleur : famille du contrôle. Survolez un contrôle pour voir ce qu’il vérifie.',
-        `<div class="legende">${familles.map(f => `<span><i style="background:${coulFamille(f)}"></i>${esc(lib(f))}</span>`).join('')}</div>` +
+        `<div class="legende">${familles.map(f => `<span><i data-style="background:${coulFamille(f)}"></i>${esc(lib(f))}</span>`).join('')}</div>` +
         forets(ano.sort((a, b) => FAMILLES.indexOf(a.famille) - FAMILLES.indexOf(b.famille) || (a.v1 < b.v1 ? -1 : 1)), null, { titre: 'Anomalies', libelle: 330, coupe: 48, couleurDe: coul, W: 1000, nomDe: nomCtl, detailDe: detailCtl }) + tabTaux('controle', ano), true);
       const ne = lire('taux_non_executable_controle', 'famille', 'controle').map(c => Object.assign({}, c, { v1: c.v2 })).filter(c => c.m || c.n > 0);
       s += carte('Contrôles le plus souvent non exécutables', 'Il leur manquait une donnée ou une pièce. Survolez un contrôle pour voir ce qu’il vérifie.',
@@ -650,12 +650,18 @@ button.copier { font: inherit; font-size: 12px; padding: 4px 10px; border-radius
     }]
   ];
 
+  // styles posés par le script (CSSOM) : la politique de sécurité de la plateforme refuse les attributs « style »
+  function appliquerStyles(racine) {
+    racine.querySelectorAll('[data-style]').forEach(el => { el.style.cssText = el.dataset.style; });
+  }
+
   function afficher() {
     document.querySelectorAll('#onglets button').forEach((b, k) => b.setAttribute('aria-selected', String(k === etat.onglet)));
     document.querySelectorAll('#f-produit button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === etat.p)));
     document.querySelectorAll('#f-categorie button').forEach((b, k) => b.setAttribute('aria-pressed', String(k === etat.c)));
     chiffresCles();
     document.getElementById('contenu').innerHTML = ONGLETS[etat.onglet][1]();
+    appliquerStyles(document);
   }
 
   // ---- en-tête, filtres, onglets, info-bulle ------------------------------------------------------------------------
