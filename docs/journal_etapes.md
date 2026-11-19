@@ -637,3 +637,9 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   (historique EQDOM, recouvrement, salaire versé par un autre, chiffre d'affaires) ; 3 dossiers et 4 sociétés ou
   dirigeants au plus ; compte en une tuile. Médianes sur la démonstration : 21 tuiles (salarié), 14 (société), 12
   (entrepreneur), contre une quarantaine avant ; groupes rangés côte à côte. Tests réécrits d'abord (15).
+- **Doublons et design** (19/11) : chaque dossier apparaissait deux fois sur la fiche (tuiles « Historique des
+  dossiers » et carte du même nom en dessous) : carte retirée, les tuiles de dossier ouvrent le dossier (`lien`). Les
+  7 noms répétés de la liste sont des homonymes du jeu fictif, pas des doublons. Mur redessiné : bandeau de synthèse
+  (à traiter, à regarder, rien à signaler, avec comptes par ton), une carte par thème (couleur, icône SVG dessinée en
+  page, nombre de signaux), tuiles blanches dont le ton se lit à la pastille et à la valeur, alertes légèrement teintées,
+  sources à venir hachurées.

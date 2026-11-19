@@ -122,9 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   // Ordre des blocs : deux colonnes, la gauche pour ce qui caractérise le profil.
   const DISPOSITION = {
-    salarie: [['revenus', 'employeur', 'historique'], ['risque', 'banque', 'identite']],
-    entrepreneur: [['activite', 'revenus', 'piecesPro'], ['risque', 'banque', 'historique', 'identite']],
-    pm: [['dirigeants', 'registre', 'banque'], ['risque', 'historique', 'identite']],
+    salarie: [['revenus', 'employeur'], ['risque', 'banque', 'identite']],
+    entrepreneur: [['activite', 'revenus', 'piecesPro'], ['risque', 'banque', 'identite']],
+    pm: [['dirigeants', 'registre', 'banque'], ['risque', 'identite']],
   }[v.profil];
 
   const operations = f.operations.length ? carte(`Opérations des relevés (${nombre(f.operations.length)})`,
@@ -139,27 +139,76 @@ document.addEventListener('DOMContentLoaded', async () => {
   main.removeAttribute('aria-busy');
 
   // ---- éléments -----------------------------------------------------------------------------------------------------
+  // Mur de données : un bandeau de synthèse, puis une carte par thème (couleur et icône du thème), des tuiles sobres
+  // dont le ton (à traiter, à regarder, rassurant) se lit à la pastille et à la couleur de la valeur.
   function murDeTuiles(groupes) {
     if (!groupes.length) return null;
-    const legende = el('div', { classe: 'mur-legende', 'aria-hidden': 'true' },
-      [['critique', 'à traiter'], ['attention', 'à regarder'], ['bon', 'rassurant'], ['neutre', 'information']]
-        .map(([ton, texte]) => el('span', { classe: `pastille-ton ton-${ton}`, texte })));
-    const mur = el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
-      el('div', { classe: 'mur-tete' }, el('h2', { texte: 'Données clés' }), legende),
-      el('div', { classe: 'mur-groupes' }, groupes.map(g => el('div', { classe: 'mur-groupe', 'data-n': String(g.tuiles.length) },
-        el('h3', { classe: 'mur-titre', texte: g.groupe }),
-        el('div', { classe: 'mur-grille' }, g.tuiles.map(t => {
-          const valeur = valeurTuile(t);
-          return el('div', { classe: `tuile-mur ton-${t.ton}${valeur.length > 22 ? ' long' : ''}${valeur === '—' ? ' absente' : ''}`,
-            title: [t.detail, t.source ? `source : ${t.source}` : null].filter(Boolean).join(' · ') || null },
-            el('div', { classe: 'tuile-titre', texte: t.libelle }),
-            el('div', { classe: 'tuile-valeur', texte: valeur }),
-            t.detail ? el('div', { classe: 'tuile-sous', texte: t.detail }) : null,
-            t.source ? el('div', { classe: 'tuile-source', texte: t.source }) : null);
-        }))))));
-    // largeur d'un groupe selon son nombre de tuiles (4 au plus par ligne) : les petits groupes se rangent côte à côte
-    for (const g of mur.querySelectorAll('.mur-groupe')) g.style.setProperty('--n', Math.min(4, Number(g.dataset.n)));
-    return mur;
+    const THEMES = {
+      'Liste noire': ['risque', 'bouclier'], 'Alertes': ['alerte', 'alerte'], 'Revenus et charges': ['argent', 'billet'],
+      'Revenus et pièces': ['argent', 'billet'], 'Emploi et compte': ['emploi', 'mallette'],
+      'Pension et compte': ['emploi', 'mallette'], 'Identité légale': ['legal', 'immeuble'],
+      'Sociétés et activité': ['legal', 'immeuble'], 'Dirigeants': ['personnes', 'personnes'],
+      'Comptes et réseau': ['reseau', 'reseau'], 'Identité': ['identite', 'carte'],
+      'Historique des dossiers': ['historique', 'horloge'], 'À venir': ['avenir', 'sablier'] };
+    const toutes = groupes.flatMap(g => g.tuiles);
+    const n = ton => toutes.filter(x => x.ton === ton).length;
+    const etat = n('critique') ? ['critique', 'À traiter', 'Au moins un point demande l’attention de la cellule fraude.']
+      : n('attention') ? ['attention', 'À regarder', 'Des points méritent une vérification, rien de bloquant.']
+        : ['bon', 'Rien à signaler', 'Aucun signal sur les données lues.'];
+    const synthese = el('div', { classe: `mur-synthese etat-${etat[0]}` },
+      el('div', { classe: 'synthese-etat' }, icone(etat[0] === 'bon' ? 'coche' : 'alerte'),
+        el('div', {}, el('div', { classe: 'synthese-titre', texte: etat[1] }), el('div', { classe: 'synthese-texte', texte: etat[2] }))),
+      el('div', { classe: 'synthese-compteurs' }, [['critique', 'à traiter'], ['attention', 'à regarder'], ['bon', 'rassurants']]
+        .map(([ton, texte]) => el('div', { classe: `compteur ton-${ton}` }, el('strong', { texte: nombre(n(ton)) }), el('span', { texte })))));
+    const cartes = groupes.map(g => {
+      const [theme, ico] = THEMES[g.groupe] || ['identite', 'carte'];
+      const alertes = g.tuiles.filter(x => x.ton === 'critique' || x.ton === 'attention').length;
+      const carte_ = el('section', { classe: `mur-carte theme-${theme}`, 'aria-label': g.groupe },
+        el('header', { classe: 'mur-carte-tete' }, el('span', { classe: 'mur-icone', 'aria-hidden': 'true' }, icone(ico)),
+          el('h3', { texte: g.groupe }),
+          alertes ? el('span', { classe: 'mur-badge', texte: `${alertes} signal${alertes > 1 ? 'aux' : ''}` }) : null),
+        el('div', { classe: 'mur-tuiles' }, g.tuiles.map(tuileMur)));
+      carte_.style.gridColumn = `span ${Math.min(12, Math.max(3, g.tuiles.length * 3))}`;
+      return carte_;
+    });
+    return el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
+      el('div', { classe: 'mur-entete' }, el('h2', { texte: 'Données clés' }),
+        el('p', { classe: 'note', texte: 'Lues dans les pièces, le registre du commerce et la liste noire ; la source est sous chaque valeur.' })),
+      synthese, el('div', { classe: 'mur-grille-cartes' }, cartes));
+  }
+  function tuileMur(t) {
+    const valeur = valeurTuile(t);
+    const absente = t.valeur === null || t.valeur === undefined || t.valeur === '';
+    const corps = [el('div', { classe: 'tuile-libelle' }, el('span', { classe: 'tuile-point', 'aria-hidden': 'true' }), t.libelle),
+      el('div', { classe: `tuile-chiffre${valeur.length > 14 ? ' long' : ''}`, texte: absente ? 'à venir' : valeur }),
+      t.detail ? el('div', { classe: 'tuile-detail', texte: t.detail }) : null,
+      t.source ? el('div', { classe: 'tuile-via', texte: t.source }) : null];
+    const attributs = { classe: `tuile ton-${t.ton}${absente ? ' absente' : ''}`,
+      title: [t.detail, t.source ? `source : ${t.source}` : null].filter(Boolean).join(' · ') || null };
+    return t.lien ? el('a', { ...attributs, href: t.lien, classe: `${attributs.classe} tuile-lien` }, ...corps) : el('div', attributs, ...corps);
+  }
+  // Icônes du mur : traits simples en SVG, dessinés ici (aucune ressource extérieure).
+  function icone(nom) {
+    const TRACES = {
+      bouclier: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z',
+      alerte: 'M12 4l9 16H3L12 4zM12 10v4M12 17.5v.5',
+      billet: 'M3 7h18v10H3zM12 9.5a2.5 2.5 0 110 5 2.5 2.5 0 010-5zM6 10v4M18 10v4',
+      mallette: 'M4 8h16v11H4zM9 8V5h6v3M4 13h16',
+      immeuble: 'M5 21V5l7-2v18M12 8h7v13M8 8h1M8 12h1M8 16h1M15 12h1M15 16h1M3 21h18',
+      personnes: 'M9 11a3 3 0 100-6 3 3 0 000 6zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 11a3 3 0 100-6M17 14c2.3.5 4 2.7 4 6',
+      reseau: 'M6 6a2 2 0 100 .1M18 6a2 2 0 100 .1M12 18a2 2 0 100 .1M7.5 7.5l3.5 9M16.5 7.5l-3.5 9M8 6h8',
+      carte: 'M3 6h18v12H3zM8 11a2 2 0 100-4 2 2 0 000 4zM5 15c.5-1.5 1.6-2 3-2s2.5.5 3 2M14 9h4M14 13h4',
+      horloge: 'M12 3a9 9 0 110 18 9 9 0 010-18zM12 7v5l3 2',
+      sablier: 'M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9',
+      coche: 'M12 3a9 9 0 110 18 9 9 0 010-18zM8 12l3 3 5-6' };
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', TRACES[nom] || TRACES.carte);
+    svg.append(p);
+    return svg;
   }
   function valeurTuile(t) {
     if (t.valeur === null || t.valeur === undefined || t.valeur === '') return '—';

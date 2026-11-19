@@ -191,6 +191,7 @@ def test_historique_des_dossiers_trois_au_plus():
     h = _groupes(vue360.tuiles(f))['Historique des dossiers']['tuiles']
     dossiers = [t for t in h if t['libelle'].startswith('Dossier du')]
     assert len(dossiers) == 3 and dossiers[0]['libelle'] == 'Dossier du 1 mai 2026'
+    assert dossiers[0]['lien'] == 'dossier.html?i=5', 'la tuile ouvre le dossier (la carte en double est retirée)'
     v = _tuile(vue360.tuiles(f), 'Véhicule')
     assert v['valeur'] == 'MARQUE EXEMPLE MODELE X' and '150' in v['detail']
 

@@ -115,9 +115,9 @@ MOIS = ('janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sep
 LIBELLES_SOURCE = {'v2': 'dossiers', 'registre': 'registre du commerce', 'liste_noire': 'liste noire EQDOM'}
 
 
-def _t(libelle, valeur, format='texte', ton='neutre', source=None, detail=None):
+def _t(libelle, valeur, format='texte', ton='neutre', source=None, detail=None, lien=None):
     return dict(libelle=libelle, valeur=valeur, format=format, ton=ton, source=LIBELLES_SOURCE.get(source, source),
-                detail=detail)
+                detail=detail, lien=lien)
 
 
 def _jour(v):
@@ -263,7 +263,8 @@ def _historique(f):
                                                               else d.get('role') or 'cité'))),
                          ton='neutre' if not verdict else 'bon' if verdict == 'CONFORME' else 'attention',
                          source='dossiers', detail=f'verdict {verdict}' if verdict else
-                         ('dossier d’un autre client' if not d.get('demandeur') else 'verdict en attente')))
+                         ('dossier d’un autre client' if not d.get('demandeur') else 'verdict en attente'),
+                         lien=f"dossier.html?i={d['indice']}" if d.get('indice') else None))
     vehicules = f.get('vehicules') or []
     if vehicules:
         x = vehicules[0]

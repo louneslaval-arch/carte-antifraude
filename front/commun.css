@@ -177,33 +177,76 @@ td.nombre, th.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 .tuile-titre { font-size: 12px; color: var(--encre-3); }
 .tuile-valeur { font-size: 20px; font-weight: 800; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
 .tuile-sous { font-size: 11px; color: var(--encre-3); }
-/* mur de tuiles : un ton par tuile (critique, attention, bon, neutre), un groupe par thème */
-.mur { margin: 16px 0; background: var(--surface); border: 1px solid var(--filet); border-radius: var(--rayon);
-  box-shadow: var(--ombre); padding: 18px 20px; display: grid; gap: 18px; }
-.mur-tete { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline; justify-content: space-between; }
-.mur-tete h2 { margin: 0; }
-.mur-legende { display: flex; flex-wrap: wrap; gap: 8px; }
-.pastille-ton { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--ton-fond);
-  color: var(--ton-encre); border: 1px solid var(--ton-bord); }
-.mur-groupes { display: flex; flex-wrap: wrap; gap: 18px 22px; }
-.mur-groupe { display: grid; gap: 8px; align-content: start; flex: 1 1 calc(var(--n, 2) * 168px); min-width: 0; }
-.mur-titre { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--encre-3); }
-.mur-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 10px; }
-.ton-critique { --ton-fond: #fdecee; --ton-bord: #f3b9be; --ton-encre: #a3141d; --ton-trait: var(--critique); }
-.ton-attention { --ton-fond: #fff3e8; --ton-bord: #f6cfa6; --ton-encre: #9a4210; --ton-trait: var(--majeure); }
-.ton-bon { --ton-fond: #eaf6f0; --ton-bord: #bfe2cf; --ton-encre: #1d6b48; --ton-trait: var(--aucun); }
-.ton-neutre { --ton-fond: #f3f5f9; --ton-bord: #dfe3eb; --ton-encre: var(--encre-2); --ton-trait: #b5bccb; }
-.tuile-mur { background: var(--ton-fond); border: 1px solid var(--ton-bord); border-left: 4px solid var(--ton-trait);
-  border-radius: 10px; padding: 10px 12px; min-width: 0; }
-.tuile-mur .tuile-titre { color: var(--ton-encre); font-weight: 600; font-size: 11.5px; }
-.tuile-mur .tuile-valeur { color: var(--encre); font-size: 18px; font-weight: 800; margin: 3px 0 0; overflow-wrap: anywhere;
-  font-variant-numeric: tabular-nums; }
-.tuile-mur.ton-critique .tuile-valeur { color: #a3141d; }
-.tuile-mur .tuile-sous { margin-top: 2px; }
-.tuile-mur.long .tuile-valeur { font-size: 13.5px; line-height: 1.3; }
-.tuile-mur.absente { opacity: .7; border-style: dashed; border-left-style: solid; }
-.tuile-source { margin-top: 6px; font-size: 10.5px; letter-spacing: .02em; color: var(--encre-3); }
-.tuile-source::before { content: "source · "; }
+/* ---- mur de données (vue 360°) ---------------------------------------------------------------------------------
+   Bandeau de synthèse, puis une carte par thème : couleur et icône du thème en tête, tuiles blanches dont le ton se lit à
+   la pastille et à la couleur de la valeur. Tons : critique (rouge), attention (ambre), bon (vert), neutre (ardoise). */
+.mur { margin: 16px 0; display: grid; gap: 14px; }
+.mur-entete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.mur-entete h2 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+.ton-critique { --ton: #d92d3a; --ton-pale: #fff1f2; --ton-texte: #b4141e; }
+.ton-attention { --ton: #e08a00; --ton-pale: #fff8eb; --ton-texte: #9a5b00; }
+.ton-bon { --ton: #17a06b; --ton-pale: #ecfaf3; --ton-texte: #11734d; }
+.ton-neutre { --ton: #9aa3b8; --ton-pale: #f5f7fb; --ton-texte: var(--encre); }
+
+/* synthèse : l'état général en une ligne, et les comptes par ton */
+.mur-synthese { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px;
+  padding: 16px 20px; border-radius: 16px; color: #fff; box-shadow: 0 10px 30px -12px var(--halo, rgba(0,0,0,.3)); }
+.mur-synthese.etat-critique { background: linear-gradient(120deg, #b4141e 0%, #e0444f 60%, #f0706a 100%); --halo: rgba(180,20,30,.55); }
+.mur-synthese.etat-attention { background: linear-gradient(120deg, #b86a00 0%, #e59a1c 60%, #f2b84b 100%); --halo: rgba(184,106,0,.5); }
+.mur-synthese.etat-bon { background: linear-gradient(120deg, #0f7a52 0%, #1fa874 60%, #4cc596 100%); --halo: rgba(15,122,82,.5); }
+.synthese-etat { display: flex; align-items: center; gap: 14px; }
+.synthese-etat svg { width: 38px; height: 38px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; padding: 7px; border-radius: 12px; background: rgba(255,255,255,.18); }
+.synthese-titre { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
+.synthese-texte { font-size: 13px; opacity: .92; }
+.synthese-compteurs { display: flex; gap: 8px; flex-wrap: wrap; }
+.compteur { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px;
+  background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); font-size: 12.5px; }
+.compteur strong { font-size: 17px; font-variant-numeric: tabular-nums; }
+
+/* cartes par thème, en grille de 12 colonnes : la largeur suit le nombre de tuiles */
+.mur-grille-cartes { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; grid-auto-flow: dense; }
+.mur-carte { --theme: #5b6b8c; --theme-pale: #eef1f7; background: var(--surface); border: 1px solid var(--filet);
+  border-radius: 16px; padding: 14px; box-shadow: var(--ombre); display: grid; gap: 12px; align-content: start;
+  position: relative; overflow: hidden; min-width: 0; }
+.mur-carte::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--theme); }
+.theme-risque { --theme: #d92d3a; --theme-pale: #fdecee; }
+.theme-alerte { --theme: #e9730c; --theme-pale: #fff1e4; }
+.theme-argent { --theme: #13996a; --theme-pale: #e5f6ef; }
+.theme-emploi { --theme: #4f5bd5; --theme-pale: #eceefc; }
+.theme-legal { --theme: #7c4dcc; --theme-pale: #f2ecfc; }
+.theme-personnes { --theme: #c2410c; --theme-pale: #fdeee5; }
+.theme-reseau { --theme: #0e8aa8; --theme-pale: #e3f5f9; }
+.theme-identite { --theme: #2563c9; --theme-pale: #e8f0fc; }
+.theme-historique { --theme: #475569; --theme-pale: #eef1f5; }
+.theme-avenir { --theme: #a3acbd; --theme-pale: #f3f5f9; background: repeating-linear-gradient(135deg, var(--surface) 0 10px, #fafbfd 10px 20px); }
+.mur-carte-tete { display: flex; align-items: center; gap: 10px; }
+.mur-carte-tete h3 { margin: 0; font-size: 14px; font-weight: 750; color: var(--encre); flex: 1;
+  text-transform: none; letter-spacing: -.005em; }
+.mur-icone { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--theme-pale);
+  color: var(--theme); flex: none; }
+.mur-icone svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.mur-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--theme-pale); color: var(--theme); }
+.mur-tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+
+/* tuile : blanche, pastille du ton, valeur en grand ; une alerte se teinte légèrement */
+.tuile { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 12px; min-width: 0;
+  background: var(--surface); border: 1px solid var(--filet); color: inherit; text-decoration: none;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.tuile.ton-critique, .tuile.ton-attention { background: var(--ton-pale); border-color: color-mix(in srgb, var(--ton) 30%, #fff); }
+.tuile-lien:hover { transform: translateY(-1px); box-shadow: 0 6px 16px -8px rgba(20,22,31,.35); border-color: var(--theme); }
+.tuile-libelle { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--encre-3); }
+.tuile-point { width: 7px; height: 7px; border-radius: 50%; background: var(--ton); flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ton) 18%, transparent); }
+.tuile-chiffre { font-size: 19px; font-weight: 800; letter-spacing: -.01em; color: var(--ton-texte); line-height: 1.2;
+  font-variant-numeric: tabular-nums; overflow-wrap: break-word; hyphens: manual; }
+.tuile-chiffre.long { font-size: 14px; font-weight: 750; }
+.tuile-detail { font-size: 11.5px; color: var(--encre-2); line-height: 1.35; }
+.tuile-via { margin-top: auto; padding-top: 4px; font-size: 10.5px; color: var(--encre-3); }
+.tuile-via::before { content: "via "; }
+.tuile.absente .tuile-chiffre { font-size: 13px; font-weight: 600; color: var(--encre-3); font-style: italic; }
+@media (max-width: 1000px) { .mur-carte { grid-column: span 12 !important; } }
+@media (prefers-reduced-motion: reduce) { .tuile { transition: none; } }
 .barres-revenus { display: grid; gap: 8px; }
 .ligne-revenu { display: grid; grid-template-columns: 170px 1fr 110px; gap: 10px; align-items: center; font-size: 13px; }
 .piste { height: 10px; background: var(--fond); border-radius: 4px; overflow: hidden; }
