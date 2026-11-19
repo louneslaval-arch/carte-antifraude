@@ -61,3 +61,12 @@ def test_rien_que_du_fictif_et_rien_d_exterieur(demo):
             texte = open(os.path.join(d, nom), encoding='utf-8').read()
             assert all(v.upper().startswith('ZZ') for v in cin.findall(texte)), nom
             assert set(adresse.findall(texte)) <= {'exemple.invalid', 'www.w3.org'}, nom
+
+
+def test_bulle_des_statistiques_active_seulement_avec_sa_page(demo):
+    """Sans la structure de Kamal (clone du dépôt public), la démonstration se construit sans la page des statistiques
+    et la bulle reste « à venir » ; avec, la page existe et la bulle y mène."""
+    contenu = open(os.path.join(demo, 'contenu.js'), encoding='utf-8').read()
+    page = os.path.exists(os.path.join(demo, 'statistiques.html'))
+    assert (ea.STATS_ACTIF[1] in contenu) is page
+    assert (ea.STATS_ACTIF[0] in contenu) is not page

@@ -40,14 +40,9 @@ def construire(dossier):
         shutil.rmtree(dossier)
     shutil.copytree(os.path.join(RACINE, 'front'), dossier)
     cases = ex.statistiques(dossier, None)
-    separer(os.path.join(dossier, 'statistiques.html'))
-    chemin = os.path.join(dossier, 'contenu.js')
-    with open(chemin, encoding='utf-8') as f:
-        contenu = f.read()
-    if contenu.count(ex.STATS_ACTIF[0]) != 1:
-        raise SystemExit('contenu.js : module de statistiques introuvable')
-    with open(chemin, 'w', encoding='utf-8') as f:
-        f.write(contenu.replace(*ex.STATS_ACTIF))
+    if cases is not None:                      # sans la structure de Kamal : pas de page, bulle « à venir »
+        separer(os.path.join(dossier, 'statistiques.html'))
+        ex.activer_statistiques(dossier)
     return cases
 
 
@@ -56,7 +51,9 @@ def main(argv=None):
     if len(argv) != 1:
         print(__doc__.splitlines()[-2].strip(), file=sys.stderr)
         return 2
-    print(f'pages de démonstration : statistiques, {construire(argv[0])} cases')
+    cases = construire(argv[0])
+    print(f'pages de démonstration : statistiques, {cases} cases' if cases is not None
+          else 'pages de démonstration : sans statistiques (structure de Kamal absente)')
     return 0
 
 

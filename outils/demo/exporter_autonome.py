@@ -139,6 +139,8 @@ def exporter(sortie, base, carte, limite=None):
         con.close()
     pages(sortie)
     stats = statistiques(sortie, base)
+    if stats is not None:
+        activer_statistiques(sortie)
     return dict(clients=len(items), fiches=len(fiches), dossiers=len(dossiers), noeuds_carte=n, fichiers=ecr.nombre, cases_statistiques=stats)
 
 
@@ -146,11 +148,28 @@ STATS_ACTIF = ("{ id: 'stats', nom: 'Statistiques client', etat: 'a_venir',",
                "{ id: 'stats', nom: 'Statistiques client', etat: 'actif', lien: 'statistiques.html',")
 
 
+def activer_statistiques(dossier):
+    """Le module de statistiques existe dans la démonstration : sa bulle du portail devient active et mène à sa page."""
+    chemin = os.path.join(dossier, 'contenu.js')
+    with open(chemin, encoding='utf-8') as f:
+        contenu = f.read()
+    if contenu.count(STATS_ACTIF[0]) != 1:
+        raise SystemExit('contenu.js : module de statistiques introuvable')
+    with open(chemin, 'w', encoding='utf-8') as f:
+        f.write(contenu.replace(*STATS_ACTIF))
+
+
 def statistiques(sortie, base):
     """Page des statistiques (couche 7), calculée sur le jeu d'essai des statistiques (600 dossiers fictifs qui
     couvrent tous les verdicts et tous les cas ; la base de démonstration n'a presque que des verdicts conformes), avec
-    un lien vers le portail et la mention de démonstration. Rend le nombre de cases."""
+    un lien vers le portail et la mention de démonstration. Rend le nombre de cases ; None, sans page, quand la structure
+    de Kamal (non versionnée) manque pour générer ce jeu : la bulle du portail reste alors « à venir »."""
     sys.path[:0] = [os.path.join(RACINE, 'jeu_essai', 'v2'), os.path.join(RACINE, 'jeu_essai', 'v2', 'statistiques')]
+    import generer_dossiers
+    try:
+        generer_dossiers.structure_kamal()
+    except generer_dossiers.PrealableManquant:
+        return None
     import generer_v2_fictif
     from pipeline.analytique import agregats, page_statistiques
     with tempfile.TemporaryDirectory() as t:
@@ -189,14 +208,6 @@ def pages(sortie):
         with open(os.path.join(sortie, nom), 'w', encoding='utf-8') as f:
             f.write(html)
     shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'demo_autonome.js'), os.path.join(sortie, 'demo.js'))
-    # le module de statistiques existe dans la démonstration : sa bulle du portail devient active et mène à sa page
-    chemin = os.path.join(sortie, 'contenu.js')
-    with open(chemin, encoding='utf-8') as f:
-        contenu = f.read()
-    if contenu.count(STATS_ACTIF[0]) != 1:
-        raise SystemExit('contenu.js : module de statistiques introuvable')
-    with open(chemin, 'w', encoding='utf-8') as f:
-        f.write(contenu.replace(*STATS_ACTIF))
     with open(os.path.join(sortie, 'LISEZ-MOI.txt'), 'w', encoding='utf-8') as f:
         f.write('EQDOM · Plateforme clients : démonstration autonome\n\n'
                 'Ouvrir index.html dans un navigateur (Chrome, Edge, Safari ou Firefox). Aucun serveur ni connexion à '
