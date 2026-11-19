@@ -15,9 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const ilots = [];                                           // [{ element, donnee, genre, courbe }]
 
   // ---- tuile centrale, puis modules, puis usages : c'est aussi l'ordre de tabulation -----------------------------
-  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : ouvrir la base client` },
+  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : chercher un client et ouvrir sa vue 360°` },
     el('div', { classe: 'ilot-nom', texte: C.centre.nom }),
     el('div', { classe: 'ilot-accroche', texte: C.centre.accroche }),
+    (C.centre.profils || []).length ? el('div', { classe: 'centre-profils' },
+      C.centre.profils.map(p => el('span', { texte: p }))) : null,
     el('div', { classe: 'centre-chiffres', id: 'centre-chiffres' }),
     el('div', { classe: 'centre-maj', id: 'centre-maj' }));
   ajouter(centre, C.centre, 'centre');

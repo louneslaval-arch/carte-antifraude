@@ -154,6 +154,55 @@ td.nombre, th.nombre { text-align: right; font-variant-numeric: tabular-nums; }
 .definitions { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; margin: 10px 0 0; }
 .definitions dt { color: var(--encre-3); }
 .definitions dd { margin: 0; }
+/* ---- vue 360° : un liseré et une étiquette par profil ------------------------------------------------------------ */
+.tete-360 { border-top: 4px solid var(--profil, var(--encre)); }
+.profil-salarie { --profil: #2a78d6; }
+.profil-entrepreneur { --profil: #b8590a; }
+.profil-pm { --profil: #6d4ec2; }
+.tete-texte { min-width: 0; flex: 1; }
+.surtitre { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--profil, var(--encre-3)); }
+.tete-360 h1 { margin: 2px 0 8px; }
+.etiquette-profil { background: color-mix(in srgb, var(--profil) 12%, #fff); border-color: color-mix(in srgb, var(--profil) 35%, #fff);
+  color: color-mix(in srgb, var(--profil) 80%, #000); font-weight: 700; }
+.bandeau-aussi { margin: 12px 0 0; padding: 8px 12px; border-radius: 8px; background: #fff7ec; border: 1px solid #f3d9b5;
+  font-size: 13px; color: #6b4310; }
+.tuiles-360 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.tuile-360 { background: var(--surface); border: 1px solid var(--filet); border-radius: var(--rayon); padding: 12px 14px;
+  box-shadow: var(--ombre); border-left: 4px solid var(--filet-fort); }
+.tuile-360.bon { border-left-color: var(--aucun); }
+.tuile-360.attention { border-left-color: var(--majeure); }
+.tuile-360.niveau-critique { border-left-color: var(--critique); }
+.tuile-360.niveau-majeure { border-left-color: var(--majeure); }
+.tuile-360.niveau-mineure { border-left-color: var(--mineure); }
+.tuile-titre { font-size: 12px; color: var(--encre-3); }
+.tuile-valeur { font-size: 20px; font-weight: 800; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.tuile-sous { font-size: 11px; color: var(--encre-3); }
+.barres-revenus { display: grid; gap: 8px; }
+.ligne-revenu { display: grid; grid-template-columns: 170px 1fr 110px; gap: 10px; align-items: center; font-size: 13px; }
+.piste { height: 10px; background: var(--fond); border-radius: 4px; overflow: hidden; }
+.barre { display: block; height: 100%; border-radius: 0 4px 4px 0; background: #2a78d6; }
+.barre.declare { background: #a8afc2; }
+.montant-revenu { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.controles-bloc { margin-top: 12px; }
+.controles-bloc > summary, .famille > summary { cursor: pointer; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+.familles { display: grid; gap: 10px; }
+.famille { border: 1px solid var(--filet); border-radius: 10px; padding: 10px 12px; }
+.liste-controles { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.controle { display: grid; grid-template-columns: 10px 1fr auto auto; gap: 10px; align-items: start; font-size: 13px; }
+.controle .pastille { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--hors); }
+.controle.conforme .pastille { background: var(--aucun); }
+.controle.anomalie .pastille { background: var(--critique); }
+.controle.anomalie .controle-texte { font-weight: 600; }
+.controle-desc { display: block; font-size: 12px; color: var(--encre-3); font-weight: 400; }
+.controle-etat { font-size: 12px; color: var(--encre-2); white-space: nowrap; }
+.etiquette.ok { background: #e8f6ef; border-color: #bfe5d1; color: #1e6e4b; }
+@media (max-width: 1100px) { .tuiles-360 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .tuiles-360 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ligne-revenu { grid-template-columns: 1fr 90px; }
+  .ligne-revenu .piste { grid-column: 1 / -1; grid-row: 2; }
+  .controle { grid-template-columns: 10px 1fr; }
+}
 .connexion { max-width: 380px; margin: 10vh auto; }
 .connexion label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
 .connexion input { width: 100%; padding: 10px 12px; border: 1px solid var(--filet-fort); border-radius: 10px; font: inherit; }

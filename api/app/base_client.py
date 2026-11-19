@@ -21,6 +21,8 @@ if RACINE not in sys.path:
 
 from pipeline.couches import c5_graphe  # noqa: E402
 
+from . import vue360  # noqa: E402
+
 SEUIL = 5
 NIVEAUX = ('critique', 'majeure', 'mineure', 'affiche', 'hors_alerte')
 LIBELLES_NIVEAU = {'critique': 'Critique', 'majeure': 'Majeure', 'mineure': 'Mineure', 'affiche': 'Affiché',
@@ -309,12 +311,19 @@ class BaseClient:
                         continue                              # chemin d'une autre partie du dossier : pas le sien
                     chemins.append(self._chemin_lisible(cx, ch, ref))
             chemins.sort(key=lambda c: (self._rang(c['niveau']), -c['force']))
-            return dict(indice=indice, identite=identite, alias=alias, adresses=adresses, sources=sources,
+            donnees = [self._donnees_dossier(cx, ref, fiche) for ref in refs]
+            csp = cx.execute(f'SELECT csp FROM c3_dossier WHERE ref IN ({self._dans(refs_propres)}) '
+                             'ORDER BY "businessReceivedAt" DESC, ref DESC LIMIT 1', refs_propres).fetchone() \
+                if refs_propres else None
+            roles = [r for r, in cx.execute('SELECT DISTINCT role FROM c2_role WHERE fiche = ?', (fiche,))]
+            prof, retraite = vue360.profil(identite['type'], csp[0] if csp else None, roles)
+            vue = dict(profil=prof, retraite=retraite, csp=csp[0] if csp else None, aussi=vue360.aussi(prof, societes),
+                       revenus=vue360.synthese_revenus(revenus), controles=vue360.controles(donnees, prof))
+            return dict(indice=indice, identite=identite, vue360=vue, alias=alias, adresses=adresses, sources=sources,
                         dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
                         vehicules=vehicules, chemins=chemins[:5], charges=self._charges(cx, refs_propres),
                         operations=self._operations(cx, refs_propres), incoherences=self._incoherences(cx, refs_propres),
-                        identifiants=self._identifiants(cx, fiche), donnees=[self._donnees_dossier(cx, ref, fiche)
-                                                                            for ref in refs],
+                        identifiants=self._identifiants(cx, fiche), donnees=donnees,
                         liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
         finally:
             cx.close()

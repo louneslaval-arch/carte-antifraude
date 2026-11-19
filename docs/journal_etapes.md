@@ -583,3 +583,19 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   de son type ; page réelle hors du dépôt ; jeu d'essai avec employeurs et concessionnaires rares (le test du
   regroupement passait à vide). 119 tests du module ; vérification complète verte.
 - **Non fait, noté** : questions n°116 à 134.
+
+## 19/11/2026 — vue 360° d'une entité (branche `vue-360`, partie de `demo-complete`)
+- **Demande de Lounès** : la partie centrale du portail devient une vue 360° d'une entité, en trois profils
+  (personne salariée, personne entrepreneur, personne morale), chacun avec ses données utiles.
+- **Tranché par défaut** (proposé, sans objection) : retraités rangés avec les salariés (pension à la place du
+  salaire) ; profil tiré de la CSP du dernier dossier propre ; sans CSP parlante (« AUTRE », ou fiche citée
+  seulement), un rôle en cours de gérant, d'associé ou de dirigeant en fait un entrepreneur ; un salarié associé garde
+  le profil salarié, ses sociétés en bandeau ; `LOUEUR` rangé avec les entrepreneurs. La fiche reste réservée à la
+  cellule fraude (`base.fiche`), la question du rôle AGENCE ne se pose pas ici.
+- **Fait** : `api/app/vue360.py` (profil, sociétés en bandeau, synthèse des revenus, contrôles par famille avec le
+  catalogue, dans l'ordre du profil) ; clé `vue360` de la fiche ; `front/fiche.js` réorganisé (en-tête au liseré du
+  profil, six chiffres clés, blocs par profil, contrôles par famille, toutes les données en bas) ; tuile centrale du
+  portail renommée « Vue 360° ».
+- **Tests** : `api/tests/test_vue360.py`, 15 tests, rouges d'abord (module absent). Vérification complète : 1 336 réussis,
+  un échec (le mot interdit dans une note de la page), corrigé et repassé. Vue dans le navigateur pour les trois profils.
+- **Non fait** : relectures par sous-agents ; zip de démonstration non régénéré.
