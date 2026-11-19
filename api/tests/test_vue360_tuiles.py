@@ -101,123 +101,132 @@ def _libelles(groupes):
     return {t['libelle'] for t in _toutes(groupes)}
 
 
+def _groupes(groupes):
+    return {g['groupe']: g for g in groupes}
+
+
 @pytest.mark.parametrize('fabrique', [fiche_salarie, fiche_entrepreneur, fiche_societe])
-def test_tuiles_bien_formees_avec_leur_source(fabrique):
-    toutes = _toutes(vue360.tuiles(fabrique()))
-    assert 25 <= len(toutes) <= 60
+def test_un_mur_epure_et_bien_forme(fabrique):
+    """Épuré (Lounès, 19/11/2026) : une vingtaine de tuiles au plus, aucune tuile vide hors « À venir », aucun
+    groupe vide, rien de ce que l'en-tête montre déjà."""
+    groupes = vue360.tuiles(fabrique())
+    toutes = _toutes(groupes)
+    assert 10 <= len(toutes) <= 24
     assert all({'libelle', 'valeur', 'format', 'ton', 'source'} <= set(t) and t['ton'] in TONS for t in toutes)
     assert len({t['libelle'] for t in toutes}) == len(toutes)
+    assert all(g['tuiles'] for g in groupes)
+    assert all(t['valeur'] is not None for g in groupes if g['groupe'] != 'À venir' for t in g['tuiles'])
+    assert not {'Nom', 'CIN', 'Date de naissance', 'Adresse retenue', 'RC', 'ICE', 'Siège'} & _libelles(groupes)
 
 
-def test_historique_eqdom_recouvrement_pour_tous_et_endettement_du_salarie():
-    """En rouge sur la liste de Lounès, à garder (19/11/2026) : historique des dossiers, historique EQDOM,
-    recouvrement, taux d'endettement."""
-    for fabrique in (fiche_salarie, fiche_entrepreneur, fiche_societe):
-        groupes = {g['groupe']: g for g in vue360.tuiles(fabrique())}
-        assert {'Historique des dossiers', 'Historique EQDOM', 'Recouvrement'} <= set(groupes)
-        eqdom = groupes['Historique EQDOM']['tuiles']
-        assert {t['libelle'] for t in eqdom} >= {'Contrats EQDOM', 'Impayés', 'Classe BAM'}
-        assert all(t['valeur'] is None and 'historique sur 36 mois' in t['detail'] for t in eqdom)
-        assert all(t['valeur'] is None for t in groupes['Recouvrement']['tuiles'])
+def test_a_venir_regroupe_les_sources_non_branchees():
+    g = _groupes(vue360.tuiles(fiche_salarie()))['À venir']['tuiles']
+    assert {t['libelle'] for t in g} == {'Historique EQDOM', 'Recouvrement', 'Salaire versé par un autre'}
+    assert all(t['valeur'] is None and t['ton'] == 'neutre' and t['detail'] for t in g)
+    pm = _groupes(vue360.tuiles(fiche_societe()))['À venir']['tuiles']
+    assert 'Chiffre d’affaires déclaré' in {t['libelle'] for t in pm}
+
+
+def test_identite_seulement_ce_qui_alerte():
     g = vue360.tuiles(fiche_salarie())
-    t = _tuile(g, 'Taux d’endettement')
-    # charges du mois (échéances du relevé 3 200 + crédit prélevé à la source 1 500) / revenu vérifié 10 000
-    assert t['valeur'] == pytest.approx(0.47) and t['format'] == 'pourcent' and t['ton'] == 'attention'
-    assert 'Taux d’endettement' not in _libelles(vue360.tuiles(fiche_societe()))
-
-
-def test_historique_des_dossiers_produit_date_role_verdict_vehicule():
-    f = fiche_salarie()
-    f['vehicules'] = [dict(type_piece='FACTURE_PROFORMA_VEHICULE', marque='MARQUE EXEMPLE', modele='MODELE X',
-                           etat='neuf', prix=150000)]
-    g = vue360.tuiles(f)
-    d = _tuile(g, 'Dossier du 15 sept. 2026')
-    assert d['valeur'] == 'DISPO · demandeur' and d['ton'] == 'bon' and 'CONFORME' in d['detail']
-    v = _tuile(g, 'Véhicule')
-    assert v['valeur'] == 'MARQUE EXEMPLE MODELE X' and _tuile(g, 'Prix du véhicule')['valeur'] == 150000
-
-
-def test_identite_lue_dans_les_pieces():
-    g = vue360.tuiles(fiche_salarie())
-    assert _tuile(g, 'CIN')['valeur'] == 'ZZ123456'
-    assert _tuile(g, 'Lieu de naissance') == dict(_tuile(g, 'Lieu de naissance'), valeur='RABAT', source='CIN')
     exp = _tuile(g, 'Expiration de la CIN')
-    assert exp['valeur'] == '2026-01-31' and exp['ton'] == 'critique'          # expirée au dernier dossier
-    assert 'ZALOU KAMY' in _tuile(g, 'Graphies')['valeur']
+    assert exp['valeur'] == '2026-01-31' and exp['ton'] == 'critique'
 
 
-def test_revenus_piece_par_piece_et_ecart():
+def test_revenus_ecart_et_endettement_du_salarie():
     g = vue360.tuiles(fiche_salarie())
-    assert _tuile(g, 'Bulletin de paie') == dict(_tuile(g, 'Bulletin de paie'), valeur=10000, format='montant')
+    assert _tuile(g, 'Bulletin de paie')['valeur'] == 10000
     assert _tuile(g, 'Salaire retrouvé sur les relevés')['valeur'] == 8000
-    assert _tuile(g, 'Revenu déclaré')['source'] == 'déclaration'
-    assert _tuile(g, 'Écart entre pièces')['ton'] == 'attention'               # 20 % > 15 %
+    assert _tuile(g, 'Écart entre pièces')['ton'] == 'attention'
+    t = _tuile(g, 'Taux d’endettement')
+    # (échéances du relevé 3 200 + crédit prélevé à la source 1 500) / revenu vérifié 10 000
+    assert t['valeur'] == pytest.approx(0.47) and t['ton'] == 'attention'
 
 
-def test_employeur_charges_comptes_identifiants_du_salarie():
+def test_employeur_compte_et_bandeau_du_salarie():
     g = vue360.tuiles(fiche_salarie())
-    emp = _tuile(g, 'Employeur sur le bulletin')
+    emp = _tuile(g, 'Employeur')
     assert emp['valeur'] == 'EMPLOYEUR EXEMPLE SARL' and emp['source'] == 'bulletin de paie'
-    assert _tuile(g, 'Employeur déclaré au dossier')['valeur'] == 'VAB'
-    assert _tuile(g, 'Clients EQDOM qui le déclarent')['valeur'] == 12
     assert _tuile(g, 'Date d’embauche')['valeur'] == '2019-06-01'
-    assert _tuile(g, 'Contrôle EMP-05')['ton'] == 'attention'
-    assert _tuile(g, 'Crédit prélevé à la source')['valeur'] == 1500
-    assert _tuile(g, 'Échéances de crédit sur les relevés')['valeur'] == 3200
-    assert _tuile(g, 'RIB')['valeur'] == '••• 0001'
+    assert _tuile(g, 'Clients EQDOM qui le déclarent')['valeur'] == 12
+    assert _tuile(g, 'Compte')['valeur'] == '••• 0001 · BANQUE EXEMPLE'
     assert _tuile(g, 'N° CNSS')['valeur'] == '999123456'
     assert _tuile(g, 'Aussi associé de')['valeur'] == 'SOCIETE AUSSI SARL'
-    nd = _tuile(g, 'Salaire versé par un autre')
-    assert nd['valeur'] is None and nd['ton'] == 'neutre' and 'Tandem' in nd['detail']
 
 
-def test_liste_noire_et_chemins():
+def test_liste_noire_et_chemin():
     f = fiche_salarie()
     g = vue360.tuiles(f)
     assert _tuile(g, 'Liste noire')['ton'] == 'bon'
-    best = _tuile(g, 'Meilleur chemin')
-    assert best['valeur'] == 'majeure · force 0,30' and best['ton'] == 'attention'
+    assert _tuile(g, 'Meilleur chemin') == dict(_tuile(g, 'Meilleur chemin'), valeur='majeure · force 0,30',
+                                                ton='attention')
     assert _tuile(g, 'Inscrit atteint')['valeur'] == 'INSCRIT EXEMPLE'
-    assert _tuile(g, 'Même RIB dans le dossier d’un autre')['ton'] == 'critique'
     f['identite']['inscrit'] = True
     f['liste_noire'] = [dict(label='ZALOU KAMI', typeListe='INDESIRABLE', motif='FAUX DOCUMENTS', statut='actif',
                              premiere_saisie='2020-07-20', type_fraude=None, nb_inscriptions=1)]
     g = vue360.tuiles(f)
-    assert _tuile(g, 'Liste noire')['ton'] == 'critique'
-    assert _tuile(g, 'Type de liste')['valeur'] == 'INDESIRABLE' and _tuile(g, 'Motif')['valeur'] == 'FAUX DOCUMENTS'
-    assert _tuile(g, 'Inscrit depuis')['valeur'] == '2020-07-20'
+    ln = _tuile(g, 'Liste noire')
+    assert ln['ton'] == 'critique' and ln['valeur'] == 'INDESIRABLE' and 'FAUX DOCUMENTS' in ln['detail']
 
 
-def test_controles_par_famille():
-    t = _tuile(vue360.tuiles(fiche_salarie()), 'Revenus et employeur')
-    assert t['valeur'] == '1 anomalie' and t['ton'] == 'attention' and 'EMP-05' in t['detail']
+def test_incoherences_et_controles_seulement_s_ils_alertent():
+    g = vue360.tuiles(fiche_salarie())
+    assert _tuile(g, 'Même RIB dans le dossier d’un autre')['ton'] == 'critique'
+    assert 'Même châssis ailleurs' not in _libelles(g)
+    ctl = _tuile(g, 'Revenus et employeur')
+    assert ctl['valeur'] == '1 anomalie' and 'EMP-05' in ctl['detail']
+    f = fiche_salarie()
+    f['incoherences'], f['vue360']['controles'] = [], [dict(famille='Identité', anomalies=0, controles=[
+        dict(controle='IDT-01', resultat='CONFORME', criticite='CRITIQUE', dossier=1)])]
+    g = vue360.tuiles(f)
+    assert _tuile(g, 'Incohérences')['ton'] == 'bon' and _tuile(g, 'Contrôles')['valeur'] == 'tous conformes'
 
 
-def test_entrepreneur_societes_carte_pro_anciennete():
+def test_historique_des_dossiers_trois_au_plus():
+    f = fiche_salarie()
+    f['dossiers'] = [dict(indice=k, demandeur=True, recu=f'2026-0{k}-01T10:00:00.000Z', produit='DISPO',
+                          verdict='CONFORME') for k in range(1, 6)]
+    f['vehicules'] = [dict(type_piece='FACTURE_PROFORMA_VEHICULE', marque='MARQUE EXEMPLE', modele='MODELE X',
+                           etat='neuf', prix=150000)]
+    h = _groupes(vue360.tuiles(f))['Historique des dossiers']['tuiles']
+    dossiers = [t for t in h if t['libelle'].startswith('Dossier du')]
+    assert len(dossiers) == 3 and dossiers[0]['libelle'] == 'Dossier du 1 mai 2026'
+    v = _tuile(vue360.tuiles(f), 'Véhicule')
+    assert v['valeur'] == 'MARQUE EXEMPLE MODELE X' and '150' in v['detail']
+
+
+def test_entrepreneur_societes_et_carte_pro():
     g = vue360.tuiles(fiche_entrepreneur())
     assert _tuile(g, 'CABINET EXEMPLE SARL')['valeur'] == 'gérant · associé 60 %'
-    assert _tuile(g, 'ANCIENNE EXEMPLE SARL')['ton'] == 'attention'          # rôle terminé
+    assert _tuile(g, 'ANCIENNE EXEMPLE SARL')['ton'] == 'attention'
     assert _tuile(g, 'Profession')['valeur'] == 'MEDECIN'
-    assert _tuile(g, 'Carte professionnelle valide jusqu’au') == dict(
-        _tuile(g, 'Carte professionnelle valide jusqu’au'), valeur='2027-12-31', ton='bon')
+    assert _tuile(g, 'Carte professionnelle valide jusqu’au')['ton'] == 'bon'
     assert _tuile(g, 'Activité depuis')['valeur'] == '2015-03-15'
     assert _tuile(g, 'Type de compte')['valeur'] == 'personnel'
-    assert 'Employeur sur le bulletin' not in _libelles(g)
+    assert 'Employeur' not in _libelles(g)
 
 
-def test_societe_identite_legale_dirigeants_flux_et_reseau():
+def test_societe_identite_legale_dirigeants_flux_reseau():
     g = vue360.tuiles(fiche_societe())
-    assert _tuile(g, 'RC')['valeur'] == '9991234 · RABAT'
     assert _tuile(g, 'Forme juridique')['valeur'] == 'SARL'
     assert _tuile(g, 'Capital')['valeur'] == 100000
     assert _tuile(g, 'Immatriculée le')['valeur'] == '2020-02-02'
-    gerant = _tuile(g, 'GERANT EXEMPLE')
-    assert gerant['valeur'] == 'gérant, associé' and gerant['ton'] == 'critique'   # inscrit, une seule tuile
-    assert _tuile(g, 'Crédits par mois')['valeur'] == 9000
-    assert _tuile(g, 'BNQ-10 · Flux aller-retour')['ton'] == 'attention'
     assert _tuile(g, 'Sociétés au même siège')['valeur'] == 14
+    gerant = _tuile(g, 'GERANT EXEMPLE')
+    assert gerant['valeur'] == 'gérant, associé' and gerant['ton'] == 'critique'
+    assert _tuile(g, 'Crédits par mois')['valeur'] == 9000
     assert _tuile(g, 'Sociétés sœurs')['valeur'] == 'SOEUR A SARL, SOEUR B SARL'
+    assert _tuile(g, 'Relevés bancaires')['valeur'] == '1 anomalie'
     assert 'Bulletin de paie' not in _libelles(g)
+
+
+def test_un_retraite_n_a_que_sa_pension():
+    f = fiche_salarie()
+    f['vue360']['retraite'] = True
+    f['donnees'][0]['pieces'].append(_piece('ATTESTATION_PENSION', nom_organisme_retraite='CAISSE EXEMPLE'))
+    g = vue360.tuiles(f)
+    assert _tuile(g, 'Organisme de pension')['valeur'] == 'CAISSE EXEMPLE'
+    assert not {'Employeur', 'Salaire versé par un autre', 'Clients EQDOM qui le déclarent'} & _libelles(g)
 
 
 def test_une_fiche_vide_ne_casse_rien():
@@ -226,8 +235,8 @@ def test_une_fiche_vide_ne_casse_rien():
                 'donnees', 'charges'):
         f[cle] = []
     f['vue360'].update(revenus=dict(declare=None, pieces={}, ecart=None), controles=[], entite={}, aussi=[])
-    toutes = _toutes(vue360.tuiles(f))
-    assert toutes and all(t['ton'] in TONS for t in toutes)
+    groupes = vue360.tuiles(f)
+    assert _toutes(groupes) and all(g['tuiles'] for g in groupes)
 
 
 def test_la_fonction_ne_modifie_pas_la_fiche():
@@ -236,12 +245,3 @@ def test_la_fonction_ne_modifie_pas_la_fiche():
         avant = copy.deepcopy(f)
         vue360.tuiles(f)
         assert f == avant
-
-
-def test_un_retraite_n_a_ni_employeur_ni_salaire_verse_par_un_autre():
-    f = fiche_salarie()
-    f['vue360']['retraite'] = True
-    f['donnees'][0]['pieces'].append(_piece('ATTESTATION_PENSION', nom_organisme_retraite='CAISSE EXEMPLE'))
-    g = vue360.tuiles(f)
-    assert _tuile(g, 'Organisme de pension')['valeur'] == 'CAISSE EXEMPLE'
-    assert not {'Employeur relié', 'Salaire versé par un autre', 'Employeur sur le bulletin'} & _libelles(g)

@@ -632,3 +632,8 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   portail recalculés sur les clients retenus (règle des moins de 5 gardée). 100 clients, 94 dossiers, 3,1 Mo.
 - **Tests** : `tests/test_demo_fichier_unique.py` (9), rouges d'abord (module absent) ; le test des chiffres du
   portail et celui de la réécriture dans une expression ont été écrits avec leur correction.
+- **Épuré le même jour** (« il y en a trop ») : rien de ce que l'en-tête montre déjà ; incohérences et familles de
+  contrôles seulement si elles alertent (sinon une tuile rassurante) ; aucune tuile vide hors du groupe « À venir »
+  (historique EQDOM, recouvrement, salaire versé par un autre, chiffre d'affaires) ; 3 dossiers et 4 sociétés ou
+  dirigeants au plus ; compte en une tuile. Médianes sur la démonstration : 21 tuiles (salarié), 14 (société), 12
+  (entrepreneur), contre une quarantaine avant ; groupes rangés côte à côte. Tests réécrits d'abord (15).

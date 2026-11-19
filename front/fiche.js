@@ -144,9 +144,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const legende = el('div', { classe: 'mur-legende', 'aria-hidden': 'true' },
       [['critique', 'à traiter'], ['attention', 'à regarder'], ['bon', 'rassurant'], ['neutre', 'information']]
         .map(([ton, texte]) => el('span', { classe: `pastille-ton ton-${ton}`, texte })));
-    return el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
+    const mur = el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
       el('div', { classe: 'mur-tete' }, el('h2', { texte: 'Données clés' }), legende),
-      groupes.map(g => el('div', { classe: 'mur-groupe' },
+      el('div', { classe: 'mur-groupes' }, groupes.map(g => el('div', { classe: 'mur-groupe', 'data-n': String(g.tuiles.length) },
         el('h3', { classe: 'mur-titre', texte: g.groupe }),
         el('div', { classe: 'mur-grille' }, g.tuiles.map(t => {
           const valeur = valeurTuile(t);
@@ -156,7 +156,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             el('div', { classe: 'tuile-valeur', texte: valeur }),
             t.detail ? el('div', { classe: 'tuile-sous', texte: t.detail }) : null,
             t.source ? el('div', { classe: 'tuile-source', texte: t.source }) : null);
-        })))));
+        }))))));
+    // largeur d'un groupe selon son nombre de tuiles (4 au plus par ligne) : les petits groupes se rangent côte à côte
+    for (const g of mur.querySelectorAll('.mur-groupe')) g.style.setProperty('--n', Math.min(4, Number(g.dataset.n)));
+    return mur;
   }
   function valeurTuile(t) {
     if (t.valeur === null || t.valeur === undefined || t.valeur === '') return '—';

@@ -131,7 +131,7 @@ def test_la_fiche_porte_sa_vue_360_selon_le_profil(avec_base, base_demo):  # noq
         v = _fiche(c, b, salarie[0])['vue360']
         assert v['profil'] == 'salarie' and v['csp'] == 'SALARIE_PRIVE'
         assert {'revenus', 'controles', 'aussi', 'retraite', 'tuiles'} <= set(v)
-        assert v['tuiles'][0]['groupe'] == 'Identité' and sum(len(g['tuiles']) for g in v['tuiles']) >= 25
+        assert v['tuiles'][0]['groupe'] == 'Liste noire' and 8 <= sum(len(g['tuiles']) for g in v['tuiles']) <= 24
         assert 'employeur_clients' in v['entite']
         assert _fiche(c, b, liberal[0])['vue360']['profil'] == 'entrepreneur'
         assert _fiche(c, b, societe[0])['vue360']['profil'] == 'pm'
