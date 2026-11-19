@@ -599,3 +599,22 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Tests** : `api/tests/test_vue360.py`, 15 tests, rouges d'abord (module absent). Vérification complète : 1 336 réussis,
   un échec (le mot interdit dans une note de la page), corrigé et repassé. Vue dans le navigateur pour les trois profils.
 - **Non fait** : relectures par sous-agents ; zip de démonstration non régénéré.
+
+## 19/11/2026 — vue 360° : mur de données lues dans les documents (branche `vue-360`)
+- **Demande de Lounès** : mettre en avant, en tuiles de couleur, la quarantaine de données importantes de l'entité ;
+  puis, après un premier essai à base de compteurs : « je veux vraiment des datas provenant des documents », selon sa
+  liste par profil. Lu comme retirés (en rouge sur sa liste) : historique des dossiers, historique EQDOM,
+  recouvrement, taux d'endettement (à confirmer).
+- **Fait** : `vue360.tuiles()` (fonction pure) : chaque tuile porte une valeur lue (pièce, registre, liste noire), sa
+  source et un ton (critique, attention, bon, neutre). Identité, liste noire et chemins, incohérences, contrôles par
+  famille pour tous ; revenus pièce par pièce, employeur (bulletin, déclaré, relié, clients EQDOM qui le déclarent),
+  date d'embauche et EMP-05, charges, comptes, n° CNSS et de pension, bandeau « aussi associé » pour le salarié ;
+  organisme de pension pour le retraité ; sociétés et rôles avec parts, carte professionnelle, ancienneté de
+  l'activité, type de compte pour l'entrepreneur ; forme juridique, capital, immatriculation, objet, siège partagé,
+  dirigeants (une tuile par personne), contrôles IDT et BNQ, flux, sociétés sœurs pour la personne morale. Données
+  absentes de Tandem (salaire versé par un autre, liasse fiscale) : tuile grisée « non extrait ».
+- **Seuils de couleur provisoires** (`SEUILS_PROVISOIRES`, affichage seulement) : écart entre pièces 15 % et 30 %,
+  CIN ou carte professionnelle à moins de 90 jours de l'expiration, siège partagé à partir de 5 sociétés. À valider,
+  puis à passer dans `c6_version_parametres` s'ils sont retenus.
+- **Tests** : `api/tests/test_vue360_tuiles.py` (14), réécrit rouge avant le code. Vue dans le navigateur pour les
+  trois profils et un retraité.

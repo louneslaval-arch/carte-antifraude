@@ -319,12 +319,16 @@ class BaseClient:
             prof, retraite = vue360.profil(identite['type'], csp[0] if csp else None, roles)
             vue = dict(profil=prof, retraite=retraite, csp=csp[0] if csp else None, aussi=vue360.aussi(prof, societes),
                        revenus=vue360.synthese_revenus(revenus), controles=vue360.controles(donnees, prof))
-            return dict(indice=indice, identite=identite, vue360=vue, alias=alias, adresses=adresses, sources=sources,
-                        dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
-                        vehicules=vehicules, chemins=chemins[:5], charges=self._charges(cx, refs_propres),
-                        operations=self._operations(cx, refs_propres), incoherences=self._incoherences(cx, refs_propres),
-                        identifiants=self._identifiants(cx, fiche), donnees=donnees,
-                        liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
+            servie = dict(indice=indice, identite=identite, vue360=vue, alias=alias, adresses=adresses, sources=sources,
+                          dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
+                          vehicules=vehicules, chemins=chemins, charges=self._charges(cx, refs_propres),
+                          operations=self._operations(cx, refs_propres), incoherences=self._incoherences(cx, refs_propres),
+                          identifiants=self._identifiants(cx, fiche), donnees=donnees,
+                          liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
+            vue['entite'] = self._entite(cx, fiche, prof)
+            vue['tuiles'] = vue360.tuiles(servie)            # sur tous les chemins ; la fiche n'en montre que 5
+            servie['chemins'] = chemins[:5]
+            return servie
         finally:
             cx.close()
 
@@ -394,6 +398,26 @@ class BaseClient:
         return dict(dossier=self.indice_dossier.get(ref), reference=ref, demandeur=bool(demandeur),
                     contexte=contexte,
                     pieces=sortie_pieces, controles=controles)
+
+    def _entite(self, cx, fiche, prof):
+        """Ce que la base dit de l'entité au-delà de ses pièces : clients EQDOM qui déclarent le même employeur (salarié),
+        sociétés au même siège et sociétés sœurs, qui partagent un gérant ou un associé (personne morale)."""
+        if prof == 'salarie':
+            n = cx.execute(
+                "SELECT max(n) FROM (SELECT count(DISTINCT d.fiche) AS n FROM c2_role r JOIN c2_role e ON "
+                "e.societe = r.societe AND e.role = 'employe' JOIN c3_demandeur d ON d.fiche = e.fiche "
+                "WHERE r.fiche = ? AND r.role = 'employe' GROUP BY r.societe) x", (fiche,)).fetchone()[0]
+            return dict(employeur_clients=n)
+        if prof == 'pm':
+            siege = cx.execute("SELECT count(*) FROM c2_societe s JOIN c2_societe moi ON moi.adresse = s.adresse "
+                               "WHERE moi.identifiant = ? AND moi.adresse IS NOT NULL", (fiche,)).fetchone()[0]
+            soeurs = [n for n, in cx.execute(
+                "SELECT DISTINCT s.denomination FROM c2_role a JOIN c2_role b ON b.fiche = a.fiche AND b.societe <> a.societe "
+                "JOIN c2_societe s ON s.identifiant = b.societe WHERE a.societe = ? AND s.denomination IS NOT NULL "
+                "AND s.denomination <> coalesce((SELECT denomination FROM c2_societe WHERE identifiant = a.societe), '') "
+                "ORDER BY 1 LIMIT 50", (fiche,))]
+            return dict(siege_partage=siege or None, soeurs=soeurs)
+        return {}
 
     def _dans(self, refs):
         return ', '.join('?' * len(refs))

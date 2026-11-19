@@ -23,15 +23,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     pm: { nom: 'Personne morale', classe: 'profil-pm' },
   };
   const P = PROFILS[v.profil];
+  const CSP = { SALARIE_PRIVE: 'salarié du privé', FONCTIONNAIRE: 'fonctionnaire', EMPLOYE_COMMUNE: 'employé de commune',
+    MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
+    PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre', SOCIETE: 'société' };
   const propres = f.dossiers.filter(d => d.demandeur);
   const anomalies = v.controles.reduce((s, x) => s + x.anomalies, 0);
 
   // ---- en-tête ------------------------------------------------------------------------------------------------------
   const definitions = id.type === 'personne'
     ? [['CIN', id.cin], ['Date de naissance', date(id.date_naissance)], ['Adresse retenue', id.adresse],
-      ['CSP', v.csp ? ({ SALARIE_PRIVE: 'salarié du privé', FONCTIONNAIRE: 'fonctionnaire', EMPLOYE_COMMUNE: 'employé de commune',
-        MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
-        PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre' })[v.csp] || lib(v.csp) : null]]
+      ['CSP', v.csp ? CSP[v.csp] || lib(v.csp) : null]]
     : [['RC', id.rc ? `${id.rc} · ${id.tribunal || ''}` : null], ['ICE', id.ice], ['Siège', id.adresse]];
   const tete = el('section', { classe: `carte identite tete-360 ${P.classe}` },
     el('div', { classe: `avatar ${id.type}${id.inscrit ? ' inscrit' : ''}`, 'aria-hidden': 'true', texte: initiales(id.nom) }),
@@ -45,28 +46,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       v.aussi.length ? el('p', { classe: 'bandeau-aussi' }, 'Aussi ',
         v.aussi.map((s, k) => [k ? ', ' : '', `${s.role} de `, s.indice ? Commun.lienFiche(s) : s.nom])) : null));
 
-  // ---- chiffres clés ------------------------------------------------------------------------------------------------
-  const niveau = f.chemins.length ? f.chemins[0].niveau : null;
-  const revenuRetenu = v.revenus.pieces.BULLETIN_DE_PAIE ?? v.revenus.pieces.ATTESTATION_TRAVAIL_SALAIRE
-    ?? v.revenus.pieces.ATTESTATION_PENSION ?? v.revenus.pieces.RELEVE_BANCAIRE ?? null;
+  // ---- mur de tuiles : une quarantaine de données clés, par thème, colorées selon leur ton (calculées par l'API) ------
   const flux = fluxBancaires();
   const dirigeants = regrouper(f.personnes);
-  const tuiles = el('div', { classe: 'tuiles-360' },
-    tuile('Dossiers', nombre(f.dossiers.length), propres.length !== f.dossiers.length ? `dont ${nombre(propres.length)} en demandeur` : 'en demandeur'),
-    v.profil === 'pm'
-      ? tuile('Crédits sur les relevés', flux.credit ? montant(flux.credit / Math.max(flux.mois, 1)) : '—', 'par mois, en moyenne')
-      : tuile(v.retraite ? 'Pension vérifiée' : (v.profil === 'entrepreneur' ? 'Revenu vérifié' : 'Salaire vérifié'),
-        revenuRetenu ? montant(revenuRetenu) : '—', v.revenus.declare ? `déclaré ${montant(v.revenus.declare)}` : 'aucun déclaré'),
-    v.profil === 'pm'
-      ? tuile('Personnes de la société', nombre(dirigeants.length), dirigeants.some(p => p.inscrit)
-        ? `dont ${nombre(dirigeants.filter(p => p.inscrit).length)} inscrite(s)` : 'gérants, associés', dirigeants.some(p => p.inscrit) ? 'niveau-critique' : '')
-      : tuile('Écart entre pièces', v.revenus.ecart === null ? '—' : `${Math.round(v.revenus.ecart * 100)} %`,
-        v.revenus.ecart !== null && v.revenus.ecart > 0.15 ? 'à regarder' : 'pièces de revenu', v.revenus.ecart > 0.15 ? 'attention' : ''),
-    tuile('Liste noire', niveau ? ({ critique: 'Critique', majeure: 'Majeure', mineure: 'Mineure', affiche: 'Affiché', hors_alerte: 'Hors alerte' })[niveau] || lib(niveau) : 'Aucun lien',
-      f.chemins.length ? `${nombre(f.chemins.length)} chemin(s) à moins de 4 liens` : 'à moins de 4 liens', niveau ? `niveau-${niveau}` : 'bon'),
-    tuile('Contrôles en anomalie', nombre(anomalies), `sur ${nombre(v.controles.reduce((s, x) => s + x.controles.length, 0))} contrôles`,
-      anomalies ? 'attention' : 'bon'),
-    tuile('Incohérences', nombre(f.incoherences.length), 'entre dossiers et pièces', f.incoherences.length ? 'attention' : 'bon'));
+  const mur = murDeTuiles(v.tuiles || []);
 
   // ---- blocs --------------------------------------------------------------------------------------------------------
   const B = {
@@ -150,15 +133,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         o.type_operation || '—', court(o.libelle), montant(o.debit), montant(o.credit), lienDossier(o.dossier)])))) : null;
 
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
-    tete, tuiles,
+    tete, mur,
     el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
     B.controles(), operations, toutesLesDonnees()].filter(Boolean));
   main.removeAttribute('aria-busy');
 
   // ---- éléments -----------------------------------------------------------------------------------------------------
-  function tuile(titre, valeur, sous, ton = '') {
-    return el('div', { classe: `tuile-360 ${ton}` }, el('div', { classe: 'tuile-titre', texte: titre }),
-      el('div', { classe: 'tuile-valeur', texte: valeur }), el('div', { classe: 'tuile-sous', texte: sous }));
+  function murDeTuiles(groupes) {
+    if (!groupes.length) return null;
+    const legende = el('div', { classe: 'mur-legende', 'aria-hidden': 'true' },
+      [['critique', 'à traiter'], ['attention', 'à regarder'], ['bon', 'rassurant'], ['neutre', 'information']]
+        .map(([ton, texte]) => el('span', { classe: `pastille-ton ton-${ton}`, texte })));
+    return el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
+      el('div', { classe: 'mur-tete' }, el('h2', { texte: 'Données clés' }), legende),
+      groupes.map(g => el('div', { classe: 'mur-groupe' },
+        el('h3', { classe: 'mur-titre', texte: g.groupe }),
+        el('div', { classe: 'mur-grille' }, g.tuiles.map(t => {
+          const valeur = valeurTuile(t);
+          return el('div', { classe: `tuile-mur ton-${t.ton}${valeur.length > 22 ? ' long' : ''}${valeur === '—' ? ' absente' : ''}`,
+            title: [t.detail, t.source ? `source : ${t.source}` : null].filter(Boolean).join(' · ') || null },
+            el('div', { classe: 'tuile-titre', texte: t.libelle }),
+            el('div', { classe: 'tuile-valeur', texte: valeur }),
+            t.detail ? el('div', { classe: 'tuile-sous', texte: t.detail }) : null,
+            t.source ? el('div', { classe: 'tuile-source', texte: t.source }) : null);
+        })))));
+  }
+  function valeurTuile(t) {
+    if (t.valeur === null || t.valeur === undefined || t.valeur === '') return '—';
+    switch (t.format) {
+      case 'montant': return montant(t.valeur);
+      case 'nombre': return nombre(t.valeur);
+      case 'pourcent': return `${Math.round(t.valeur * 100)} %`;
+      case 'date': return date(t.valeur);
+      case 'mois': return `${nombre(t.valeur)} mois`;
+      case 'ans': return `${nombre(t.valeur)} ans`;
+      default: return CSP[t.valeur] || String(t.valeur);
+    }
   }
   function barresRevenus() {
     const lignes = [['Déclaré', v.revenus.declare, 'declare']].concat(
