@@ -297,7 +297,7 @@
    "numerateur": 90,
    "valeur": 0.152801,
    "valeur1": "EMPLOI_REVENUS",
-   "valeur2": "EMP-01"
+   "valeur2": "EMP-02"
   },
   {
    "denominateur": 589,
@@ -323,7 +323,7 @@
    "numerateur": 0,
    "valeur": 0.0,
    "valeur1": "AUTOMOBILE",
-   "valeur2": "AUT-01"
+   "valeur2": "AUT-02"
   },
   {
    "denominateur": 148,
@@ -336,7 +336,7 @@
    "numerateur": 60,
    "valeur": 0.405405,
    "valeur1": "EMPLOI_REVENUS",
-   "valeur2": "EMP-01"
+   "valeur2": "EMP-02"
   },
   {
    "denominateur": 88,

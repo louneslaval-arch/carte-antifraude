@@ -56,9 +56,9 @@ REGION = {'CASABLANCA': 'Casablanca-Settat', 'RABAT': 'Rabat-Salé-Kénitra', 'M
           'TANGER': 'Tanger-Tétouan-Al Hoceïma', 'FES': 'Fès-Meknès',
           'TIZNIT': 'Souss-Massa'}
 BANQUES = (('BANQUE TAZOULA', 'BANQUE TAZOULA'), ('BQ TAZOULA', 'BANQUE TAZOULA'), ('CREDIT ZIMOUKA', 'CREDIT ZIMOUKA'))
-CONTROLES = (('IDT-01', 'IDENTITE', 'Cohérence de la CIN'), ('EMP-01', 'EMPLOI_REVENUS', 'Employeur déclaré'),
-             ('BNQ-01', 'BANCAIRE', 'Relevé du compte'), ('AUT-01', 'AUTOMOBILE', 'Facture du véhicule'),
-             ('PMP-01', 'PM_PRO', 'Registre de la société'), ('BLG-01', 'BLACKLIST_GEO', 'Liste noire'))
+CONTROLES = (('IDT-01', 'IDENTITE', 'Cohérence interne de la CIN'), ('EMP-02', 'EMPLOI_REVENUS', 'Source du revenu au nom du demandeur'),
+             ('BNQ-01', 'BANCAIRE', 'Titulaire du compte = demandeur'), ('AUT-02', 'AUTOMOBILE', 'Cohérence du prix avec le marché'),
+             ('PRO-01', 'PM_PRO', 'Fraîcheur du registre du commerce'), ('BLG-01', 'BLACKLIST_GEO', 'Client sur la liste noire'))
 VERDICTS = ['CONFORME'] * 10 + ['OK_ALERTES_MINEURES'] * 4 + ['SUSPECT'] * 4 + ['TRES_SUSPECT', None]
 # noms tirés de syllabes (comme ceux du générateur du registre) : aucun nom réel
 SYLLABES = ('ZOU', 'KA', 'RI', 'TA', 'MOU', 'BI', 'ZE', 'LO', 'FA', 'DI', 'GHA', 'NE')
@@ -166,13 +166,13 @@ def controles(i, p):
     v = p['verdict']
     sortie = []
     for cid, famille, libelle in CONTROLES:
-        applicable = not ((cid == 'AUT-01' and p['produit'] == 'DISPO') or (cid == 'PMP-01' and p['type_personne'] == 'PP'))
+        applicable = not ((cid == 'AUT-02' and p['produit'] == 'DISPO') or (cid == 'PRO-01' and p['type_personne'] == 'PP'))
         resultat, criticite, manquants = 'CONFORME', None, []
         if not applicable:
             resultat = 'NON_APPLICABLE'
         elif v is None:
-            resultat, manquants = 'NON_EXECUTABLE', ['BULLETIN_DE_PAIE'] if cid == 'EMP-01' else ['RELEVE_BANCAIRE']
-        elif cid == 'EMP-01' and v == 'SUSPECT' and i % 20 in (14, 15, 16):
+            resultat, manquants = 'NON_EXECUTABLE', ['BULLETIN_DE_PAIE'] if cid == 'EMP-02' else ['RELEVE_BANCAIRE']
+        elif cid == 'EMP-02' and v == 'SUSPECT' and i % 20 in (14, 15, 16):
             resultat, criticite = 'ANOMALIE', 'MAJEURE'          # décisif en 14 et 15 ; en 16, avec BNQ-01 : non
         elif cid == 'BNQ-01' and v in ('SUSPECT', 'TRES_SUSPECT') and i % 20 in (16, 17, 18):
             resultat, criticite = 'ANOMALIE', 'CRITIQUE'
@@ -331,7 +331,7 @@ def verite(tout):
     cases.append(_case('mediane_prix_vehicule', float(round(statistics.median(prix), -3)), None, len(prix)))
     releves_lus = sum(p['lignes_lues'] for p in lignes)
     cases.append(_case('taux_releve_relu', releves_lus / n, releves_lus, n))
-    for cid in ('EMP-01', 'BNQ-01', 'AUT-01'):
+    for cid in ('EMP-02', 'BNQ-01', 'AUT-02'):
         app = [c for p in lignes for c in p['controles'] if c[0] == cid and c[3] and c[4] != 'NON_APPLICABLE']
         k = sum(c[4] == 'ANOMALIE' for c in app)
         fam = next(c[1] for c in CONTROLES if c[0] == cid)
@@ -339,9 +339,9 @@ def verite(tout):
                           dimension2='controle', valeur2=cid))
     suspects = [p for p in lignes if p['juge_suspect'] == 1]
     decisif = sum(1 for p in suspects if [c[0] for c in p['controles']
-                                          if c[4] == 'ANOMALIE' and c[5] in ('MAJEURE', 'CRITIQUE')] == ['EMP-01'])
+                                          if c[4] == 'ANOMALIE' and c[5] in ('MAJEURE', 'CRITIQUE')] == ['EMP-02'])
     cases.append(dict(_case('controle_decisif', decisif / len(suspects), decisif, len(suspects), 'famille',
-                            'EMPLOI_REVENUS'), dimension2='controle', valeur2='EMP-01'))
+                            'EMPLOI_REVENUS'), dimension2='controle', valeur2='EMP-02'))
     for v, nom in ((None, 'ville inconnue'), ('CASABLANCA', 'CASABLANCA')):
         c = sum(p['ville'] == v for p in lignes)
         cases.append(_case('nb_dossiers', c, None, c, 'ville', nom))
