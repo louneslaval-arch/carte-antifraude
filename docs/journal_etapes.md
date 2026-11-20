@@ -672,5 +672,6 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   dans la base de démonstration. 3 tests c2 rouges d'abord ; flux = lot inchangé.
 - **Barres de la base client** : la classe `.barre` des revenus de la vue 360° écrasait celle des barres communes
   (barres pleines) depuis le premier enregistrement de la branche ; limitée à la vue 360°.
-- **Vérification complète** : 1 376 réussis, 2 sautés. Non fait : base de démonstration livrée
-  (`base_demo.sqlite.gz`) à régénérer pour profiter de la règle.
+- **Vérification complète** : 1 376 réussis, 2 sautés. Base de démonstration livrée régénérée (même graine, 1 500
+  dossiers, 5 000 sociétés ; accord de Lounès) : 274 mentions rattachées par `societe_dans_dossier`, plus aucun dossier
+  à deux sociétés demandeuses (113 avant) ; carte globale inchangée (registre et liste noire seulement).
