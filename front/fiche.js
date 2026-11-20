@@ -192,13 +192,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     const liste = (titre, classe, items, vide_) => el('div', { classe: `pres-points ${classe}` }, el('h3', { texte: titre }),
       items.length ? el('ul', {}, items.map(x => el('li', { texte: x }))) : el('p', { classe: 'note', texte: vide_ }));
     return el('section', { classe: 'presentation', 'aria-label': 'Présentation du client' },
-      chiffres,
+      chiffres, p.portrait ? portrait(p.portrait) : null,
       el('div', { classe: 'pres-bloc' }, el('div', { classe: 'pres-bloc-tete' }, el('h2', { texte: 'Ses demandes de prêt' }),
         el('span', { classe: 'pres-rythme', texte: p.rythme })), frise),
       el('div', { classe: 'pres-deux' },
         liste('Points forts', 'forts', p.forts, 'Rien de saillant dans les pièces lues.'),
         liste('Points de vigilance', 'vigilance', p.vigilance, 'Aucun point de vigilance.')),
       el('p', { classe: 'pres-remboursements' }, el('strong', { texte: 'Remboursements chez EQDOM. ' }), p.remboursements));
+  }
+  function portrait(po) {
+    const faits = po.faits.length ? el('dl', { classe: 'portrait-faits' },
+      po.faits.map(x => [el('dt', { texte: x.libelle }), el('dd', { texte: x.valeur })])) : null;
+    const lignes = po.personnes.map(q => {
+      const barre = el('span', { classe: 'parts-barre' }, el('span', { classe: 'parts-rempli' }));
+      const pct = q.pourcentage, nb = q.parts;
+      if (pct !== null && pct !== undefined) barre.firstChild.style.width = `${Math.max(3, Math.min(100, pct))}%`;
+      const texteParts = [pct !== null && pct !== undefined ? `${String(pct).replace('.', ',')} %` : null,
+        nb !== null && nb !== undefined ? `${nombre(nb)} part${nb > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ');
+      return el('li', { classe: `portrait-personne${q.termine ? ' termine' : ''}` },
+        el('span', { classe: 'portrait-avatar', 'aria-hidden': 'true', texte: initiales(q.nom || '?') }),
+        el('div', { classe: 'portrait-qui' },
+          q.indice ? el('a', { href: `fiche.html?i=${q.indice}`, classe: 'portrait-nom', texte: q.nom }) : el('span', { classe: 'portrait-nom', texte: q.nom }),
+          el('span', { classe: 'portrait-roles', texte: q.roles.join(', ') + (q.termine ? ' · rôle terminé' : '') })),
+        pct !== null && pct !== undefined
+          ? el('div', { classe: 'portrait-parts' }, barre, el('span', { texte: texteParts }))
+          : el('div', { classe: 'portrait-parts vide' }, el('span', { texte: texteParts || 'parts non lues' })));
+    });
+    return el('div', { classe: 'pres-portrait' },
+      el('div', { classe: 'portrait-colonne' }, el('h2', { texte: 'Qui est-ce ?' }), faits || el('p', { classe: 'note', texte: 'Rien de lu dans les pièces.' })),
+      po.titre ? el('div', { classe: 'portrait-colonne' }, el('h2', { texte: po.titre }),
+        lignes.length ? el('ul', { classe: 'portrait-liste' }, lignes) : el('p', { classe: 'note', texte: 'Aucune lue dans les pièces ni au registre.' }),
+        po.groupe && po.groupe.length ? el('div', { classe: 'portrait-groupe' }, el('span', { classe: 'portrait-groupe-titre', texte: 'Autres sociétés de ses dirigeants' }),
+          el('div', { classe: 'puces' }, po.groupe.map(g => el('span', { classe: 'etiquette', texte: g })))) : null) : null);
   }
   function bandeAntifraude(a) {
     const puce = (texte, ton) => el('span', { classe: `af-puce ton-${ton}` }, el('span', { classe: 'tuile-point', 'aria-hidden': 'true' }), texte);

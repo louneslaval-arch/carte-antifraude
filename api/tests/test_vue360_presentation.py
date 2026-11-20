@@ -109,3 +109,54 @@ def test_retraite_et_fiche_vide():
     f['vue360'].update(revenus=dict(declare=None, pieces={}, ecart=None), controles=[], entite={})
     p = vue360.presentation(f)
     assert p['demandes'] == [] and p['rythme'] == 'aucune demande en propre'
+
+
+# ---- portrait de l'entité (Lounès, 20/11/2026 : « pour les PM, le nom des associés et gérants… ») ----------------------
+def _fait(p, libelle):
+    return next((x['valeur'] for x in p['portrait']['faits'] if x['libelle'] == libelle), None)
+
+
+def test_portrait_d_une_societe_gerants_associes_et_parts():
+    f = fiche_societe()
+    f['personnes'] = [dict(indice=4, nom='ASSOCIE EXEMPLE', role='associé', source='registre', inscrit=False, parts=40),
+                      dict(indice=3, nom='GERANT EXEMPLE', role='gérant', source='registre', inscrit=True, parts=None),
+                      dict(indice=3, nom='GERANT EXEMPLE', role='associé', source='registre', inscrit=True, parts=60)]
+    f['donnees'][0]['pieces'][0]['faits'] += [dict(cle='objet_social', valeur='NEGOCE DE MATERIAUX'),
+                                               dict(cle='tribunal_commerce', valeur='RABAT')]
+    p = vue360.presentation(f)['portrait']
+    assert p['titre'] == 'Gérants et associés'
+    # les parts sont des parts sociales (un nombre), le pourcentage se calcule sur le total des associés lus
+    assert p['personnes'] == [dict(nom='GERANT EXEMPLE', roles=['gérant', 'associé'], parts=60, pourcentage=60.0, indice=3),
+                              dict(nom='ASSOCIE EXEMPLE', roles=['associé'], parts=40, pourcentage=40.0, indice=4)]
+    assert _fait(vue360.presentation(f), 'Activité') == 'NEGOCE DE MATERIAUX'
+    assert _fait(vue360.presentation(f), 'Forme et capital') == 'SARL · 100 000 DH'
+    assert p['groupe'] == ['SOEUR A SARL', 'SOEUR B SARL']
+    assert all('inscrit' not in x for x in p['personnes']), 'aucune donnée de fraude dans le portrait'
+
+
+def test_portrait_d_un_entrepreneur_ses_societes():
+    p = vue360.presentation(fiche_entrepreneur())['portrait']
+    assert p['titre'] == 'Ses sociétés'
+    cabinet = next(x for x in p['personnes'] if x['nom'] == 'CABINET EXEMPLE SARL')
+    assert cabinet == dict(nom='CABINET EXEMPLE SARL', roles=['gérant'], parts=60, pourcentage=None, indice=5,
+                           termine=False)
+    assert next(x for x in p['personnes'] if x['nom'] == 'ANCIENNE EXEMPLE SARL')['termine'] is True
+    assert _fait(vue360.presentation(fiche_entrepreneur()), 'Profession') == 'MEDECIN'
+
+
+def test_portrait_d_un_salarie_emploi_en_clair():
+    f = fiche_salarie()
+    f['donnees'][0]['pieces'][0]['faits'] += [dict(cle='fonction', valeur='COMPTABLE'),
+                                               dict(cle='type_contrat', valeur='CDI')]
+    p = vue360.presentation(f)
+    assert _fait(p, 'Employeur') == 'EMPLOYEUR EXEMPLE SARL'
+    assert _fait(p, 'Fonction') == 'COMPTABLE' and _fait(p, 'Contrat') == 'CDI'
+    assert p['portrait']['personnes'] == []
+
+
+def test_parts_sociales_jamais_lues_comme_un_pourcentage():
+    f = fiche_societe()
+    f['personnes'] = [dict(indice=1, nom='A EXEMPLE', role='associé', parts=500), dict(indice=2, nom='B EXEMPLE',
+                                                                                     role='associé', parts=1500)]
+    q = vue360.presentation(f)['portrait']['personnes']
+    assert [(x['parts'], x['pourcentage']) for x in q] == [(1500, 75.0), (500, 25.0)]

@@ -11,6 +11,8 @@ réunit les mentions qui partagent une clé forte :
 - société : même RC et même tribunal (un RC porté par deux dénominations sans rapport de la même écriture donne
   deux fiches et un signalement `RC_PARTAGE`), même ICE, même identifiant fiscal, même n° d'affiliation CNSS d'un
   employeur ; deux RC différents ne sont jamais réunis par un autre identifiant ;
+- une société d'un dossier lue sans aucun identifiant rejoint la seule société du même dossier qui en porte un, à
+  dénomination compatible (`societe_dans_dossier`) ;
 - sinon, une fiche propre à la source (au dossier pour la v2).
 
 Tout le reste est un rapprochement, jamais une fusion : règles R01 à R11 du kit, recopiées telles quelles ; règles
@@ -173,6 +175,20 @@ def societes_separees(a, b):
         return False
     mots_a, mots_b = set(cle_a.split()), set(cle_b.split())
     return not (mots_a <= mots_b or mots_b <= mots_a)
+
+
+def societes_compatibles(a, b):
+    """Deux dénominations désignent-elles sûrement la même société ? Même écriture, et mêmes mots, mots de l'une dans
+    l'autre, ou graphies proches (le contraire de « sans rapport » ne suffit pas : il faut une preuve positive)."""
+    if not a or not b or cb.est_arabe(a) != cb.est_arabe(b):
+        return False
+    cle_a, cle_b = cb.cle_rs(a), cb.cle_rs(b)
+    if not cle_a or not cle_b:
+        return False
+    if cle_a == cle_b or cb._ratio(cle_a, cle_b) >= 0.8:
+        return True
+    mots_a, mots_b = set(cle_a.split()), set(cle_b.split())
+    return mots_a <= mots_b or mots_b <= mots_a
 
 
 def _mention(source, type_fiche, cle_origine, **valeurs):
@@ -546,6 +562,24 @@ def _recalculer_societes(cx, mentions, anciennes):
                 continue
             for autre in membres[1:]:
                 unir(membres[0], autre)
+    # Société d'un dossier lue sans aucun identifiant (statuts, nom sur un relevé) : elle rejoint la seule société du
+    # même dossier qui en porte un, à nom compatible (règle `societe_dans_dossier`, Lounès, 20/11/2026) ; jamais d'un
+    # dossier à l'autre, jamais entre deux candidates.
+    def sans_cle(m):
+        return not any(m[effectif(colonne)] for _, colonne, _ in CLES_SOCIETE)
+    par_ref, rattachees = {}, set()
+    for m in mentions:
+        if m['source'] == 'v2' and m['ref'] and m['statut'] == 'normal':
+            par_ref.setdefault(m['ref'], []).append(m)
+    for ref in sorted(par_ref):
+        du_dossier = par_ref[ref]
+        for m in du_dossier:
+            if not sans_cle(m) or not m['nom']:
+                continue
+            candidates = {racine(x['id']) for x in du_dossier if not sans_cle(x) and societes_compatibles(m['nom'], x['nom'])}
+            if len(candidates) == 1:
+                unir(m['id'], candidates.pop())
+                rattachees.add(m['id'])
     composantes = {}
     for m in mentions:
         composantes.setdefault(racine(m['id']), []).append(m)
@@ -560,7 +594,7 @@ def _recalculer_societes(cx, mentions, anciennes):
         for m in membres:
             propre = cle or _cle_propre(m)
             m['regle'] = next((regle for _, colonne, regle in CLES_SOCIETE if m[colonne]),
-                              'propre' if propre else 'sans_nom')
+                              'societe_dans_dossier' if m['id'] in rattachees else 'propre' if propre else 'sans_nom')
             m['fiche'] = propre and identifiant('PM', propre)
             cles[m['fiche']] = propre
     cx.executemany('UPDATE c2_mention SET fiche = ?, regle = ? WHERE id = ?',

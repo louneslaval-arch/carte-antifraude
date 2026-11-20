@@ -661,3 +661,16 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   de fusion à décider avec Lounès (couche c2), non corrigée.
 - **Tests** : `api/tests/test_vue360_presentation.py` (8), rouges d'abord ; 81 réussis sur la vue 360°, la fiche et le
   fichier unique.
+- **Portrait de l'entité** (20/11, « pour les PM mettre le nom des associés et gérants… ») : `presentation()['portrait']`
+  : société (activité, forme et capital, siège, tribunal ; gérants et associés avec parts sociales et pourcentage du
+  total lu ; autres sociétés des dirigeants), entrepreneur (profession, secteur ; ses sociétés, rôles terminés
+  marqués), salarié (employeur, fonction, contrat) ; la fiche sert désormais les parts des personnes d'une société.
+  Les parts sont un nombre de parts sociales, jamais lues comme un pourcentage (test).
+- **Sociétés en double corrigées** (accord de Lounès du 20/11) : règle c2 `societe_dans_dossier` : une société d'un
+  dossier lue sans aucun identifiant (statuts, nom sur un relevé) rejoint la seule société du même dossier qui en
+  porte un, à dénomination positivement compatible ; jamais d'un dossier à l'autre. 113 dossiers sur 1 500 touchés
+  dans la base de démonstration. 3 tests c2 rouges d'abord ; flux = lot inchangé.
+- **Barres de la base client** : la classe `.barre` des revenus de la vue 360° écrasait celle des barres communes
+  (barres pleines) depuis le premier enregistrement de la branche ; limitée à la vue 360°.
+- **Vérification complète** : 1 376 réussis, 2 sautés. Non fait : base de démonstration livrée
+  (`base_demo.sqlite.gz`) à régénérer pour profiter de la règle.

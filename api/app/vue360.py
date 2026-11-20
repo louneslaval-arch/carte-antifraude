@@ -432,6 +432,75 @@ def _pct(x):
     return f'{round(x * 100)} %'
 
 
+def _parts(x):
+    """Parts lues (« 60 », 60.0, « 33,5 ») en nombre ; un entier reste entier ; None si illisible."""
+    if x in (None, ''):
+        return None
+    try:
+        n = float(str(x).replace(',', '.').replace('%', '').strip())
+    except ValueError:
+        return None
+    return int(n) if n == int(n) else n
+
+
+def _portrait(f, prof):
+    """Qui est le client, en clair : quelques faits lus dans ses pièces, et les personnes (gérants, associés) ou les
+    sociétés qui l'entourent, avec les parts. Rien de l'antifraude (ni inscription ni lien)."""
+    faits, personnes, titre, groupe = [], [], None, []
+    if prof == 'pm':
+        objet = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['objet_social', 'objet_commerce', 'objet_du_commerce'])[0]
+        forme = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['forme_juridique'])[0]
+        capital = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['capital_social', 'capital'])[0]
+        capital = montant(capital) if capital is not None else None
+        tribunal = _fait(f, ['REGISTRE_COMMERCE'], ['tribunal_commerce', 'ville_tribunal'])[0] or f['identite'].get('tribunal')
+        faits = [('Activité', objet),
+                 ('Forme et capital', ' · '.join(filter(None, (forme, f'{capital:,.0f} DH'.replace(',', ' ')
+                                                                    if capital is not None else None))) or None),
+                 ('Siège', f['identite'].get('adresse')), ('Tribunal', tribunal)]
+        par = {}
+        for x in f.get('personnes') or []:
+            q = par.setdefault(x.get('indice') or x.get('nom'), dict(nom=x.get('nom'), roles=[], parts=None,
+                                                                    indice=x.get('indice')))
+            if x.get('role') and x['role'] not in q['roles']:
+                q['roles'].append(x['role'])
+            n = _parts(x.get('parts'))
+            if n is not None and (q['parts'] is None or n > q['parts']):
+                q['parts'] = n
+        dirigeant = lambda q: any(r in ('gérant', 'dirigeant', 'nouveau gérant') for r in q['roles'])  # noqa: E731
+        total = sum(q['parts'] for q in par.values() if q['parts'])     # parts sociales : un nombre, pas un pourcentage
+        for q in par.values():
+            q['pourcentage'] = round(100 * q['parts'] / total, 1) if total and q['parts'] else None
+        personnes = [dict(nom=q['nom'], roles=q['roles'], parts=q['parts'], pourcentage=q['pourcentage'], indice=q['indice'])
+                     for q in sorted(par.values(), key=lambda q: (not dirigeant(q), -(q['parts'] or 0), q['nom'] or ''))]
+        titre, groupe = 'Gérants et associés', list((f['vue360'].get('entite') or {}).get('soeurs') or [])[:6]
+    elif prof == 'entrepreneur':
+        faits = [('Profession', _fait(f, ['CARTE_PROFESSIONNELLE'], ['profession'])[0]),
+                 ('Secteur', _fait(f, ['CARTE_PROFESSIONNELLE'], ['secteur'])[0]),
+                 ('Adresse', f['identite'].get('adresse'))]
+        parts = {m.get('societe'): _parts(m.get('parts')) for m in f.get('registre') or []}
+        for s in _regrouper(f.get('societes') or []):
+            if any(r in ROLES_SALARIE for r in s['roles']):
+                continue
+            personnes.append(dict(nom=s['nom'], roles=s['roles'], parts=parts.get(s['nom']), pourcentage=None,
+                                  indice=s.get('indice'),
+                                  termine=all(any(t in r for t in ROLES_TERMINES) for r in s['roles'])))
+        personnes.sort(key=lambda q: (q['termine'], q['nom'] or ''))
+        titre = 'Ses sociétés'
+    else:
+        if f['vue360'].get('retraite'):
+            faits = [('Organisme de pension', _fait(f, ['ATTESTATION_PENSION'], ['nom_organisme_retraite', 'caisse'])[0])]
+        else:
+            relie = next((s for s in f.get('societes') or [] if s.get('role') in ROLES_SALARIE), None)
+            faits = [('Employeur', _fait(f, ['BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE'],
+                                         ['employeur.raison_sociale', 'employeur.nom', 'raison_sociale'])[0]
+                      or (relie or {}).get('nom')),
+                     ('Fonction', _fait(f, ['BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE'], ['fonction', 'profession'])[0]),
+                     ('Contrat', _fait(f, ['ATTESTATION_TRAVAIL_SALAIRE', 'BULLETIN_DE_PAIE'], ['type_contrat'])[0])]
+        faits.append(('Adresse', f['identite'].get('adresse')))
+    return dict(faits=[dict(libelle=k, valeur=v) for k, v in faits if v not in (None, '')], titre=titre,
+                personnes=personnes, groupe=groupe)
+
+
 def presentation(f):
     """{chiffres, demandes, rythme, forts, vigilance, remboursements, antifraude} : la présentation du client."""
     S = SEUILS_PRESENTATION
@@ -535,7 +604,8 @@ def presentation(f):
                     and c['valeur'] >= S['endettement'] else 'neutre')
     chemins = f.get('chemins') or []
     anomalies = sum(fam['anomalies'] for fam in v.get('controles') or [])
-    return dict(chiffres=chiffres, demandes=demandes, rythme=rythme, forts=forts, vigilance=vigilance,
+    return dict(chiffres=chiffres, portrait=_portrait(f, prof), demandes=demandes, rythme=rythme, forts=forts,
+                vigilance=vigilance,
                 remboursements='Contrats, impayés et classe BAM chez EQDOM : ' + ATTEND_EQDOM + '.',
                 antifraude=dict(liste_noire=bool(f['identite'].get('inscrit')),
                                 lien=chemins[0].get('niveau') if chemins else None,

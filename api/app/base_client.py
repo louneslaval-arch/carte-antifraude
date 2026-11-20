@@ -282,11 +282,12 @@ class BaseClient:
                                      role=LIBELLES_ROLE.get(role, role), source=src, inscrit=s in self.inscrits))
             personnes = []
             if not personne:
-                for p, role, src in cx.execute('SELECT DISTINCT fiche, role, source FROM c2_role WHERE societe = ? '
-                                               'ORDER BY 2', (fiche,)):
+                for p, role, src, parts in cx.execute('SELECT DISTINCT fiche, role, source, parts FROM c2_role '
+                                                      'WHERE societe = ? ORDER BY 2', (fiche,)):
                     nom = cx.execute('SELECT nom FROM c2_personne WHERE identifiant = ?', (p,)).fetchone()
                     personnes.append(dict(indice=self.indice_fiche.get(p), nom=nom[0] if nom else '—',
-                                          role=LIBELLES_ROLE.get(role, role), source=src, inscrit=p in self.inscrits))
+                                          role=LIBELLES_ROLE.get(role, role), source=src, inscrit=p in self.inscrits,
+                                          parts=parts))
             revenus = [dict(r) for r in cx.execute(
                 f"SELECT ref, nature, source, montant, annee, mois FROM c3_revenu WHERE ref IN "
                 f"({self._dans(refs_propres)}) ORDER BY ref, nature, source, annee, mois", refs_propres)] if refs_propres else []

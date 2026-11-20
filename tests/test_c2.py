@@ -419,6 +419,31 @@ def test_societe_titulaire_d_un_compte_est_une_societe(jeu, tmp_path):
     assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
 
 
+def test_societe_sans_identifiant_rattachee_a_la_societe_du_meme_dossier_au_nom_compatible(jeu, tmp_path):
+    """Statuts sans RC ni ICE et registre du commerce de la même société, dans un dossier : une seule fiche (Lounès,
+    20/11/2026 : les sociétés apparaissaient deux fois, chacune demandeuse du dossier)."""
+    d = dossier(jeu, 1, rc_de('TAZOULA NEGOCE SARL'), ('STATUTS', {'denomination_sociale': 'TAZOULA NEGOCE SARL'}))
+    cx = base_de(tmp_path, [d])
+    assert un(cx, 'SELECT count(*) FROM c2_societe') == 1
+    assert lignes(cx, "SELECT regle FROM c2_mention WHERE type_piece = 'STATUTS'") == [('societe_dans_dossier',)]
+    cx.commit()
+    assert verifier.verifier(cx.execute('PRAGMA database_list').fetchone()[2]) == 0
+
+
+def test_societe_sans_identifiant_au_nom_sans_rapport_reste_a_part(jeu, tmp_path):
+    d = dossier(jeu, 1, rc_de('TAZOULA NEGOCE SARL'), ('STATUTS', {'denomination_sociale': 'BOUKILAM TRANSPORT SARL'}))
+    cx = base_de(tmp_path, [d])
+    assert un(cx, 'SELECT count(*) FROM c2_societe') == 2
+    assert lignes(cx, "SELECT regle FROM c2_mention WHERE type_piece = 'STATUTS'") == [('propre',)]
+
+
+def test_societe_sans_identifiant_jamais_rattachee_a_un_autre_dossier(jeu, tmp_path):
+    a = dossier(jeu, 1, rc_de('TAZOULA NEGOCE SARL'))
+    b = dossier(jeu, 2, ('STATUTS', {'denomination_sociale': 'TAZOULA NEGOCE SARL'}))
+    cx = base_de(tmp_path, [a, b])
+    assert un(cx, 'SELECT count(*) FROM c2_societe') == 2
+
+
 def test_socle_au_schema_incomplet_rien_n_est_efface(jeu, socle, tmp_path):
     cx = base_de(tmp_path, jeu.dossiers[:10], socle)
     cx.commit()
