@@ -408,3 +408,135 @@ def tuiles(f):
         if garde:
             sortie.append(dict(groupe=nom, tuiles=garde))
     return sortie
+
+
+# ---- présentation pour la direction (Lounès, 19/11/2026) : est-ce un bon client, demande-t-il souvent des prêts ? ---
+# Des faits et des points forts ou de vigilance rédigés en clair, jamais un verdict « bon / mauvais client » calculé
+# (le score ne décide jamais seul, loi 09-08 art. 11) ; aucun vocabulaire de fraude : l'antifraude tient dans une petite
+# partie à part. Seuils provisoires (formulation seulement), à valider avec la direction des risques.
+SEUILS_PRESENTATION = dict(endettement=0.40, ecart=0.15, emploi_stable_ans=2, emploi_recent_ans=1,
+                           activite_installee_ans=3, demandes_rapprochees_mois=6)
+
+
+def _annees(debut, fin):
+    if not debut or not fin or debut > fin:
+        return None
+    return fin.year - debut.year - ((fin.month, fin.day) < (debut.month, debut.day))
+
+
+def _jour_lisible(j):
+    return f'{j.day} {MOIS[j.month - 1]} {j.year}'
+
+
+def _pct(x):
+    return f'{round(x * 100)} %'
+
+
+def presentation(f):
+    """{chiffres, demandes, rythme, forts, vigilance, remboursements, antifraude} : la présentation du client."""
+    S = SEUILS_PRESENTATION
+    v = f['vue360']
+    prof, retraite = v['profil'], v.get('retraite')
+    pieces, ecart = (v.get('revenus') or {}).get('pieces') or {}, (v.get('revenus') or {}).get('ecart')
+    propres = sorted((d for d in f.get('dossiers') or [] if d.get('demandeur') and _jour(d.get('recu'))),
+                     key=lambda d: d['recu'])
+    ref = _jour(propres[-1]['recu']) if propres else None
+    connu = {'1': 'oui', 'true': 'oui', '0': 'non', 'false': 'non'}.get(str(_contexte(f, 'Client connu')).lower())
+    forts, vigilance = [], []
+
+    demandes = [dict(date=_jour(d['recu']).isoformat(), produit=d.get('produit'), verdict=d.get('verdict'),
+                     indice=d.get('indice')) for d in propres]
+    if not demandes:
+        rythme = 'aucune demande en propre'
+    elif len(demandes) == 1:
+        rythme = f"1 demande, le {_jour_lisible(_jour(demandes[0]['date']))}"
+    else:
+        a, b = _jour(demandes[0]['date']), _jour(demandes[-1]['date'])
+        mois = (b.year - a.year) * 12 + b.month - a.month
+        rythme = f'{len(demandes)} demandes ' + (f'en {mois} mois' if mois else 'le même mois')
+        (vigilance if mois <= S['demandes_rapprochees_mois'] else forts).append(
+            f'Demandes rapprochées : {rythme}' if mois <= S['demandes_rapprochees_mois']
+            else f'Client fidèle : {rythme}')
+    if connu == 'oui':
+        forts.append('Déjà client d’EQDOM')
+    demandes_chiffre = dict(libelle='Demandes de prêt', valeur=len(demandes), format='nombre',
+                            detail=f"depuis le {_jour_lisible(_jour(demandes[0]['date']))}" if demandes else None)
+    connu_chiffre = dict(libelle='Client connu d’EQDOM', valeur=connu, format='texte', detail='déclaré au dossier')
+
+    if prof == 'pm':
+        rel = _releves(f)
+        immat = _jour(_fait(f, ['REGISTRE_COMMERCE'], ['date_immatriculation', 'date_creation'])[0])
+        age = _annees(immat, ref)
+        capital = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['capital_social', 'capital'])[0]
+        chiffres = [dict(libelle='Crédits mensuels', valeur=rel['moyenne']('total_credit'), format='montant',
+                         detail='moyenne des relevés'),
+                    dict(libelle='Ancienneté de la société', valeur=age, format='ans',
+                         detail=f'immatriculée le {_jour_lisible(immat)}' if immat else None),
+                    dict(libelle='Capital', valeur=montant(capital) if capital is not None else None, format='montant',
+                         detail=_fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['forme_juridique'])[0]),
+                    demandes_chiffre, connu_chiffre]
+        if age is not None:
+            if age >= S['activite_installee_ans']:
+                forts.append(f'Société établie depuis {age} ans')
+            elif age < S['emploi_recent_ans']:
+                vigilance.append('Société créée il y a moins d’un an')
+    else:
+        verifie = next((pieces[s] for s in ('BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE', 'ATTESTATION_PENSION',
+                                            'RELEVE_BANCAIRE') if pieces.get(s)), None)
+        source_ = next((c['montant'] for c in sorted(f.get('charges') or [], key=lambda c: (c.get('annee') or 0,
+                        c.get('mois') or 0), reverse=True) if c.get('nature') == 'credit_source'), None)
+        echeances = _releves(f)['echeances']
+        endettement = ((echeances or 0) + (source_ or 0)) / verifie if verifie and (
+            echeances is not None or source_ is not None) else None
+        if prof == 'entrepreneur':
+            creation = _jour(_fait(f, ['REGISTRE_COMMERCE'], ['date_creation', 'date_immatriculation', 'date_debut'])[0])
+            activite = _annees(creation, ref)
+            societes = [s for s in _regrouper(f.get('societes') or []) if not any(r in ROLES_SALARIE for r in s['roles'])
+                        and not all(any(t in r for t in ROLES_TERMINES) for r in s['roles'])]
+            chiffres = [dict(libelle='Revenu mensuel sur les relevés', valeur=pieces.get('RELEVE_BANCAIRE'),
+                             format='montant', detail='revenu d’activité'),
+                        dict(libelle='Activité depuis', valeur=activite, format='ans',
+                             detail=_jour_lisible(creation) if creation else None),
+                        dict(libelle='Sociétés', valeur=len(societes), format='nombre', detail='rôles en cours'),
+                        demandes_chiffre, connu_chiffre]
+            if activite is not None:
+                if activite >= S['activite_installee_ans']:
+                    forts.append(f'Activité installée depuis {activite} ans')
+                elif activite < S['emploi_recent_ans']:
+                    vigilance.append('Activité de moins d’un an')
+        else:
+            embauche = None if retraite else _jour(_fait(f, ['BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE'],
+                                                         ['date_embauche', 'date_entree'])[0])
+            anciennete = _annees(embauche, ref)
+            chiffres = [dict(libelle='Pension mensuelle' if retraite else 'Revenu mensuel vérifié',
+                             valeur=pieces.get('ATTESTATION_PENSION') if retraite else verifie, format='montant',
+                             detail='justifiée par l’attestation' if retraite else 'bulletin, attestation ou relevés'),
+                        dict(libelle='Taux d’endettement', valeur=endettement, format='pourcent',
+                             detail='crédits du mois / revenu vérifié')]
+            if not retraite:
+                chiffres.append(dict(libelle='Ancienneté chez l’employeur', valeur=anciennete, format='ans',
+                                     detail=_fait(f, ['BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE'],
+                                                  ['employeur.raison_sociale', 'employeur.nom'])[0]))
+            chiffres += [demandes_chiffre, connu_chiffre]
+            if anciennete is not None:
+                if anciennete >= S['emploi_stable_ans']:
+                    forts.append(f'Emploi stable : {anciennete} ans chez le même employeur')
+                elif anciennete < S['emploi_recent_ans']:
+                    vigilance.append('Embauche de moins d’un an')
+        if endettement is not None:
+            (forts if endettement < S['endettement'] else vigilance).append(
+                f"Endettement {'maîtrisé' if endettement < S['endettement'] else 'élevé'} ({_pct(endettement)} du revenu)")
+        if ecart is not None and len([p for p in pieces.values() if p]) >= 2:
+            (forts if ecart <= S['ecart'] else vigilance).append(
+                f"Revenus {'concordants' if ecart <= S['ecart'] else 'divergents'} entre les pièces (écart {_pct(ecart)})")
+
+    for c in chiffres:
+        c['ton'] = ('attention' if c['libelle'] == 'Taux d’endettement' and c['valeur'] is not None
+                    and c['valeur'] >= S['endettement'] else 'neutre')
+    chemins = f.get('chemins') or []
+    anomalies = sum(fam['anomalies'] for fam in v.get('controles') or [])
+    return dict(chiffres=chiffres, demandes=demandes, rythme=rythme, forts=forts, vigilance=vigilance,
+                remboursements='Contrats, impayés et classe BAM chez EQDOM : ' + ATTEND_EQDOM + '.',
+                antifraude=dict(liste_noire=bool(f['identite'].get('inscrit')),
+                                lien=chemins[0].get('niveau') if chemins else None,
+                                alertes=len(f.get('incoherences') or []) + anomalies))

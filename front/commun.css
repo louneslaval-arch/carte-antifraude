@@ -297,3 +297,59 @@ main > section.carte:last-child { margin-top: 16px; }
 .resultats { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; }
 .resultats li { display: flex; align-items: center; gap: 6px; }
 #recherche { width: 300px; }
+
+/* ---- vue 360° : présentation du client pour la direction --------------------------------------------------------- */
+.tete-ligne { margin: 8px 0 0; font-size: 14.5px; color: var(--encre-2); }
+.presentation { display: grid; gap: 16px; margin: 16px 0; }
+.pres-chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.pres-chiffre { --accent: #4f5bd5; position: relative; overflow: hidden; background: var(--surface); border: 1px solid var(--filet);
+  border-radius: 16px; padding: 16px 18px 14px; box-shadow: var(--ombre); display: grid; gap: 4px; align-content: start; }
+.pres-chiffre::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--accent); }
+.pres-chiffre::after { content: ""; position: absolute; right: -30px; top: -30px; width: 90px; height: 90px; border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.accent-0 { --accent: #13996a; } .accent-1 { --accent: #4f5bd5; } .accent-2 { --accent: #7c4dcc; }
+.accent-3 { --accent: #0e8aa8; } .accent-4 { --accent: #c2410c; }
+.pres-chiffre.alerte { --accent: #e08a00; }
+.pres-libelle { font-size: 12.5px; font-weight: 600; color: var(--encre-3); }
+.pres-valeur { font-size: 26px; font-weight: 800; letter-spacing: -.02em; color: var(--encre); font-variant-numeric: tabular-nums;
+  line-height: 1.15; overflow-wrap: break-word; }
+.pres-chiffre.alerte .pres-valeur { color: #9a5b00; }
+.pres-detail { font-size: 12px; color: var(--encre-3); overflow-wrap: break-word; }
+.pres-bloc, .pres-points { background: var(--surface); border: 1px solid var(--filet); border-radius: 16px; padding: 16px 18px;
+  box-shadow: var(--ombre); }
+.pres-bloc-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; margin-bottom: 14px; }
+.pres-bloc-tete h2, .pres-points h3 { margin: 0; font-size: 16px; text-transform: none; letter-spacing: -.005em;
+  color: var(--encre); }
+.pres-rythme { font-size: 13px; font-weight: 700; color: #4f5bd5; background: #eceefc; padding: 3px 10px; border-radius: 999px; }
+.pres-frise { display: flex; gap: 0; overflow-x: auto; padding: 4px 2px 6px; position: relative; }
+.jalon { --c: #94a3b8; position: relative; flex: 0 0 170px; display: grid; gap: 2px; padding: 22px 12px 0 0;
+  color: inherit; text-decoration: none; }
+.jalon::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: var(--filet-fort); }
+.jalon:last-child::before { right: auto; width: 14px; }
+.jalon-point { position: absolute; left: 0; top: 1px; width: 14px; height: 14px; border-radius: 50%; background: var(--c);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px color-mix(in srgb, var(--c) 25%, transparent); }
+.jalon-date { font-size: 12px; color: var(--encre-3); font-weight: 600; }
+.jalon-produit { font-size: 14px; font-weight: 700; }
+.jalon-verdict { font-size: 12px; color: var(--c); font-weight: 700; }
+.jalon:hover .jalon-produit { color: var(--rouge-fonce); }
+.verdict-conforme { --c: #13996a; } .verdict-attente, .verdict-en_cours { --c: #94a3b8; }
+.verdict-a_verifier, .verdict-suspect, .verdict-non_conforme { --c: #e08a00; }
+.pres-deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pres-points ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.pres-points li { position: relative; padding-left: 26px; font-size: 14px; line-height: 1.45; }
+.pres-points li::before { position: absolute; left: 0; top: 1px; width: 18px; height: 18px; border-radius: 50%; display: grid;
+  place-items: center; font-size: 11px; font-weight: 800; color: #fff; }
+.pres-points.forts { border-top: 4px solid #13996a; }
+.pres-points.forts li::before { content: "✓"; background: #13996a; }
+.pres-points.vigilance { border-top: 4px solid #e08a00; }
+.pres-points.vigilance li::before { content: "!"; background: #e08a00; }
+.pres-remboursements { margin: 0; padding: 12px 16px; border-radius: 12px; border: 1px dashed var(--filet-fort); color: var(--encre-2);
+  font-size: 13px; background: repeating-linear-gradient(135deg, var(--surface) 0 10px, #fafbfd 10px 20px); }
+.bande-antifraude { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 24px 0 8px; padding: 10px 14px;
+  border-radius: 12px; background: #f3f5f9; border: 1px solid var(--filet); }
+.af-titre { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--encre-3); margin-right: 6px; }
+.af-puce { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; padding: 4px 10px;
+  border-radius: 999px; background: var(--surface); border: 1px solid var(--filet); color: var(--ton-texte); }
+.detail-antifraude { margin-top: 4px; }
+.detail-antifraude > summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--encre-2); padding: 8px 2px; }
+@media (max-width: 700px) { .pres-deux { grid-template-columns: 1fr; } .pres-valeur { font-size: 22px; } }

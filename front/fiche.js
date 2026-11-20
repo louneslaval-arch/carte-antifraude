@@ -23,26 +23,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     pm: { nom: 'Personne morale', classe: 'profil-pm' },
   };
   const P = PROFILS[v.profil];
+  const PRODUITS = { DISPO: 'Crédit disponible', AUTO_CLASSIQUE: 'Crédit auto', LOA: 'Location avec option d’achat' };
   const CSP = { SALARIE_PRIVE: 'salarié du privé', FONCTIONNAIRE: 'fonctionnaire', EMPLOYE_COMMUNE: 'employé de commune',
     MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
     PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre', SOCIETE: 'société' };
   const propres = f.dossiers.filter(d => d.demandeur);
   const anomalies = v.controles.reduce((s, x) => s + x.anomalies, 0);
 
-  // ---- en-tête ------------------------------------------------------------------------------------------------------
-  const definitions = id.type === 'personne'
-    ? [['CIN', id.cin], ['Date de naissance', date(id.date_naissance)], ['Adresse retenue', id.adresse],
-      ['CSP', v.csp ? CSP[v.csp] || lib(v.csp) : null]]
-    : [['RC', id.rc ? `${id.rc} · ${id.tribunal || ''}` : null], ['ICE', id.ice], ['Siège', id.adresse]];
+  // ---- en-tête : qui est le client, en une ligne (l'antifraude est en bas de page) -----------------------------------
+  const pres = v.presentation || null;
+  const demandes = pres ? pres.demandes : [];
+  const age = (() => {
+    const n = id.date_naissance && new Date(id.date_naissance), r = demandes.length && new Date(demandes[demandes.length - 1].date);
+    if (!n || !r || isNaN(n) || isNaN(r)) return null;
+    return r.getFullYear() - n.getFullYear() - ((r.getMonth() < n.getMonth() || (r.getMonth() === n.getMonth() && r.getDate() < n.getDate())) ? 1 : 0);
+  })();
+  const ligne = [v.csp && v.profil !== 'pm' ? (CSP[v.csp] || lib(v.csp)) : null, age !== null ? `${age} ans` : null,
+    id.type === 'societe' && id.rc ? `RC ${id.rc}${id.tribunal ? ` · ${id.tribunal}` : ''}` : null,
+    demandes.length ? `client depuis ${date(demandes[0].date)}` : null].filter(Boolean);
   const tete = el('section', { classe: `carte identite tete-360 ${P.classe}` },
-    el('div', { classe: `avatar ${id.type}${id.inscrit ? ' inscrit' : ''}`, 'aria-hidden': 'true', texte: initiales(id.nom) }),
+    el('div', { classe: `avatar ${id.type}`, 'aria-hidden': 'true', texte: initiales(id.nom) }),
     el('div', { classe: 'tete-texte' },
       el('div', { classe: 'surtitre', texte: 'Vue 360°' }),
       el('h1', { texte: id.nom }),
-      el('div', { classe: 'puces' },
-        el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: P.nom }),
-        id.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'Inscrit sur la liste noire' }) : null),
-      el('dl', { classe: 'definitions' }, definitions.map(([k, x]) => [el('dt', { texte: k }), el('dd', { texte: x || '—' })])),
+      el('div', { classe: 'puces' }, el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: P.nom })),
+      ligne.length ? el('p', { classe: 'tete-ligne', texte: ligne.join(' · ') }) : null,
       v.aussi.length ? el('p', { classe: 'bandeau-aussi' }, 'Aussi ',
         v.aussi.map((s, k) => [k ? ', ' : '', `${s.role} de `, s.indice ? Commun.lienFiche(s) : s.nom])) : null));
 
@@ -132,10 +137,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       tableau(['Date', 'Type', 'Libellé', 'Débit', 'Crédit', 'Dossier'], f.operations.map(o => [date(o.date_operation),
         o.type_operation || '—', court(o.libelle), montant(o.debit), montant(o.credit), lienDossier(o.dossier)])))) : null;
 
+  // Présentation pour la direction en haut ; l'antifraude en une bande en bas, son détail replié dessous.
+  const detail = el('details', { classe: 'detail-antifraude' },
+    el('summary', { texte: 'Détail pour la cellule fraude : données lues, contrôles, pièces' }),
+    mur, el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
+    B.controles(), operations, toutesLesDonnees());
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
-    tete, mur,
-    el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
-    B.controles(), operations, toutesLesDonnees()].filter(Boolean));
+    tete, pres ? presentationClient(pres) : null, pres ? bandeAntifraude(pres.antifraude) : null, detail].filter(Boolean));
   main.removeAttribute('aria-busy');
 
   // ---- éléments -----------------------------------------------------------------------------------------------------
@@ -165,6 +173,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('div', { classe: 'mur-entete' }, el('h2', { texte: 'Données clés' }),
         el('p', { classe: 'note', texte: 'Lues dans les pièces, le registre du commerce et la liste noire ; la source est sous chaque valeur.' })),
       el('div', { classe: 'mur-grille-cartes' }, cartes));
+  }
+  // ---- présentation pour la direction ---------------------------------------------------------------------------------
+  function presentationClient(p) {
+    const chiffres = el('div', { classe: 'pres-chiffres' }, p.chiffres.map((c, k) =>
+      el('div', { classe: `pres-chiffre accent-${k % 5}${c.ton === 'attention' ? ' alerte' : ''}` },
+        el('div', { classe: 'pres-libelle', texte: c.libelle }),
+        el('div', { classe: 'pres-valeur', texte: valeurTuile(c) === '—' ? 'non renseigné' : valeurTuile(c) }),
+        c.detail ? el('div', { classe: 'pres-detail', texte: c.detail }) : null)));
+    const frise = el('div', { classe: 'pres-frise' },
+      p.demandes.length ? p.demandes.map(d => el('a', { classe: `jalon verdict-${(d.verdict || 'attente').toLowerCase()}`,
+        href: d.indice ? `dossier.html?i=${d.indice}` : null },
+        el('span', { classe: 'jalon-point', 'aria-hidden': 'true' }),
+        el('span', { classe: 'jalon-date', texte: date(d.date) }),
+        el('span', { classe: 'jalon-produit', texte: PRODUITS[d.produit] || d.produit || 'prêt' }),
+        el('span', { classe: 'jalon-verdict', texte: d.verdict ? lib(d.verdict) : 'en cours' })))
+        : el('p', { classe: 'note', texte: 'Aucune demande en propre : cité dans le dossier d’un autre client.' }));
+    const liste = (titre, classe, items, vide_) => el('div', { classe: `pres-points ${classe}` }, el('h3', { texte: titre }),
+      items.length ? el('ul', {}, items.map(x => el('li', { texte: x }))) : el('p', { classe: 'note', texte: vide_ }));
+    return el('section', { classe: 'presentation', 'aria-label': 'Présentation du client' },
+      chiffres,
+      el('div', { classe: 'pres-bloc' }, el('div', { classe: 'pres-bloc-tete' }, el('h2', { texte: 'Ses demandes de prêt' }),
+        el('span', { classe: 'pres-rythme', texte: p.rythme })), frise),
+      el('div', { classe: 'pres-deux' },
+        liste('Points forts', 'forts', p.forts, 'Rien de saillant dans les pièces lues.'),
+        liste('Points de vigilance', 'vigilance', p.vigilance, 'Aucun point de vigilance.')),
+      el('p', { classe: 'pres-remboursements' }, el('strong', { texte: 'Remboursements chez EQDOM. ' }), p.remboursements));
+  }
+  function bandeAntifraude(a) {
+    const puce = (texte, ton) => el('span', { classe: `af-puce ton-${ton}` }, el('span', { classe: 'tuile-point', 'aria-hidden': 'true' }), texte);
+    return el('section', { classe: 'bande-antifraude', 'aria-label': 'Contrôle antifraude' },
+      el('span', { classe: 'af-titre', texte: 'Contrôle antifraude' }),
+      puce(a.liste_noire ? 'Inscrit sur la liste noire' : 'Absent de la liste noire', a.liste_noire ? 'critique' : 'bon'),
+      puce(a.lien ? `Lien ${lib(a.lien)} avec un inscrit` : 'Aucun lien avec un inscrit',
+        !a.lien ? 'bon' : a.lien === 'critique' ? 'critique' : a.lien === 'majeure' ? 'attention' : 'neutre'),
+      puce(a.alertes ? `${nombre(a.alertes)} alerte${a.alertes > 1 ? 's' : ''} à examiner` : 'Aucune alerte', a.alertes ? 'attention' : 'bon'));
   }
   function tuileMur(t) {
     const valeur = valeurTuile(t);

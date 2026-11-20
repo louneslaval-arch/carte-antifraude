@@ -643,3 +643,21 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   (à traiter, à regarder, rien à signaler, avec comptes par ton), une carte par thème (couleur, icône SVG dessinée en
   page, nombre de signaux), tuiles blanches dont le ton se lit à la pastille et à la valeur, alertes légèrement teintées,
   sources à venir hachurées.
+
+## 20/11/2026 — vue 360° : présentation du client pour la direction (branche `vue-360`)
+- **Demande de Lounès** : trop d'informations sans intérêt (catégorie, validité…) ; savoir si c'est un bon client et
+  s'il demande souvent des prêts ; retirer le côté fraude (une petite partie en bas) ; une présentation pour le top
+  management.
+- **Fait** : `vue360.presentation()` (fonction pure) : cinq chiffres clés par profil (revenu vérifié ou pension,
+  endettement, ancienneté chez l'employeur ou de l'activité ou de la société, capital, demandes de prêt, client connu
+  d'EQDOM), demandes dans l'ordre et leur rythme, points forts et de vigilance rédigés en clair et sans vocabulaire de
+  fraude, remboursements EQDOM annoncés « à venir », bande antifraude (liste noire, lien, nombre d'alertes). Aucun
+  verdict « bon / mauvais client » calculé (loi 09-08 art. 11). Seuils de formulation provisoires
+  (`SEUILS_PRESENTATION`). Page : en-tête en une ligne, présentation, bande antifraude, détail complet replié.
+- **Limites du jeu fictif** : une seule demande par client et montants demandés vides (non envoyés par la v2) ; le
+  rythme des demandes et le montant ne se voient donc pas encore.
+- **Trouvé** : six sociétés en double dans la liste du fichier unique : une fiche avec RC et ICE (pièce du registre)
+  et une fiche sans identifiant (nom lu ailleurs dans le même dossier), toutes deux demandeuses du même dossier. Règle
+  de fusion à décider avec Lounès (couche c2), non corrigée.
+- **Tests** : `api/tests/test_vue360_presentation.py` (8), rouges d'abord ; 81 réussis sur la vue 360°, la fiche et le
+  fichier unique.

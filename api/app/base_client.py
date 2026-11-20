@@ -327,6 +327,7 @@ class BaseClient:
                           liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
             vue['entite'] = self._entite(cx, fiche, prof)
             vue['tuiles'] = vue360.tuiles(servie)            # sur tous les chemins ; la fiche n'en montre que 5
+            vue['presentation'] = vue360.presentation(servie)
             servie['chemins'] = chemins[:5]
             return servie
         finally:
