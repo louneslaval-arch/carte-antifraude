@@ -158,7 +158,7 @@ def test_liste_noire_et_chemin():
     f = fiche_salarie()
     g = vue360.tuiles(f)
     assert _tuile(g, 'Liste noire')['ton'] == 'bon'
-    assert _tuile(g, 'Meilleur chemin') == dict(_tuile(g, 'Meilleur chemin'), valeur='majeure · force 0,30',
+    assert _tuile(g, 'Meilleur chemin') == dict(_tuile(g, 'Meilleur chemin'), valeur='majeure',
                                                 ton='attention')
     assert _tuile(g, 'Inscrit atteint')['valeur'] == 'INSCRIT EXEMPLE'
     f['identite']['inscrit'] = True

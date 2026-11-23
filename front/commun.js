@@ -126,7 +126,7 @@ const Commun = (() => {
     }
     return el('div', { classe: 'carte' },
       el('div', { classe: 'chemin-entete' },
-        el('span', { texte: `${ch.longueur} lien${ch.longueur > 1 ? 's' : ''} · force ${String(ch.force).replace('.', ',')}` }),
+        el('span', { texte: `${ch.longueur} lien${ch.longueur > 1 ? 's' : ''}` }),
         ch.homonymie ? el('span', { classe: 'etiquette', texte: 'homonymie à lever' }) : null,
         ch.foyer ? el('span', { classe: 'etiquette', texte: 'même foyer qu’un inscrit' }) : null),
       ch.etapes.length ? ligne

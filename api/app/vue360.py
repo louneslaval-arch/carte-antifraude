@@ -212,8 +212,7 @@ def _liste_noire(f):
         tuiles = [_t('Liste noire', 'Non inscrit', ton='bon', source='liste noire EQDOM')]
     if chemins:
         c = chemins[0]
-        force = f"{c.get('force', 0):.2f}".replace('.', ',')
-        tuiles += [_t('Meilleur chemin', f"{c.get('niveau')} · force {force}", ton=TON_NIVEAU.get(c.get('niveau'), 'neutre'),
+        tuiles += [_t('Meilleur chemin', c.get('niveau'), ton=TON_NIVEAU.get(c.get('niveau'), 'neutre'),
                       source='carte des réseaux', detail=f"{c.get('longueur')} lien(s), {len(chemins)} chemin(s)"
                       + (' · homonymie à lever' if c.get('homonymie') else '') + (' · même foyer' if c.get('foyer') else '')),
                    _t('Inscrit atteint', (c.get('inscrit') or {}).get('nom'), ton='attention', source='liste noire EQDOM')]

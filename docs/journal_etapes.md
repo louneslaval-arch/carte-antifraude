@@ -726,3 +726,6 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   sur fond noir), `fichier_unique.py --base-seule` n'assemble que la base client, la vue 360° et les dossiers ; le
   fichier s'ouvre sur la base, l'en-tête n'a plus de lien vers l'accueil ni vers la carte (la marque mène à la base).
   Test ajouté au fichier unique.
+- **Force des liens retirée de l'affichage** : à la demande de Lounès, la vue 360° (« Meilleur chemin ») et la page du
+  dossier (chemins vers un inscrit) ne montrent plus la force ; elle reste calculée et sert toujours au tri. La carte
+  antifraude (`carte.js`) l'affiche encore dans le détail d'un nœud.
