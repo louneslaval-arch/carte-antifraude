@@ -139,7 +139,7 @@ def test_les_alertes_une_a_une_sans_resume_en_double():
     assert alertes == [dict(libelle='Même RIB', valeur='incohérence', format='texte', lien='dossier.html?i=1',
                             ton='attention')]
     f['incoherences'] = []
-    assert _branche(_etoile(f), 'alertes')['lignes'][0]['valeur'] == 'aucune'
+    assert _branche(_etoile(f), 'alertes') is None, 'sans incohérence, pas de plaque « Alertes » (Lounès, 23/11/2026)'
 
 
 def test_les_lignes_venues_du_detail_gardent_ton_et_precision():
@@ -177,5 +177,5 @@ def test_fiche_vide_garde_le_centre_et_la_branche_demandes():
     f['vue360'].update(aussi=[], revenus=dict(declare=None, pieces={}, ecart=None), controles=[], entite={})
     e = _etoile(f)
     assert e['centre']['figure'] == 'personne'
-    assert [b['cle'] for b in e['branches']] == ['demandes', 'eqdom', 'liste_noire', 'alertes']
+    assert [b['cle'] for b in e['branches']] == ['demandes', 'eqdom', 'liste_noire']
     assert _branche(e, 'demandes')['resume'] == 'aucune demande en propre'

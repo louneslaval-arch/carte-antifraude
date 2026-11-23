@@ -777,10 +777,10 @@ def _completer(branches, f, prof):
     echeances = _releves(f)['echeances']
     if echeances:
         ajouter('banque', _ligne('Échéances de crédit repérées', echeances, 'montant'))
-    # tuiles du détail ; les alertes y sont des résumés : on garde ici chaque incohérence et chaque famille de contrôles
+    # tuiles du détail ; les alertes y sont des résumés : chaque incohérence et chaque famille de contrôles ont leur ligne
     for g in tuiles(f):
         for t in g['tuiles']:
-            if connu(t) or (g['groupe'] == 'Alertes' and (f.get('incoherences') or t['libelle'] != 'Incohérences')):
+            if connu(t) or g['groupe'] == 'Alertes':     # sans incohérence, pas de plaque « Alertes » (Lounès, 23/11)
                 continue
             a_venir = t['valeur'] in (None, '')
             x = _ligne(t['libelle'], 'à venir' if a_venir else t['valeur'], 'texte' if a_venir else t['format'], t.get('lien'))
