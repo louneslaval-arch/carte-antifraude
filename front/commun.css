@@ -452,3 +452,9 @@ a.bulle-ligne:hover, .depliable:hover, a.bulle-ligne:focus-visible, .depliable:f
   .etoile-liens, .constellation-ponts { display: none; }
   .constellation { gap: 24px; }
 }
+/* tons et précisions des lignes de plaque (données venues du détail) */
+.bulle-point.ton-critique, .bulle-point.ton-attention, .bulle-point.ton-bon, .bulle-point.ton-neutre { background: var(--ton); }
+.bulle-lignes li.ton-critique .bulle-valeur, .bulle-lignes li.ton-attention .bulle-valeur,
+.bulle-lignes li.ton-bon .bulle-valeur { color: var(--ton-texte); }
+.bulle-detail { display: block; margin: -4px 0 6px; padding: 0 2px; font-size: 11px; line-height: 1.35; color: var(--affiche); }
+.bulle[data-cle="liste_noire"], .bulle[data-cle="alertes"], .bulle[data-cle="controles"] { background: #fffdfd; border-color: #f3dfe1; }

@@ -654,15 +654,14 @@ def etoile(f, p):
     if prof == 'pm':
         rc = ' · '.join(filter(None, (ident.get('rc'), ident.get('tribunal')))) or None
         forme = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['forme_juridique'])[0]
-        branche('legal', 'Identité légale', [_ligne('RC', rc), _ligne('ICE', ident.get('ice')), _ligne('Forme', forme),
+        branche('legal', 'Identité légale', [_ligne('RC', rc), _ligne('ICE', ident.get('ice')), _ligne('Forme juridique', forme),
                                              _ligne('Capital', val('Capital'), 'montant')])
         branche('activite', 'Activité', [_ligne('Objet', fait.get('Activité')),
                                          _ligne('Ancienneté', val('Ancienneté de la société'), 'ans')])
         branche('dirigeants', 'Gérants et associés', personnes(p['portrait']['personnes']))
         branche('siege', 'Siège', [_ligne('Adresse', ident.get('adresse'))])
         branche('groupe', 'Sociétés sœurs', [_ligne('même dirigeant', g) for g in p['portrait'].get('groupe') or []])
-        branche('flux', 'Flux bancaires', [_ligne('Crédits mensuels', val('Crédits mensuels'), 'montant'),
-                                           _ligne('Banque', ((f.get('comptes') or [{}])[0]).get('banque'))])
+        branche('flux', 'Flux bancaires', [_ligne('Banque', ((f.get('comptes') or [{}])[0]).get('banque'))])
     else:
         cin = ident.get('cin')
         branche('identite', 'Identité', [_ligne('CIN', cin), _ligne('Date de naissance', ident.get('date_naissance'), 'date'),
@@ -696,6 +695,109 @@ def etoile(f, p):
         demandes.append(x)
     branche('demandes', 'Demandes de prêt', demandes, resume=p['rythme'], garder=True)
     branche('eqdom', 'Chez EQDOM', [_ligne('Client connu', val('Client connu d’EQDOM'))])
+    branches = _completer(branches, f, prof)
     nom_profil = 'Personne physique · retraitée' if retraite and prof != 'pm' else PROFILS_LISIBLES[prof]
     return dict(centre=dict(figure='maison' if prof == 'pm' else 'personne', nom=ident.get('nom'), profil=nom_profil),
                 branches=branches)
+
+
+# ---- toutes les informations sur les plaques (Lounès, 23/11/2026 : « vraiment toutes les infos visibles au premier coup
+# d'œil ») : les tuiles du détail, les identifiants, comptes, charges, incohérences et contrôles rejoignent les plaques ;
+# l'antifraude a ses trois plaques à elle, en fin d'étoile. Restent repliées les seules données brutes (opérations,
+# pièces champ par champ).
+TITRES_BRANCHES = dict(identite='Identité', emploi='Emploi', activite='Activité', revenus='Revenus', banque='Banque',
+                       societes='Ses sociétés', demandes='Demandes de prêt', eqdom='Chez EQDOM', legal='Identité légale',
+                       dirigeants='Gérants et associés', siege='Siège', groupe='Sociétés sœurs', flux='Flux bancaires',
+                       liste_noire='Liste noire et réseau', alertes='Alertes', controles='Contrôles de l’antifraude')
+ANTIFRAUDE = ('liste_noire', 'alertes', 'controles')
+ORDRE_BRANCHES = dict(pp=('identite', 'emploi', 'activite', 'revenus', 'banque', 'societes', 'demandes', 'eqdom') + ANTIFRAUDE,
+                      pm=('legal', 'activite', 'dirigeants', 'siege', 'groupe', 'flux', 'demandes', 'eqdom') + ANTIFRAUDE)
+ROUTE_GROUPE = {'Liste noire': 'liste_noire', 'Alertes': 'alertes', 'Revenus et charges': 'revenus',
+                'Revenus et pièces': 'revenus', 'Emploi et compte': 'emploi', 'Pension et compte': 'emploi',
+                'Identité légale': 'legal', 'Sociétés et activité': 'societes', 'Dirigeants': 'dirigeants',
+                'Comptes et réseau': 'flux', 'Identité': 'identite', 'Historique des dossiers': 'demandes',
+                'À venir': 'eqdom'}
+ROUTE_LIBELLE = {'Compte': 'banque', 'Type de compte': 'banque', 'N° CNSS': 'identite', 'N° de pension': 'identite',
+                 'Profession': 'activite', 'Carte professionnelle valide jusqu’au': 'activite',
+                 'Activité depuis': 'activite', 'Sociétés au même siège': 'siege', 'Sociétés sœurs': 'groupe',
+                 'Chiffre d’affaires déclaré': 'flux'}
+GRAVITES = dict(incoherence='incohérence', signal='signal', critique='critique')
+NOMS_IDENTIFIANTS = dict(CIN='CIN', CNSS='N° CNSS', PENSION='N° de pension', ICE='ICE', RC='RC', RC_TRIB='RC',
+                         IF='Identifiant fiscal',
+                         PATENTE='Patente', AFFILIATION='N° d’affiliation')
+
+
+def _completer(branches, f, prof):
+    """Ajoute aux plaques tout ce que montrait le détail, sans doublon (même libellé, même nom, même lien)."""
+    par = {b['cle']: b for b in branches}
+    v, ident = f['vue360'], f['identite']
+
+    def ajouter(cle, x):
+        if prof == 'pm' and cle in ('banque', 'identite'):
+            cle = 'flux' if cle == 'banque' else 'legal'
+        if cle not in par:
+            par[cle] = dict(cle=cle, titre=TITRES_BRANCHES[cle], resume=None, lignes=[])
+        par[cle]['lignes'].append(x)
+
+    def connu(t):
+        for b in par.values():
+            for x in b['lignes']:
+                if x['libelle'] == t['libelle'] or (t.get('lien') and x.get('lien') == t['lien']):
+                    return True
+                if isinstance(t['valeur'], str) and len(t['valeur']) > 6 and str(x['valeur']) in (t['valeur'], t['libelle']):
+                    return True
+                if str(x['valeur']) == t['libelle']:
+                    return True
+        if isinstance(t['valeur'], str) and ', ' in t['valeur']:     # une liste de noms déjà tous sur les plaques
+            noms = {str(x['valeur']) for b in par.values() for x in b['lignes']}
+            return all(n in noms for n in t['valeur'].split(', '))
+        return False
+
+    # identifiants, autres écritures du nom, autres adresses
+    for i in f.get('identifiants') or []:
+        nom = NOMS_IDENTIFIANTS.get(i.get('type'), i.get('type'))
+        x = _ligne(nom, i.get('valeur'))
+        if i.get('valeur') and not connu(x):
+            ajouter('identite', x)
+    alias = [a['nom'] for a in f.get('alias') or [] if a.get('nom') and a['nom'] != ident.get('nom')]
+    if alias:
+        ajouter('identite', _ligne('Autres écritures du nom', ', '.join(alias)))
+    for a in f.get('adresses') or []:
+        if a.get('adresse') and a['adresse'] != ident.get('adresse') and not connu(_ligne('Adresse', a['adresse'])):
+            ajouter('siege' if prof == 'pm' else 'identite', _ligne('Autre adresse', a['adresse']))
+    # comptes et charges
+    for c in f.get('comptes') or []:
+        valeur = ' · '.join(filter(None, (c.get('rib'), c.get('banque'))))
+        if valeur:
+            ajouter('banque', _ligne('RIB', valeur))
+    charges = sorted(f.get('charges') or [], key=lambda c: (c.get('annee') or 0, c.get('mois') or 0), reverse=True)
+    source_ = next((c for c in charges if c.get('nature') == 'credit_source'), None)
+    if source_:
+        ajouter('banque', _ligne('Crédit prélevé à la source', source_['montant'], 'montant'))
+    echeances = _releves(f)['echeances']
+    if echeances:
+        ajouter('banque', _ligne('Échéances de crédit repérées', echeances, 'montant'))
+    # tuiles du détail ; les alertes y sont des résumés : on garde ici chaque incohérence et chaque famille de contrôles
+    for g in tuiles(f):
+        for t in g['tuiles']:
+            if connu(t) or (g['groupe'] == 'Alertes' and (f.get('incoherences') or t['libelle'] != 'Incohérences')):
+                continue
+            a_venir = t['valeur'] in (None, '')
+            x = _ligne(t['libelle'], 'à venir' if a_venir else t['valeur'], 'texte' if a_venir else t['format'], t.get('lien'))
+            x.update(ton=t.get('ton'), detail=t.get('detail'), source=t.get('source'))
+            ajouter(ROUTE_LIBELLE.get(t['libelle']) or ROUTE_GROUPE.get(g['groupe'], 'eqdom'), x)
+    # incohérences une à une, contrôles par famille
+    for i in f.get('incoherences') or []:
+        x = _ligne(i.get('libelle') or i.get('type'), GRAVITES.get(i.get('gravite'), i.get('gravite')), lien=f"dossier.html?i={i['dossier']}" if i.get('dossier') else None)
+        x.update(ton='attention')
+        ajouter('alertes', x)
+    for fam in v.get('controles') or []:
+        n, a = len(fam['controles']), fam['anomalies']
+        anomalies = [c for c in fam['controles'] if c['resultat'] == 'ANOMALIE']
+        x = _ligne(fam['famille'], f"{a} anomalie{'s' if a > 1 else ''} sur {n}" if a else f"{n} conforme{'s' if n > 1 else ''}")
+        x.update(ton='critique' if any(c.get('criticite') == 'CRITIQUE' for c in anomalies) else 'attention' if a else 'bon',
+                 detail='; '.join(f"{c['controle']} {c.get('libelle') or ''}".strip() for c in anomalies) or None)
+        ajouter('controles', x)
+    ordre = ORDRE_BRANCHES['pm' if prof == 'pm' else 'pp']
+    return [par[k] for k in ordre if k in par and (par[k]['lignes'] or k == 'demandes')] + \
+        [b for k, b in par.items() if k not in ordre and b['lignes']]

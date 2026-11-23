@@ -1,8 +1,8 @@
 'use strict';
-// Vue 360° d'une entité : trois profils (personne salariée, personne entrepreneur, personne morale), chacun avec ses
-// blocs dans l'ordre utile ; puis toutes les données du client, dossier par dossier.
+// Vue 360° d'une entité en étoile : au centre une silhouette (personne) ou un immeuble (société), toutes ses informations
+// sur les plaques autour ; les personnes et sociétés citées se déplient en étoiles reliées. Données brutes repliées dessous.
 document.addEventListener('DOMContentLoaded', async () => {
-  const { el, api, nombre, montant, date, initiales } = Commun;
+  const { el, api, nombre, montant, date } = Commun;
   Commun.entete('base.html');
   const main = document.getElementById('contenu');
   const indice = Commun.parametre('i');
@@ -17,20 +17,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const id = f.identite;
   const v = f.vue360 || { profil: id.type === 'personne' ? 'salarie' : 'pm', retraite: false, csp: null, aussi: [],
     revenus: { declare: null, pieces: {}, ecart: null }, controles: [] };
-  const PROFILS = {
-    salarie: { nom: v.retraite ? 'Personne physique · retraitée' : 'Personne physique · salariée', classe: 'profil-salarie' },
-    entrepreneur: { nom: 'Personne physique · entrepreneur', classe: 'profil-entrepreneur' },
-    pm: { nom: 'Personne morale', classe: 'profil-pm' },
-  };
-  const P = PROFILS[v.profil];
-  const PRODUITS = { DISPO: 'Crédit disponible', AUTO_CLASSIQUE: 'Crédit auto', LOA: 'Location avec option d’achat' };
   const CSP = { SALARIE_PRIVE: 'salarié du privé', FONCTIONNAIRE: 'fonctionnaire', EMPLOYE_COMMUNE: 'employé de commune',
     MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
     PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre', SOCIETE: 'société' };
   const propres = f.dossiers.filter(d => d.demandeur);
-  const anomalies = v.controles.reduce((s, x) => s + x.anomalies, 0);
 
-  // ---- en-tête : qui est le client, en une ligne (l'antifraude est en bas de page) -----------------------------------
+  // ---- ligne sous le nom : CSP, âge, RC, client depuis ----------------------------------------------------------------
   const pres = v.presentation || null;
   const demandes = pres ? pres.demandes : [];
   const age = (() => {
@@ -41,117 +33,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ligne = [v.csp && v.profil !== 'pm' ? (CSP[v.csp] || lib(v.csp)) : null, age !== null ? `${age} ans` : null,
     id.type === 'societe' && id.rc ? `RC ${id.rc}${id.tribunal ? ` · ${id.tribunal}` : ''}` : null,
     demandes.length ? `client depuis ${date(demandes[0].date)}` : null].filter(Boolean);
-  const tete = el('section', { classe: `carte identite tete-360 ${P.classe}` },
-    el('div', { classe: `avatar ${id.type}`, 'aria-hidden': 'true', texte: initiales(id.nom) }),
-    el('div', { classe: 'tete-texte' },
-      el('div', { classe: 'surtitre', texte: 'Vue 360°' }),
-      el('h1', { texte: id.nom }),
-      el('div', { classe: 'puces' }, el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: P.nom })),
-      ligne.length ? el('p', { classe: 'tete-ligne', texte: ligne.join(' · ') }) : null,
-      v.aussi.length ? el('p', { classe: 'bandeau-aussi' }, 'Aussi ',
-        v.aussi.map((s, k) => [k ? ', ' : '', `${s.role} de `, s.indice ? Commun.lienFiche(s) : s.nom])) : null));
 
-  // ---- mur de tuiles : une quarantaine de données clés, par thème, colorées selon leur ton (calculées par l'API) ------
-  const flux = fluxBancaires();
-  const dirigeants = regrouper(f.personnes);
-  const mur = murDeTuiles(v.tuiles || []);
-
-  // ---- blocs --------------------------------------------------------------------------------------------------------
+  // ---- données brutes, repliées sous l'étoile -------------------------------------------------------------------------
   const B = {
-    revenus: () => carte(v.retraite ? 'Pension' : (v.profil === 'entrepreneur' ? 'Revenus d’activité' : 'Salaire et revenus'),
-      barresRevenus(), f.charges.length ? [el('h3', { texte: 'Charges' }), tableau(['Charge', 'Période', 'Montant', 'Dossier'],
-        f.charges.map(c => [c.nature === 'credit_source' ? 'crédit prélevé à la source' : 'échéance de crédit', periode(c),
-          montant(c.montant), lienDossier(c.dossier)]))] : null,
-      f.revenus.length ? el('details', {}, el('summary', { texte: `Détail des ${nombre(f.revenus.length)} montants` }),
-        tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'], f.revenus.map(r => [r.nature === 'declare' ? 'déclaré' : 'vérifié',
-          libelleSource(r.source), periode(r), montant(r.montant), lienDossier(r.dossier)]))) : null),
-    employeur: () => {
-      const employeurs = f.societes.filter(s => s.role === 'salarié' || s.role === 'pensionné');
-      const declares = [...new Set(f.donnees.flatMap(x => x.contexte).filter(c => c.libelle === 'Employeur déclaré'
-        || c.libelle === 'Organisme de pension déclaré').map(c => String(c.valeur)))];
-      return carte(v.retraite ? 'Organisme de pension' : 'Employeur',
-        employeurs.length ? tableau(['Employeur', 'Rôle', 'Source'], employeurs.map(s => [s.indice ? Commun.lienFiche(s) : s.nom, s.role,
-          libelleSource(s.source)])) : vide('Aucun employeur relié.'),
-        declares.length ? el('p', { classe: 'note', texte: `Déclaré au dossier : ${declares.join(', ')}` }) : null,
-        controlesDe(['EMP']));
-    },
-    activite: () => carte('Sociétés et rôles', f.societes.length
-      ? tableau(['Société', 'Rôle', 'Source'], f.societes.map(s => [s.indice ? Commun.lienFiche(s) : s.nom,
-        etatRole(s.role), libelleSource(s.source)])) : vide('Aucune société reliée.'),
-      f.registre.length ? [el('h3', { texte: 'Au registre du commerce' }), tableau(['Société', 'Rôle', 'Parts', 'Adresse'],
-        f.registre.map(m => [m.societe, m.role, m.parts, m.adresse]))] : null),
-    piecesPro: () => carte('Pièces professionnelles', controlesDe(['PRO', 'IDT'], c => /^(PRO|IDT-1[0-1])/.test(c.controle))
-      || vide('Aucun contrôle de pièce professionnelle sur ses dossiers.')),
-    dirigeants: () => carte('Gérants, associés et bénéficiaires', dirigeants.length
-      ? tableau(['Nom', 'Rôles', 'Sources', ''], dirigeants.map(p => [p.indice ? Commun.lienFiche(p) : p.nom,
-        p.roles.map((r, k) => [k ? ', ' : '', etatRole(r)]), p.sources.map(libelleSource).join(', '),
-        p.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'inscrit' }) : '']))
-      : vide('Aucune personne reliée.'),
-      controlesDe(['IDT'], c => /^IDT-(1[2-9]|2\d)/.test(c.controle))),
-    registre: () => carte('Registre du commerce', f.registre.length ? tableau(['Société', 'Rôle', 'Parts', 'Adresse'],
-      f.registre.map(m => [m.societe, m.role, m.parts, m.adresse])) : vide('Aucune mention au registre.'),
-      identifiantsTableau()),
-    banque: () => carte(v.profil === 'pm' ? 'Comptes et flux de la société' : 'Comptes bancaires',
-      f.comptes.length ? tableau(['RIB', 'Banque', 'Titulaire'], f.comptes.map(c => [c.rib, c.banque || '—', c.titulaire || '—'])) : vide('Aucun compte lu.'),
-      flux.mois ? el('dl', { classe: 'definitions' },
-        [['Mois de relevés lus', nombre(flux.mois)], ['Crédits cumulés', montant(flux.credit)], ['Débits cumulés', montant(flux.debit)],
-          ['Échéances de crédit repérées', montant(flux.echeances)]].map(([k, x]) => [el('dt', { texte: k }), el('dd', { texte: x })])) : null,
-      controlesDe(['BNQ'])),
-    risque: () => carte('Risque',
-      el('h3', { texte: 'Liens avec la liste noire' }),
-      f.chemins.length ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'),
-      Commun.role() === 'ANALYSTE' ? el('p', {}, versLaCarte()) : null,
-      f.liste_noire.length ? [el('h3', { texte: 'Inscription sur la liste noire' }), tableau(
-        ['Libellé', 'Type de liste', 'Motif', 'Type de fraude', 'Statut', 'Première saisie', 'Inscriptions'],
-        f.liste_noire.map(l => [l.label, l.typeListe, l.motif, l.type_fraude, l.statut, date(l.premiere_saisie), nombre(l.nb_inscriptions)]))] : null,
-      f.incoherences.length ? [el('h3', { texte: 'Incohérences' }), tableau(['Incohérence', 'Gravité', 'Dossier', 'Autre dossier'],
-        f.incoherences.map(i => [i.libelle, i.gravite, lienDossier(i.dossier), lienDossier(i.autre_dossier)]))] : null,
-      controlesDe(['BLG'])),
     controles: () => carte('Contrôles de l’antifraude, par famille', v.controles.length
       ? el('div', { classe: 'familles' }, v.controles.map(familleControles))
       : vide(propres.length ? 'Aucun contrôle sur ses dossiers.' : 'Cité seulement dans les dossiers d’autres clients : leurs contrôles ne figurent pas ici.'),
       el('p', { classe: 'note', texte: 'Un contrôle en anomalie est un signal de l’antifraude, jamais une décision : seules la liste noire et les fraudes confirmées par la cellule fraude font foi.' })),
-    historique: () => carte('Historique des dossiers', f.dossiers.length ? tableau(
-      ['Reçu', 'Produit', 'Rôle', 'Verdict v2', ''],
-      f.dossiers.map(d => [date(d.recu), d.produit, d.role, d.demandeur ? (d.verdict || '—') : '—',
-        el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
-      f.dossiers.some(d => !d.demandeur) ? el('p', { classe: 'note', texte: `Cité dans ${nombre(f.dossiers.filter(d => !d.demandeur).length)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null,
-      f.vehicules.length ? [el('h3', { texte: 'Véhicules' }), tableau(['Pièce', 'Marque', 'Modèle', 'Prix'],
-        f.vehicules.map(x => [libelleSource(x.type_piece), x.marque || '—', x.modele || '—', montant(x.prix)]))] : null,
-      controlesDe(['AUT'])),
-    identite: () => carte('Identité et adresses',
-      el('div', { classe: 'puces' }, f.alias.map(a => el('span', { classe: 'etiquette', lang: a.ecriture === 'arabe' ? 'ar' : null, texte: `${a.nom} · ${a.nombre}` }))),
-      f.adresses.length ? tableau(['Adresse', 'Rôle'], f.adresses.map(a => [a.adresse, a.role || '—'])) : null,
-      v.profil === 'pm' ? null : identifiantsTableau(),
-      controlesDe(['IDT'], c => v.profil === 'pm' || !/^IDT-1[0-1]/.test(c.controle) || v.profil === 'salarie')),
   };
-  // Ordre des blocs : deux colonnes, la gauche pour ce qui caractérise le profil.
-  const DISPOSITION = {
-    salarie: [['revenus', 'employeur'], ['risque', 'banque', 'identite']],
-    entrepreneur: [['activite', 'revenus', 'piecesPro'], ['risque', 'banque', 'identite']],
-    pm: [['dirigeants', 'registre', 'banque'], ['risque', 'identite']],
-  }[v.profil];
 
   const operations = f.operations.length ? carte(`Opérations des relevés (${nombre(f.operations.length)})`,
     el('details', {}, el('summary', { texte: 'Afficher les opérations' }),
       tableau(['Date', 'Type', 'Libellé', 'Débit', 'Crédit', 'Dossier'], f.operations.map(o => [date(o.date_operation),
         o.type_operation || '—', court(o.libelle), montant(o.debit), montant(o.credit), lienDossier(o.dossier)])))) : null;
 
-  // Présentation pour la direction en haut ; l'antifraude en une bande en bas, son détail replié dessous.
+  // Tout est sur les plaques de l'étoile ; restent repliées les seules données brutes (contrôles un par un, opérations
+  // des relevés, pièces champ par champ).
   const detail = el('details', { classe: 'detail-antifraude' },
-    el('summary', { texte: 'Détail' }),
-    mur, el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
-    B.controles(), operations, toutesLesDonnees());
+    el('summary', { texte: 'Données brutes' }), B.controles(), operations, toutesLesDonnees());
+
   // Vue en étoile (23/11/2026) : au centre une silhouette (personne) ou un immeuble (société), ses informations autour.
   // Une personne ou une société citée dans une bulle se déplie en une nouvelle étoile, reliée à celle d'où elle part ;
-  // et ainsi de suite (une chaîne). Sans étoile servie par l'API : l'ancienne présentation.
+  // et ainsi de suite (une chaîne).
   const chaine = el('div', { classe: 'constellation' });
   const sources = new Map();                                 // étoile dépliée → ligne de la bulle d'où elle part
-  const haut = v.etoile ? [chaine] : [tete, pres ? presentationClient(pres) : null];
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
-    ...haut, pres ? bandeAntifraude(pres.antifraude) : null, detail].filter(Boolean));
+    chaine, detail].filter(Boolean));
   main.removeAttribute('aria-busy');
-  if (v.etoile) {
+  if (!v.etoile) chaine.append(vide('Vue 360° indisponible pour cette fiche.'));
+  else {
     chaine.append(vueEtoile(f, 0, null));
     const calque = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     calque.setAttribute('class', 'constellation-ponts');
@@ -171,10 +81,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const THEMES_BRANCHE = { identite: ['identite', 'carte'], emploi: ['emploi', 'mallette'], activite: ['emploi', 'mallette'],
       revenus: ['argent', 'billet'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'], societes: ['legal', 'immeuble'],
       legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'], siege: ['identite', 'immeuble'],
-      groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'] };
+      groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'],
+      liste_noire: ['risque', 'bouclier'], alertes: ['alerte', 'alerte'], controles: ['alerte', 'coche'] };
+    const TONS = ['critique', 'attention', 'bon', 'neutre'];
     const ligneBulle = x => {
+      const ton = x.ton && (TONS.includes(x.ton) ? `ton-${x.ton}` : `verdict-${x.ton}`);
       const libelle = el('span', { classe: 'bulle-libelle' },
-        x.ton ? el('span', { classe: `bulle-point verdict-${x.ton}`, 'aria-hidden': 'true' }) : null, x.libelle);
+        ton ? el('span', { classe: `bulle-point ${ton}`, 'aria-hidden': 'true' }) : null, x.libelle);
+      const precision = x.detail ? el('span', { classe: 'bulle-detail', texte: x.detail }) : null;
       const fiche = x.lien && /^fiche\.html\?i=(\d+)$/.exec(x.lien);
       if (fiche) {                                           // une personne ou une société : se déplie en étoile
         const b = el('button', { type: 'button', classe: 'bulle-ligne depliable', 'data-fiche': fiche[1], 'aria-expanded': 'false',
@@ -182,10 +96,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           el('span', { classe: 'chevron', 'aria-hidden': 'true', texte: '›' }));
         b.dataset.libelle = x.libelle;
         b.addEventListener('click', () => deplier(b, true));
-        return el('li', {}, b);
+        return el('li', {}, b, precision);
       }
       const corps = [libelle, el('span', { classe: 'bulle-valeur', texte: valeurTuile(x) })];
-      return el('li', {}, x.lien ? el('a', { href: x.lien, classe: 'bulle-ligne' }, ...corps) : el('div', { classe: 'bulle-ligne' }, ...corps));
+      const attributs = { classe: 'bulle-ligne', title: x.source ? `source : ${x.source}` : null };
+      return el('li', { classe: ton && TONS.includes(x.ton) ? ton : null },
+        x.lien ? el('a', { ...attributs, href: x.lien }, ...corps) : el('div', attributs, ...corps), precision);
     };
     const bulle = b => {
       const [theme, ico] = THEMES_BRANCHE[b.cle] || ['historique', 'carte'];
@@ -319,98 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ---- éléments -----------------------------------------------------------------------------------------------------
-  // Mur de données : une carte par thème (couleur et icône du thème), des tuiles sobres
-  // dont le ton (à traiter, à regarder, rassurant) se lit à la pastille et à la couleur de la valeur.
-  function murDeTuiles(groupes) {
-    if (!groupes.length) return null;
-    const THEMES = {
-      'Liste noire': ['risque', 'bouclier'], 'Alertes': ['alerte', 'alerte'], 'Revenus et charges': ['argent', 'billet'],
-      'Revenus et pièces': ['argent', 'billet'], 'Emploi et compte': ['emploi', 'mallette'],
-      'Pension et compte': ['emploi', 'mallette'], 'Identité légale': ['legal', 'immeuble'],
-      'Sociétés et activité': ['legal', 'immeuble'], 'Dirigeants': ['personnes', 'personnes'],
-      'Comptes et réseau': ['reseau', 'reseau'], 'Identité': ['identite', 'carte'],
-      'Historique des dossiers': ['historique', 'horloge'], 'À venir': ['avenir', 'sablier'] };
-    const cartes = groupes.map(g => {
-      const [theme, ico] = THEMES[g.groupe] || ['identite', 'carte'];
-      const carte_ = el('section', { classe: `mur-carte theme-${theme}`, 'aria-label': g.groupe },
-        el('header', { classe: 'mur-carte-tete' }, el('span', { classe: 'mur-icone', 'aria-hidden': 'true' }, icone(ico)),
-          el('h3', { texte: g.groupe })),
-        el('div', { classe: 'mur-tuiles' }, g.tuiles.map(tuileMur)));
-      carte_.style.gridColumn = `span ${Math.min(12, Math.max(3, g.tuiles.length * 3))}`;
-      return carte_;
-    });
-    return el('section', { classe: 'mur', 'aria-label': 'Données clés du client' },
-      el('div', { classe: 'mur-entete' }, el('h2', { texte: 'Données clés' }),
-        el('p', { classe: 'note', texte: 'Lues dans les pièces, le registre du commerce et la liste noire ; la source est sous chaque valeur.' })),
-      el('div', { classe: 'mur-grille-cartes' }, cartes));
-  }
-  // ---- présentation pour la direction ---------------------------------------------------------------------------------
-  function presentationClient(p) {
-    const chiffres = el('div', { classe: 'pres-chiffres' }, p.chiffres.map((c, k) =>
-      el('div', { classe: `pres-chiffre accent-${k % 5}${c.ton === 'attention' ? ' alerte' : ''}` },
-        el('div', { classe: 'pres-libelle', texte: c.libelle }),
-        el('div', { classe: 'pres-valeur', texte: valeurTuile(c) === '—' ? 'non renseigné' : valeurTuile(c) }),
-        c.detail ? el('div', { classe: 'pres-detail', texte: c.detail }) : null)));
-    const frise = el('div', { classe: 'pres-frise' },
-      p.demandes.length ? p.demandes.map(d => el('a', { classe: `jalon verdict-${(d.verdict || 'attente').toLowerCase()}`,
-        href: d.indice ? `dossier.html?i=${d.indice}` : null },
-        el('span', { classe: 'jalon-point', 'aria-hidden': 'true' }),
-        el('span', { classe: 'jalon-date', texte: date(d.date) }),
-        el('span', { classe: 'jalon-produit', texte: PRODUITS[d.produit] || d.produit || 'prêt' }),
-        el('span', { classe: 'jalon-verdict', texte: d.verdict ? lib(d.verdict) : 'en cours' })))
-        : el('p', { classe: 'note', texte: 'Aucune demande en propre : cité dans le dossier d’un autre client.' }));
-    return el('section', { classe: 'presentation', 'aria-label': 'Présentation du client' },
-      chiffres, p.portrait ? portrait(p.portrait) : null,
-      el('div', { classe: 'pres-bloc' }, el('div', { classe: 'pres-bloc-tete' }, el('h2', { texte: 'Ses demandes de prêt' }),
-        el('span', { classe: 'pres-rythme', texte: p.rythme })), frise),
-      el('p', { classe: 'pres-remboursements' }, el('strong', { texte: 'Remboursements chez EQDOM. ' }), p.remboursements));
-  }
-  function portrait(po) {
-    const faits = po.faits.length ? el('dl', { classe: 'portrait-faits' },
-      po.faits.map(x => [el('dt', { texte: x.libelle }), el('dd', { texte: x.valeur })])) : null;
-    const lignes = po.personnes.map(q => {
-      const barre = el('span', { classe: 'parts-barre' }, el('span', { classe: 'parts-rempli' }));
-      const pct = q.pourcentage, nb = q.parts;
-      if (pct !== null && pct !== undefined) barre.firstChild.style.width = `${Math.max(3, Math.min(100, pct))}%`;
-      const texteParts = [pct !== null && pct !== undefined ? `${String(pct).replace('.', ',')} %` : null,
-        nb !== null && nb !== undefined ? `${nombre(nb)} part${nb > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ');
-      return el('li', { classe: `portrait-personne${q.termine ? ' termine' : ''}` },
-        el('span', { classe: 'portrait-avatar', 'aria-hidden': 'true', texte: initiales(q.nom || '?') }),
-        el('div', { classe: 'portrait-qui' },
-          q.indice ? el('a', { href: `fiche.html?i=${q.indice}`, classe: 'portrait-nom', texte: q.nom }) : el('span', { classe: 'portrait-nom', texte: q.nom }),
-          el('span', { classe: 'portrait-roles', texte: q.roles.join(', ') + (q.termine ? ' · rôle terminé' : '') })),
-        pct !== null && pct !== undefined
-          ? el('div', { classe: 'portrait-parts' }, barre, el('span', { texte: texteParts }))
-          : el('div', { classe: 'portrait-parts vide' }, el('span', { texte: texteParts || 'parts non lues' })));
-    });
-    return el('div', { classe: 'pres-portrait' },
-      el('div', { classe: 'portrait-colonne' }, el('h2', { texte: 'Qui est-ce ?' }), faits || el('p', { classe: 'note', texte: 'Rien de lu dans les pièces.' })),
-      po.titre ? el('div', { classe: 'portrait-colonne' }, el('h2', { texte: po.titre }),
-        lignes.length ? el('ul', { classe: 'portrait-liste' }, lignes) : el('p', { classe: 'note', texte: 'Aucune lue dans les pièces ni au registre.' }),
-        po.groupe && po.groupe.length ? el('div', { classe: 'portrait-groupe' }, el('span', { classe: 'portrait-groupe-titre', texte: 'Autres sociétés de ses dirigeants' }),
-          el('div', { classe: 'puces' }, po.groupe.map(g => el('span', { classe: 'etiquette', texte: g })))) : null) : null);
-  }
-  function bandeAntifraude(a) {
-    const puce = (texte, ton) => el('span', { classe: `af-puce ton-${ton}` }, el('span', { classe: 'tuile-point', 'aria-hidden': 'true' }), texte);
-    return el('section', { classe: 'bande-antifraude', 'aria-label': 'Contrôle antifraude' },
-      el('span', { classe: 'af-titre', texte: 'Contrôle antifraude' }),
-      puce(a.liste_noire ? 'Inscrit sur la liste noire' : 'Absent de la liste noire', a.liste_noire ? 'critique' : 'bon'),
-      puce(a.lien ? `Lien ${lib(a.lien)} avec un inscrit` : 'Aucun lien avec un inscrit',
-        !a.lien ? 'bon' : a.lien === 'critique' ? 'critique' : a.lien === 'majeure' ? 'attention' : 'neutre'));
-  }
-  function tuileMur(t) {
-    const valeur = valeurTuile(t);
-    const absente = t.valeur === null || t.valeur === undefined || t.valeur === '';
-    const corps = [el('div', { classe: 'tuile-libelle' }, el('span', { classe: 'tuile-point', 'aria-hidden': 'true' }), t.libelle),
-      el('div', { classe: `tuile-chiffre${valeur.length > 14 ? ' long' : ''}`, texte: absente ? 'à venir' : valeur }),
-      t.detail ? el('div', { classe: 'tuile-detail', texte: t.detail }) : null,
-      t.source ? el('div', { classe: 'tuile-via', texte: t.source }) : null];
-    const attributs = { classe: `tuile ton-${t.ton}${absente ? ' absente' : ''}`,
-      title: [t.detail, t.source ? `source : ${t.source}` : null].filter(Boolean).join(' · ') || null };
-    return t.lien ? el('a', { ...attributs, href: t.lien, classe: `${attributs.classe} tuile-lien` }, ...corps) : el('div', attributs, ...corps);
-  }
-  // Icônes du mur : traits simples en SVG, dessinés ici (aucune ressource extérieure).
+  // Icônes des plaques : traits simples en SVG, dessinés ici (aucune ressource extérieure).
   function icone(nom) {
     const TRACES = {
       bouclier: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z',
@@ -445,32 +270,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       default: return CSP[t.valeur] || String(t.valeur);
     }
   }
-  function barresRevenus() {
-    const lignes = [['Déclaré', v.revenus.declare, 'declare']].concat(
-      [['BULLETIN_DE_PAIE', 'Bulletin de paie'], ['ATTESTATION_TRAVAIL_SALAIRE', 'Attestation de salaire'],
-        ['ATTESTATION_PENSION', 'Justificatif de pension'], ['RELEVE_BANCAIRE', 'Retrouvé sur les relevés']]
-        .filter(([s]) => v.revenus.pieces[s] !== undefined).map(([s, n]) => [n, v.revenus.pieces[s], 'verifie']))
-      .filter(([, m]) => m !== null && m !== undefined);
-    if (!lignes.length) return vide(propres.length ? 'Aucun revenu lu.' : 'Cité seulement : les revenus des dossiers d’autres clients ne figurent pas ici.');
-    const max = Math.max(...lignes.map(([, m]) => m)) || 1;
-    return el('div', { classe: 'barres-revenus', role: 'list' }, lignes.map(([n, m, genre]) => {
-      const barre = el('span', { classe: `barre ${genre}` });
-      barre.style.width = `${Math.max(2, m / max * 100)}%`;              // CSSOM : permis par la politique de la plateforme
-      return el('div', { classe: 'ligne-revenu', role: 'listitem' }, el('span', { classe: 'nom-revenu', texte: n }),
-        el('span', { classe: 'piste' }, barre), el('span', { classe: 'montant-revenu', texte: montant(m) }));
-    }), v.revenus.ecart !== null ? el('p', { classe: 'note', texte: `Écart entre pièces : ${Math.round(v.revenus.ecart * 100)} % (dernier montant de chaque pièce).` }) : null);
-  }
-  function controlesDe(familles, garder = () => true) {
-    const noms = { IDT: 'Identité', BNQ: 'Relevés bancaires', BLG: 'Liste noire et géographie', EMP: 'Revenus et employeur',
-      PRO: 'Pièces professionnelles', AUT: 'Véhicule' };
-    const lignes = v.controles.filter(x => familles.some(p => noms[p] === x.famille)).flatMap(x => x.controles).filter(garder);
-    if (!lignes.length) return null;
-    const enAnomalie = lignes.filter(c => c.resultat === 'ANOMALIE').length;
-    return el('details', { classe: 'controles-bloc', open: enAnomalie > 0 },
-      el('summary', {}, `Contrôles (${nombre(lignes.length)})`, enAnomalie
-        ? el('span', { classe: 'etiquette etiquette-rouge', texte: `${nombre(enAnomalie)} en anomalie` }) : el('span', { classe: 'etiquette ok', texte: 'tous conformes' })),
-      el('ul', { classe: 'liste-controles' }, lignes.map(ligneControle)));
-  }
   function familleControles(x) {
     return el('details', { classe: 'famille', open: x.anomalies > 0 },
       el('summary', {}, el('strong', { texte: x.famille }), ` · ${nombre(x.controles.length)} contrôle(s)`,
@@ -486,32 +285,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         c.description ? el('span', { classe: 'controle-desc', texte: c.description }) : null),
       el('span', { classe: 'controle-etat' }, r[1], c.criticite ? ` · ${String(c.criticite).toLowerCase()}` : ''),
       c.dossier ? el('a', { href: `dossier.html?i=${c.dossier}`, texte: 'dossier', 'aria-label': `Ouvrir le dossier du contrôle ${c.controle}` }) : null);
-  }
-  function identifiantsTableau() {
-    return f.identifiants.length ? [el('h3', { texte: 'Identifiants' }), tableau(['Type', 'Valeur', 'Dossier'],
-      f.identifiants.map(x => [x.type, x.valeur, lienDossier(x.dossier)]))] : null;
-  }
-  function fluxBancaires() {
-    const t = { mois: 0, credit: 0, debit: 0, echeances: 0 };
-    for (const x of f.donnees) for (const p of x.pieces) for (const m of p.mois) {
-      t.mois += 1; t.credit += m.total_credit || 0; t.debit += m.total_debit || 0; t.echeances += m.echeances_credits || 0;
-    }
-    return t;
-  }
-  function regrouper(personnes) {                        // une ligne par personne, ses rôles et ses sources réunis
-    const par = new Map();
-    for (const p of personnes) {
-      const cle = p.indice ?? p.nom;
-      const x = par.get(cle) || { ...p, roles: [], sources: [] };
-      if (p.role && !x.roles.includes(p.role)) x.roles.push(p.role);
-      if (p.source && !x.sources.includes(p.source)) x.sources.push(p.source);
-      x.inscrit = x.inscrit || p.inscrit;
-      par.set(cle, x);
-    }
-    return [...par.values()];
-  }
-  function etatRole(r) {
-    return /sortant|cédant|liquidateur/.test(r || '') ? el('span', { classe: 'note', texte: `${r} (terminé)` }) : r;
   }
   function toutesLesDonnees() {
     const navigation = el('div', { classe: 'onglets', role: 'tablist', 'aria-label': 'Dossiers du client' });
@@ -563,21 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('div', {}, el('h3', { texte: 'Contexte déclaré' }), contexte, lien),
       el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces));
   }
-  // Carte globale centrée sur le client s'il y figure (retrouvé par son CIN ou son RC), sinon sa vue réseau
-  function versLaCarte() {
-    const reseau = `reseau.html?i=${encodeURIComponent(indice)}`;
-    return el('a', { href: reseau, texte: 'Voir son réseau sur la carte →', onclick: async ev => {
-      ev.preventDefault();
-      try {
-        const r = await api(`/api/base/carte/${encodeURIComponent(indice)}`);
-        location.href = `carte.html?n=${encodeURIComponent(r.indice)}`;
-      } catch (e) {
-        if (e.message !== 'session') location.href = reseau;
-      }
-    } });
-  }
   function lib(s) { return String(s).toLowerCase().replaceAll('_', ' '); }
-  function periode(x) { return x.mois ? `${String(x.mois).padStart(2, '0')}/${x.annee}` : '—'; }
   function lienDossier(i) { return i ? el('a', { href: `dossier.html?i=${i}`, texte: 'Ouvrir' }) : '—'; }
   function court(x) {
     if (x === null || x === undefined) return '—';

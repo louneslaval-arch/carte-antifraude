@@ -691,3 +691,11 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   étoile sous la précédente, reliée par un trait qui part de sa ligne (et ainsi de suite) ; pour une société, le gérant
   se déplie d'office. Chaque dépliage lit une fiche de plus (journal d'audit et quotas, comme une ouverture de fiche).
   Le fichier unique embarque les fiches citées sur deux niveaux (5,9 Mo). Test ajouté au fichier unique.
+- **Reprise (toutes les informations sur les plaques)** : à la demande de Lounès (« vraiment toutes les infos visibles
+  au premier coup d'œil »), `vue360._completer()` verse sur les plaques tout ce que montrait le détail : tuiles (avec ton,
+  précision et source), identifiants, autres écritures du nom, autres adresses, RIB, crédit à la source, échéances,
+  incohérences une à une (lien vers le dossier), contrôles par famille ; sans doublon. L'antifraude a ses trois plaques
+  (liste noire et réseau, alertes, contrôles), en fin d'étoile ; la bande antifraude disparaît. Restent repliées les
+  seules données brutes (contrôles un par un, opérations, pièces champ par champ). Code de l'ancienne vue retiré de
+  `front/fiche.js` ; ses règles CSS orphelines (mur, présentation, portrait) restent dans `commun.css`, à nettoyer.
+  Tests : `test_vue360_etoile.py` (13) ; 301 réussis sur l'API et le fichier unique.
