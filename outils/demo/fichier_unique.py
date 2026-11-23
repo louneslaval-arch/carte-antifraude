@@ -201,7 +201,7 @@ def construire(sortie, n_clients=100, n_dossiers=300, n_societes=400, graine=202
     import construire_demo
     with tempfile.TemporaryDirectory() as t:
         base = os.path.join(t, 'base_legere.sqlite')
-        construire_demo.construire(base, n_dossiers=n_dossiers, n_societes=n_societes, graine=graine)
+        construire_demo.construire(base, n_dossiers=n_dossiers, n_societes=n_societes, graine=graine, habillage=True)
         donnees, comptes = collecter(base, n_clients)
     html = assembler(donnees)
     with open(sortie, 'w', encoding='utf-8') as f:

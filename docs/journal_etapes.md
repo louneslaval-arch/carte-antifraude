@@ -699,3 +699,22 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   seules données brutes (contrôles un par un, opérations, pièces champ par champ). Code de l'ancienne vue retiré de
   `front/fiche.js` ; ses règles CSS orphelines (mur, présentation, portrait) restent dans `commun.css`, à nettoyer.
   Tests : `test_vue360_etoile.py` (13) ; 301 réussis sur l'API et le fichier unique.
+- **Reprise (plaque « Alertes » retirée)** : sur demande de Lounès, plus aucune plaque « Alertes », même avec des
+  incohérences ; elles ne sont plus montrées sur la fiche (choix confirmé par Lounès).
+- **Reprise (lecture par la direction)** : demande de Lounès : un vrai travail d'UX pour que les dirigeants comprennent
+  tout d'un client, sans donnée inventée. Au centre : qui est le client (CSP, âge, client EQDOM ou non, agence, première
+  demande), trois signaux factuels (liste noire, réseau expliqué en clair, contrôles de la v2) et l'essentiel chiffré
+  (revenu vérifié, taux d'endettement, reste après crédits, ancienneté ; pour une société : crédits mensuels, échéances,
+  ancienneté, capital), avec points forts et points de vigilance. Autour, trois zones : « Qui est-ce ? », « Capacité de
+  remboursement », « Historique et vigilance ». Visuels : revenus par pièce en barres, endettement en jauge avec son
+  repère de 40 % (provisoire), relevés mois par mois, chemin jusqu'à la personne inscrite. Les sources pas encore
+  branchées (historique EQDOM, Reco, salaire versé par un tiers, chiffre d'affaires) passent en pied de page. Jargon
+  retiré (« meilleur chemin », « force »), doublons retirés. Tout vient de la fiche servie (`vue360._organiser`,
+  `_signaux`, `_essentiel`). Tests : `test_vue360_lecture.py` (17), `test_vue360_etoile.py` mis à jour.
+- **Habillage marocain de la démonstration** : `outils/demo/habillage_maroc.py`, appelé par `construire_demo.construire(
+  habillage=True)` pour le seul fichier unique : adresses (rue, quartier, ville ; une adresse garde sa forme, deux
+  adresses ne se rejoignent jamais, socle compris), banques inventées, fonctions, situation familiale, professions,
+  caisses de retraite, véhicules, objets sociaux ; relevés cohérents avec le salaire (salaire versé, échéances
+  constantes, soldes enchaînés). Identifiants inchangés (ZZ, 999), pièges gardés ; le générateur, ses résultats attendus
+  et la base livrée ne changent pas. Tests : `tests/test_demo_habillage.py` (6). Vérification complète : vert ; garde :
+  0 constat.

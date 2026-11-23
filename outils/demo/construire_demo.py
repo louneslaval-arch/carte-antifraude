@@ -91,10 +91,21 @@ def archiver(dossier, archive):
             t.add(os.path.join(dossier, nom), arcname=nom, filter=neutre)
 
 
-def construire(sortie, n_dossiers=1500, n_societes=5000, graine=20261116, carte=None, page=None):
+def construire(sortie, n_dossiers=1500, n_societes=5000, graine=20261116, carte=None, page=None, habillage=False):
     """Base de démonstration dans `sortie` (si donné), carte globale publiée dans `carte` et page autonome dans `page`
-    (si donnés), à partir du même jeu : même registre, même liste noire."""
+    (si donnés), à partir du même jeu : même registre, même liste noire. `habillage` : adresses, banques, fonctions et
+    relevés vraisemblables (habillage_maroc.py), pour le fichier de démonstration seulement."""
     jeu = gd.generer(n_dossiers=n_dossiers, n_societes=n_societes, graine=graine)
+    if habillage:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import habillage_maroc
+        h = habillage_maroc.Habillage()
+        g = jeu.monde
+        g.annonces[:] = [h.ligne(x) for x in g.annonces]
+        g.lignes_pers[:] = [h.ligne(x) for x in g.lignes_pers]
+        g.bl[:] = [h.ligne(x) for x in g.bl]
+        for e in jeu.chronologie:
+            e['dossier'] = h.dossier(e['dossier'])
     if sortie and os.path.exists(sortie):
         os.remove(sortie)
     with tempfile.TemporaryDirectory() as d:

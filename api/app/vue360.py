@@ -695,10 +695,11 @@ def etoile(f, p):
         demandes.append(x)
     branche('demandes', 'Demandes de prêt', demandes, resume=p['rythme'], garder=True)
     branche('eqdom', 'Chez EQDOM', [_ligne('Client connu', val('Client connu d’EQDOM'))])
-    branches = _completer(branches, f, prof)
+    branches, a_venir = _organiser(_completer(branches, f, prof), f, p, prof)
     nom_profil = 'Personne physique · retraitée' if retraite and prof != 'pm' else PROFILS_LISIBLES[prof]
-    return dict(centre=dict(figure='maison' if prof == 'pm' else 'personne', nom=ident.get('nom'), profil=nom_profil),
-                branches=branches)
+    return dict(centre=dict(figure='maison' if prof == 'pm' else 'personne', nom=ident.get('nom'), profil=nom_profil,
+                            faits=_centre_faits(f, p)),
+                signaux=_signaux(f), essentiel=_essentiel(f, p), branches=branches, a_venir=a_venir)
 
 
 # ---- toutes les informations sur les plaques (Lounès, 23/11/2026 : « vraiment toutes les infos visibles au premier coup
@@ -797,3 +798,318 @@ def _completer(branches, f, prof):
     ordre = ORDRE_BRANCHES['pm' if prof == 'pm' else 'pp']
     return [par[k] for k in ordre if k in par and (par[k]['lignes'] or k == 'demandes')] + \
         [b for k, b in par.items() if k not in ordre and b['lignes']]
+
+
+# ---- lecture par la direction (Lounès, 23/11/2026 : « que les dirigeants puissent tout comprendre d'un client, sans
+# inventer de données ») : au centre qui est le client, trois signaux factuels et l'essentiel chiffré ; autour, trois
+# zones qui répondent chacune à une question : qui est-ce ? peut-il rembourser ? que s'est-il passé ? Les sources pas
+# encore branchées passent en pied de page. Aucune donnée nouvelle : tout est lu dans la fiche servie.
+ZONES_BRANCHES = dict(identite='qui', emploi='qui', activite='qui', societes='qui', legal='qui', siege='qui',
+                      dirigeants='qui', groupe='qui', revenus='capacite', credits='capacite', banque='capacite',
+                      flux='capacite', demandes='historique', liste_noire='historique', controles='historique')
+ZONES = ('qui', 'capacite', 'historique')
+ORDRE_LECTURE = dict(pp=('identite', 'emploi', 'activite', 'societes', 'revenus', 'credits', 'banque', 'demandes',
+                         'liste_noire', 'controles'),
+                     pm=('legal', 'activite', 'siege', 'dirigeants', 'groupe', 'flux', 'demandes', 'liste_noire',
+                         'controles'))
+LIENS_CHEMIN = dict(RIB='même RIB', SIEGE='même siège', CHASSIS='même châssis', AFFILIATION='même n° d’affiliation',
+                    CNSS='même n° CNSS', ADRESSE='même adresse', TELEPHONE='même téléphone', ICE='même ICE')
+EN_BARRES = frozenset({'Revenu mensuel vérifié', 'Revenu déclaré', 'Bulletin de paie', 'Attestation de salaire', 'Pension',
+                       'Pension mensuelle', 'Salaire retrouvé sur les relevés', 'Revenu mensuel sur les relevés',
+                       'Revenu retrouvé sur les relevés', 'Taux d’endettement'})
+VERS_CREDITS = frozenset({'Échéances de crédit repérées', 'Crédit prélevé à la source', 'Taux d’endettement'})
+REPERE_ENDETTEMENT_NOTE = 'repère de 40 % provisoire, à valider par la direction des risques'
+
+
+def _pluriel(n, mot, pluriel=None):
+    return f"{n} {mot if n <= 1 else (pluriel or mot + 's')}"
+
+
+def _mois_releves(f):
+    mois = [m for x in f.get('donnees') or [] if x.get('demandeur') for p in x.get('pieces') or []
+            if p.get('type') == 'RELEVE_BANCAIRE' for m in p.get('mois') or [] if m.get('mois')]
+    par = {}
+    for m in mois:                                  # un mois lu deux fois (deux relevés) : le dernier lu
+        par[(m.get('annee') or 0, m['mois'])] = m
+    return [par[k] for k in sorted(par)]
+
+
+def _tableau_mois(mois, lignes):
+    if not mois:
+        return None
+    sortie = []
+    for libelle, cle in lignes:
+        valeurs = [m.get(cle) for m in mois]
+        if any(v is not None for v in valeurs):
+            sortie.append(dict(libelle=libelle, valeurs=valeurs))
+    return dict(type='tableau', colonnes=[f"{MOIS[m['mois'] - 1]} {m.get('annee')}" for m in mois],
+                lignes=sortie) if sortie else None
+
+
+def _capacite(f, p):
+    """(revenu vérifié, échéances, crédit à la source, endettement, reste) des pièces et relevés, ou None."""
+    v = f['vue360']
+    pieces = (v.get('revenus') or {}).get('pieces') or {}
+    verifie = next((pieces[s] for s in ('BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE', 'ATTESTATION_PENSION',
+                                        'RELEVE_BANCAIRE') if pieces.get(s)), None)
+    source_ = next((c['montant'] for c in sorted(f.get('charges') or [], key=lambda c: (c.get('annee') or 0,
+                    c.get('mois') or 0), reverse=True) if c.get('nature') == 'credit_source'), None)
+    echeances = _releves(f)['echeances']
+    endettement = ((echeances or 0) + (source_ or 0)) / verifie if verifie and (
+        echeances is not None or source_ is not None) else None
+    reste = verifie - (echeances or 0) - (source_ or 0) if endettement is not None else None
+    return verifie, echeances, source_, (round(endettement, 4) if endettement is not None else None), reste
+
+
+def _signaux(f):
+    ident, chemins = f['identite'], f.get('chemins') or []
+    if ident.get('inscrit'):
+        x = (f.get('liste_noire') or [{}])[0]
+        ln = dict(cle='liste_noire', libelle='Liste noire', valeur=x.get('typeListe') or 'Inscrit', ton='critique',
+                  detail=x.get('motif') or x.get('type_fraude') or None)
+    else:
+        ln = dict(cle='liste_noire', libelle='Liste noire', valeur='Non inscrit', ton='bon', detail=None)
+    if chemins:
+        c = chemins[0]
+        n, inscrit = c.get('longueur') or 0, (c.get('inscrit') or {}).get('nom')
+        soi = (c.get('inscrit') or {}).get('indice') == f.get('indice') and f.get('indice') is not None
+        valeur = (f'À {_pluriel(n, "lien")} d’une personne inscrite' if n else 'Une identité du dossier est inscrite')
+        etapes = c.get('etapes') or []
+        fin = f'{inscrit}, sur la liste noire' if inscrit else 'une personne sur la liste noire'
+        e0 = etapes[0] if len(etapes) == 1 else {}
+        if e0.get('type') == 'identifiant':
+            detail = f"{LIENS_CHEMIN.get(e0.get('code'), 'même ' + str(e0.get('code')).lower())} que {fin}"
+        elif e0:
+            detail = f"{inscrit or 'une personne'}, {e0.get('code') or 'lié'} de {(e0.get('de') or {}).get('nom')}, sur la liste noire"
+        else:
+            detail = f'jusqu’à {fin}'
+        detail = None if soi else detail + (' · homonymie à lever' if c.get('homonymie') else '') + (
+            ' · même foyer' if c.get('foyer') else '')
+        reseau = dict(cle='reseau', libelle='Réseau', valeur=valeur, ton=TON_NIVEAU.get(c.get('niveau'), 'neutre'),
+                      detail=detail)
+    else:
+        reseau = dict(cle='reseau', libelle='Réseau', valeur='Aucune personne inscrite à moins de 4 liens', ton='bon',
+                      detail=None)
+    familles = f['vue360'].get('controles') or []
+    n = sum(len(x['controles']) for x in familles)
+    a = sum(x['anomalies'] for x in familles)
+    critique = any(c.get('criticite') == 'CRITIQUE' and c['resultat'] == 'ANOMALIE' for x in familles for c in x['controles'])
+    if not n:
+        ctrl = dict(cle='controles', libelle='Contrôles de la v2', valeur='aucun contrôle', ton='neutre', detail=None)
+    elif a:
+        ctrl = dict(cle='controles', libelle='Contrôles de la v2',
+                    valeur=f"{_pluriel(a, 'anomalie')} sur {_pluriel(n, 'contrôle')}",
+                    ton='critique' if critique else 'attention',
+                    detail=', '.join(x['famille'] for x in familles if x['anomalies']))
+    else:
+        ctrl = dict(cle='controles', libelle='Contrôles de la v2',
+                    valeur=f"{_pluriel(n, 'contrôle')} sur {n} {'conforme' if n == 1 else 'conformes'}", ton='bon',
+                    detail=None)
+    return [ln, reseau, ctrl]
+
+
+def _centre_faits(f, p):
+    propres = sorted((d for d in f.get('dossiers') or [] if d.get('demandeur') and _jour(d.get('recu'))),
+                     key=lambda d: d['recu'])
+    ref = _jour(propres[-1]['recu']) if propres else None
+    faits = []
+    if f['identite'].get('type') != 'societe':
+        age = _annees(_jour(f['identite'].get('date_naissance')), ref)
+        if age is not None:
+            faits.append(f'{age} ans')
+    connu = {'1': 'client EQDOM', 'true': 'client EQDOM', '0': 'nouveau client', 'false': 'nouveau client'}.get(
+        str(_contexte(f, 'Client connu')).lower())
+    if connu:
+        faits.append(connu)
+    agence, ville = _contexte(f, 'Agence'), _contexte(f, 'Ville de l\'agence')
+    if agence:
+        faits.append(' · '.join(filter(None, (f'agence {agence}', ville))))
+    if propres:
+        faits.append(f"première demande le {_jour_lisible(_jour(propres[0]['recu']))}")
+    return faits
+
+
+def _essentiel(f, p):
+    S = SEUILS_PROVISOIRES
+    v = f['vue360']
+    prof, retraite = v['profil'], v.get('retraite')
+    chiffre = {c['libelle']: c for c in p['chiffres']}
+    vigilance, forts = list(p['vigilance']), list(p['forts'])
+    if prof == 'pm':
+        rel = _releves(f)
+        chiffres = [dict(chiffre.get('Crédits mensuels') or {}, libelle='Crédits mensuels'),
+                    dict(libelle='Échéances de crédit par mois', valeur=rel['echeances'], format='montant',
+                         detail='dernier relevé'),
+                    chiffre.get('Ancienneté de la société'), chiffre.get('Capital')]
+    else:
+        verifie, echeances, source_, endettement, reste = _capacite(f, p)
+        if retraite:
+            premier = dict(libelle='Pension mensuelle', valeur=verifie, format='montant', detail='attestation de pension')
+        elif prof == 'entrepreneur':
+            premier = dict(libelle='Revenu sur les relevés', valeur=verifie, format='montant', detail='revenu d’activité')
+        else:
+            sources = [SOURCES[s] for s in ('BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE', 'RELEVE_BANCAIRE')
+                       if ((v.get('revenus') or {}).get('pieces') or {}).get(s)]
+            premier = dict(libelle='Revenu vérifié', valeur=verifie, format='montant',
+                           detail=', '.join(sources) if sources else None)
+        chiffres = [premier,
+                    dict(libelle='Taux d’endettement', valeur=endettement, format='pourcent',
+                         ton=_seuil(endettement, S['endettement_attention'], S['endettement_critique']),
+                         detail='crédits du mois / revenu'),
+                    dict(libelle='Reste après crédits', valeur=reste, format='montant', detail='par mois')]
+        if prof == 'entrepreneur':
+            chiffres.append(chiffre.get('Activité depuis'))
+        elif not retraite:
+            chiffres.append(dict(chiffre.get('Ancienneté chez l’employeur') or {}, libelle='Ancienneté chez l’employeur'))
+        expiration = _jour(_fait(f, ['CIN'], ['date_expiration'])[0])
+        propres = [_jour(d.get('recu')) for d in f.get('dossiers') or [] if d.get('demandeur') and _jour(d.get('recu'))]
+        etat = _validite(expiration, max(propres) if propres else None, S['cin_bientot_jours'])
+        if etat == 'critique':
+            vigilance.append('CIN expirée à la date du dernier dossier')
+        elif etat == 'attention':
+            vigilance.append('CIN expirant dans moins de 3 mois')
+        if prof == 'entrepreneur':
+            fin = _jour(_fait(f, ['CARTE_PROFESSIONNELLE'], ['date_validite', 'date_expiration'])[0])
+            if _validite(fin, max(propres) if propres else None, S['cin_bientot_jours']) == 'critique':
+                vigilance.append('Carte professionnelle expirée à la date du dernier dossier')
+    sortie = []
+    for c in chiffres:
+        if c and c.get('valeur') not in (None, ''):
+            sortie.append(dict(libelle=c['libelle'], valeur=c['valeur'], format=c.get('format', 'texte'),
+                               ton=c.get('ton') or 'neutre', detail=c.get('detail')))
+    return dict(chiffres=sortie, forts=forts, vigilance=vigilance)
+
+
+def _organiser(branches, f, p, prof):
+    """Range les plaques par zone et par question ; transforme ce qui se lit mieux en visuel (revenus en barres,
+    endettement en jauge, relevés mois par mois, chemin vers l'inscrit) ; sort les sources à venir en pied de page."""
+    S = SEUILS_PROVISOIRES
+    v, pm = f['vue360'], prof == 'pm'
+    par = {b['cle']: b for b in branches}
+    a_venir = []
+    for b in branches:
+        garde = []
+        for x in b['lignes']:
+            if x.get('valeur') == 'à venir':
+                a_venir.append(dict(libelle=x['libelle'], detail=x.get('detail')))
+            else:
+                garde.append(x)
+        b['lignes'] = garde
+    eqdom = par.pop('eqdom', None)
+    if eqdom and par.get('demandes'):
+        par['demandes']['lignes'] += [x for x in eqdom['lignes'] if x['libelle'] != 'Client connu']
+
+    def nouvelle(cle, titre):
+        if cle not in par:
+            par[cle] = dict(cle=cle, titre=titre, resume=None, lignes=[])
+        return par[cle]
+
+    def retirer(b, libelles):
+        sortis = [x for x in b['lignes'] if x['libelle'] in libelles]
+        b['lignes'] = [x for x in b['lignes'] if x['libelle'] not in libelles]
+        return sortis
+
+    mois = _mois_releves(f)
+    if not pm:
+        pieces = (v.get('revenus') or {}).get('pieces') or {}
+        rev = par.get('revenus')
+        if rev:
+            retirer(rev, EN_BARRES)
+            items = [('Déclaré', (v.get('revenus') or {}).get('declare')), ('Bulletin de paie', pieces.get('BULLETIN_DE_PAIE')),
+                     ('Attestation de salaire', pieces.get('ATTESTATION_TRAVAIL_SALAIRE')),
+                     ('Pension', pieces.get('ATTESTATION_PENSION')), ('Relevés (dernier mois)', pieces.get('RELEVE_BANCAIRE'))]
+            items = [dict(libelle=k, valeur=x) for k, x in items if x]
+            if items:
+                rev['visuel'] = dict(type='barres', items=items)
+        verifie, echeances, source_, endettement, reste = _capacite(f, p)
+        for b in list(par.values()):
+            if b['cle'] != 'credits':
+                retirer(b, VERS_CREDITS)
+        lignes = [_ligne('Échéances repérées sur les relevés', echeances, 'montant'),
+                  _ligne('Crédit prélevé à la source', source_, 'montant'),
+                  _ligne('Reste après crédits', reste, 'montant')]
+        lignes = [x for x in lignes if x['valeur'] is not None]
+        if lignes or endettement is not None:
+            c = nouvelle('credits', 'Crédits en cours')
+            c['lignes'] = lignes
+            if endettement is not None:
+                c['visuel'] = dict(type='jauge', libelle='Taux d’endettement', valeur=endettement,
+                                   repere=S['endettement_attention'],
+                                   ton=_seuil(endettement, S['endettement_attention'], S['endettement_critique']),
+                                   note=REPERE_ENDETTEMENT_NOTE)
+        banque = par.get('banque')
+        if banque:
+            ribs = [str(x['valeur']) for x in banque['lignes'] if x['libelle'] == 'RIB']
+            banque['lignes'] = [x for x in banque['lignes'] if not (
+                (x['libelle'] == 'Banque' and any(str(x['valeur']) in r for r in ribs))
+                or (x['libelle'] == 'Comptes lus' and (x['valeur'] or 0) <= 1))]
+            t = _tableau_mois(mois, (('Salaire reçu', 'salaire_detecte'), ('Échéances de crédit', 'echeances_credits'),
+                                     ('Solde en fin de mois', 'solde_cloture')))
+            if t:
+                banque['visuel'] = t
+        emploi = par.get('emploi')
+        if emploi:
+            embauche = _jour(_fait(f, ['BULLETIN_DE_PAIE', 'ATTESTATION_TRAVAIL_SALAIRE'], ['date_embauche', 'date_entree'])[0])
+            for x in emploi['lignes']:
+                if x['libelle'] == 'Ancienneté' and embauche:
+                    x['detail'] = f'depuis le {_jour_lisible(embauche)}'
+                if x['libelle'] == 'Clients EQDOM qui le déclarent':
+                    x['libelle'] = 'Clients EQDOM chez cet employeur'
+            emploi['lignes'] = [x for x in emploi['lignes'] if not (
+                x['libelle'] == 'Date d’embauche' and embauche
+                or x['libelle'] == 'Clients EQDOM chez cet employeur' and (x['valeur'] or 0) <= 1)]
+        ident = par.get('identite')
+        situation = _fait(f, ['ATTESTATION_TRAVAIL_SALAIRE', 'BULLETIN_DE_PAIE', 'ATTESTATION_PENSION'],
+                          ['situation_familiale'])[0]
+        enfants = _fait(f, ['ATTESTATION_TRAVAIL_SALAIRE', 'BULLETIN_DE_PAIE'], ['nombre_enfants', 'nbre_enfants_charge'])[0]
+        if situation and ident is not None:
+            n = _parts(enfants)
+            texte = situation + ('' if n is None else ' · sans enfant' if n == 0 else f" · {_pluriel(int(n), 'enfant')}")
+            ident['lignes'].insert(min(3, len(ident['lignes'])), _ligne('Situation familiale', texte))
+    else:
+        flux = par.get('flux')
+        if flux:
+            retirer(flux, {'Échéances de crédit repérées', 'Crédits par mois'})     # au centre et dans le tableau
+            t = _tableau_mois(mois, (('Crédits', 'total_credit'), ('Débits', 'total_debit'),
+                                     ('Échéances de crédit', 'echeances_credits'), ('Solde en fin de mois', 'solde_cloture')))
+            if t:
+                flux['visuel'] = t
+
+    ln = par.get('liste_noire')
+    chemins = f.get('chemins') or []
+    if ln:
+        retirer(ln, {'Meilleur chemin', 'Inscrit atteint'})
+        c = chemins[0] if chemins else {}
+        inscrit = c.get('inscrit') or {}
+        if chemins and not (inscrit.get('indice') is not None and inscrit.get('indice') == f.get('indice')):
+            x = _ligne('Personne inscrite la plus proche', inscrit.get('nom'), lien=_fiche_lien(inscrit.get('indice')))
+            x.update(ton=TON_NIVEAU.get(c.get('niveau'), 'neutre'),
+                     detail=f"à {_pluriel(c.get('longueur') or 0, 'lien')} · alerte {c.get('niveau_libelle') or c.get('niveau')}".lower()
+                     .replace('alerte hors_alerte', 'hors alerte'))
+            ln['lignes'].append(x)
+            if len(chemins) > 1:
+                ln['lignes'].append(_ligne('Chemins vers des inscrits', len(chemins), 'nombre'))
+            etapes = [dict(de=(e.get('de') or {}).get('nom'),
+                           lien=LIENS_CHEMIN.get(e.get('code'), e.get('code')) if e.get('type') == 'identifiant' else e.get('code'),
+                           vers=(e.get('vers') or {}).get('nom'), inscrit=bool((e.get('vers') or {}).get('inscrit')),
+                           fiche=_fiche_lien((e.get('vers') or {}).get('indice'))) for e in c.get('etapes') or []]
+            if etapes:
+                ln['visuel'] = dict(type='chemin', etapes=etapes)
+    ctrl = par.get('controles')
+    familles = v.get('controles') or []
+    if ctrl is not None and familles:
+        conformes = [x for x in familles if not x['anomalies']]
+        ctrl['lignes'] = [x for x in ctrl['lignes'] if x['libelle'] in {y['famille'] for y in familles if y['anomalies']}]
+        if conformes:
+            n = sum(len(x['controles']) for x in conformes)
+            x = _ligne('Contrôles de la v2' if not ctrl['lignes'] else 'Autres contrôles',
+                       f"{n} sur {n} {'conforme' if n == 1 else 'conformes'}")
+            x.update(ton='bon', detail=', '.join(y['famille'] for y in conformes))
+            ctrl['lignes'].append(x)
+
+    ordre = ORDRE_LECTURE['pm' if pm else 'pp']
+    garde = [b for b in par.values() if b['lignes'] or b.get('visuel') or b['cle'] == 'demandes']
+    for b in garde:
+        b['zone'] = ZONES_BRANCHES.get(b['cle'], 'qui')
+    garde.sort(key=lambda b: (ZONES.index(b['zone']), ordre.index(b['cle']) if b['cle'] in ordre else len(ordre)))
+    return garde, a_venir

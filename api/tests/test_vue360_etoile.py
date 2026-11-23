@@ -25,8 +25,8 @@ def _valeur(b, libelle):
 
 
 def test_le_centre_dit_bonhomme_ou_maison():
-    assert _etoile(fiche_salarie())['centre'] == dict(figure='personne', nom='ZALOU KAMI',
-                                                      profil='Personne physique · salariée')
+    c = _etoile(fiche_salarie())['centre']
+    assert (c['figure'], c['nom'], c['profil']) == ('personne', 'ZALOU KAMI', 'Personne physique · salariée')
     assert _etoile(fiche_entrepreneur())['centre']['profil'] == 'Personne physique · entrepreneur'
     s = _etoile(fiche_societe())['centre']
     assert s['figure'] == 'maison' and s['nom'] == 'SOCIETE EXEMPLE SARL' and s['profil'] == 'Personne morale'
@@ -39,15 +39,15 @@ def _connu(f):
 
 def test_branches_du_salarie_dans_l_ordre():
     e = _etoile(_connu(fiche_salarie()))
-    assert [b['cle'] for b in e['branches']] == ['identite', 'emploi', 'revenus', 'banque', 'societes', 'demandes',
-                                                 'eqdom', 'liste_noire', 'controles']
+    assert [b['cle'] for b in e['branches']] == ['identite', 'emploi', 'societes', 'revenus', 'credits', 'banque',
+                                                 'demandes', 'liste_noire', 'controles']
     assert _valeur(_branche(e, 'identite'), 'CIN') == 'ZZ123456'
     assert _valeur(_branche(e, 'identite'), 'Adresse') == '12 RUE EXEMPLE RABAT'
     assert _valeur(_branche(e, 'emploi'), 'Employeur') == 'EMPLOYEUR EXEMPLE SARL'
     assert _valeur(_branche(e, 'emploi'), 'Ancienneté') == 7
-    assert _valeur(_branche(e, 'revenus'), 'Revenu mensuel vérifié') == 10000
-    assert _valeur(_branche(e, 'banque'), 'Banque') == 'BANQUE EXEMPLE'
-    assert _valeur(_branche(e, 'eqdom'), 'Client connu') == 'oui'
+    assert _branche(e, 'revenus')['visuel']['items'][1] == dict(libelle='Bulletin de paie', valeur=10000)
+    assert _valeur(_branche(e, 'banque'), 'RIB') == '••• 0001 · BANQUE EXEMPLE'
+    assert 'client EQDOM' in e['centre']['faits']
     societe = _branche(e, 'societes')['lignes'][0]
     assert societe == dict(libelle='associé', valeur='SOCIETE AUSSI SARL', format='texte', lien='fiche.html?i=7')
 
@@ -63,7 +63,7 @@ def test_un_salarie_sans_societe_n_a_pas_de_branche_vide():
 
 def test_branches_de_l_entrepreneur():
     e = _etoile(fiche_entrepreneur())
-    assert [b['cle'] for b in e['branches']][:3] == ['identite', 'activite', 'revenus']
+    assert [b['cle'] for b in e['branches']][:3] == ['identite', 'activite', 'societes']
     assert _valeur(_branche(e, 'activite'), 'Profession') == 'MEDECIN'
     assert _valeur(_branche(e, 'activite'), 'Activité depuis') == 11
     noms = [x['valeur'] for x in _branche(e, 'societes')['lignes']]
@@ -77,8 +77,8 @@ def test_branches_de_la_societe_avec_gerants_et_parts():
                       dict(indice=3, nom='GERANT EXEMPLE', role='associé', parts=60),
                       dict(indice=4, nom='ASSOCIE EXEMPLE', role='associé', parts=40)]
     e = _etoile(_connu(f))
-    assert [b['cle'] for b in e['branches']] == ['legal', 'activite', 'dirigeants', 'siege', 'groupe', 'flux',
-                                                 'demandes', 'eqdom', 'liste_noire', 'controles']
+    assert [b['cle'] for b in e['branches']] == ['legal', 'activite', 'siege', 'dirigeants', 'groupe', 'flux',
+                                                 'demandes', 'liste_noire', 'controles']
     assert _valeur(_branche(e, 'legal'), 'RC') == '9991234 · RABAT'
     assert _valeur(_branche(e, 'legal'), 'ICE') == '999000000000001'
     assert _valeur(_branche(e, 'legal'), 'Capital') == 100000
@@ -88,7 +88,8 @@ def test_branches_de_la_societe_avec_gerants_et_parts():
     assert _valeur(_branche(e, 'siege'), 'Adresse') == '5 AV EXEMPLE RABAT'
     libelles = [x['libelle'] for x in _toutes_les_lignes(e)]
     assert libelles.count('Forme juridique') == 1 and libelles.count('RC') == 1 and 'Crédits mensuels' not in libelles
-    assert _valeur(_branche(e, 'flux'), 'Crédits par mois') == 9000      # moyenne des crédits des relevés
+    credits = next(c for c in e['essentiel']['chiffres'] if c['libelle'] == 'Crédits mensuels')
+    assert credits['valeur'] == 9000                                      # moyenne des crédits des relevés
 
 
 def test_les_demandes_menent_au_dossier_et_portent_le_rythme():
@@ -114,6 +115,13 @@ def test_la_fraude_reste_sur_ses_plaques():
         assert _valeur(_branche(e, 'liste_noire'), 'Liste noire') == 'Inscrit'
 
 
+# Dites autrement (Lounès, 23/11/2026, lecture par la direction) : le meilleur chemin et l'inscrit atteint dans le signal
+# « Réseau » et la ligne « Personne inscrite la plus proche » ; la date d'embauche dans le détail de l'ancienneté ; les
+# revenus des pièces en barres ; un seul client chez l'employeur n'est pas montré.
+ABSORBEES = {'Meilleur chemin', 'Inscrit atteint', 'Date d’embauche', 'Salaire retrouvé sur les relevés',
+             'Revenu retrouvé sur les relevés', 'Revenu déclaré', 'Clients EQDOM qui le déclarent'}
+
+
 # ---- toutes les informations sur les plaques (Lounès, 23/11/2026 : « vraiment toutes les infos visibles ») --------
 def _toutes_les_lignes(e):
     return [x for b in e['branches'] for x in b['lignes']]
@@ -122,8 +130,12 @@ def _toutes_les_lignes(e):
 def test_chaque_tuile_du_detail_est_sur_une_plaque():
     for fabrique in (fiche_salarie, fiche_entrepreneur, fiche_societe):
         f = fabrique()
-        lignes = _toutes_les_lignes(_etoile(f))
-        vus = {x['libelle'] for x in lignes} | {str(x['valeur']) for x in lignes} | {x['lien'] for x in lignes if x.get('lien')}
+        e = _etoile(f)
+        lignes = _toutes_les_lignes(e) + e['essentiel']['chiffres'] + e['signaux'] + e['a_venir']
+        lignes += [i for b in e['branches'] if b.get('visuel', {}).get('type') == 'barres' for i in b['visuel']['items']]
+        lignes += [b['visuel'] for b in e['branches'] if b.get('visuel', {}).get('type') == 'jauge']
+        vus = {x['libelle'] for x in lignes} | {str(x.get('valeur')) for x in lignes} | {x['lien'] for x in lignes if x.get('lien')}
+        vus |= ABSORBEES
         for g in vue360.tuiles(f):
             if g['groupe'] == 'Alertes':          # résumés : chaque incohérence et chaque famille ont leur ligne
                 continue
@@ -158,15 +170,13 @@ def test_identite_et_banque_portent_tout_ce_qui_est_lu():
     assert _valeur(identite, 'N° CNSS') == '999123456'
     assert _valeur(identite, 'Autres écritures du nom') == 'ZALOU KAMY'
     assert _valeur(identite, 'Expiration de la CIN') == '2026-01-31'
-    banque = _branche(e, 'banque')
-    assert _valeur(banque, 'RIB') == '••• 0001 · BANQUE EXEMPLE'
-    assert _valeur(banque, 'Crédit prélevé à la source') == 1500
+    assert _valeur(_branche(e, 'banque'), 'RIB') == '••• 0001 · BANQUE EXEMPLE'
+    assert _valeur(_branche(e, 'credits'), 'Crédit prélevé à la source') == 1500
 
 
 def test_ce_qui_viendra_est_chez_eqdom():
-    eqdom = _branche(_etoile(fiche_salarie()), 'eqdom')
-    a_venir = next(x for x in eqdom['lignes'] if x['libelle'] == 'Historique EQDOM')
-    assert a_venir['valeur'] == 'à venir' and 'classe BAM' in a_venir['detail']
+    a_venir = next(x for x in _etoile(fiche_salarie())['a_venir'] if x['libelle'] == 'Historique EQDOM')
+    assert 'classe BAM' in a_venir['detail']
 
 
 def test_fiche_vide_garde_le_centre_et_la_branche_demandes():
@@ -178,5 +188,5 @@ def test_fiche_vide_garde_le_centre_et_la_branche_demandes():
     f['vue360'].update(aussi=[], revenus=dict(declare=None, pieces={}, ecart=None), controles=[], entite={})
     e = _etoile(f)
     assert e['centre']['figure'] == 'personne'
-    assert [b['cle'] for b in e['branches']] == ['demandes', 'eqdom', 'liste_noire']
+    assert [b['cle'] for b in e['branches']] == ['demandes', 'liste_noire']
     assert _branche(e, 'demandes')['resume'] == 'aucune demande en propre'

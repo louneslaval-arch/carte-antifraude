@@ -1,6 +1,8 @@
 'use strict';
-// Vue 360° d'une entité en étoile : au centre une silhouette (personne) ou un immeuble (société), toutes ses informations
-// sur les plaques autour ; les personnes et sociétés citées se déplient en étoiles reliées. Données brutes repliées dessous.
+// Vue 360° d'une entité en étoile, pensée pour la direction : au centre une silhouette (personne) ou un immeuble
+// (société), qui est le client, ses signaux et l'essentiel chiffré ; autour, trois zones (qui est-ce ? capacité de
+// remboursement ; historique et vigilance). Les personnes et sociétés citées se déplient en étoiles reliées. Données
+// brutes repliées dessous.
 document.addEventListener('DOMContentLoaded', async () => {
   const { el, api, nombre, montant, date } = Commun;
   Commun.entete('base.html');
@@ -21,18 +23,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
     PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre', SOCIETE: 'société' };
   const propres = f.dossiers.filter(d => d.demandeur);
-
-  // ---- ligne sous le nom : CSP, âge, RC, client depuis ----------------------------------------------------------------
-  const pres = v.presentation || null;
-  const demandes = pres ? pres.demandes : [];
-  const age = (() => {
-    const n = id.date_naissance && new Date(id.date_naissance), r = demandes.length && new Date(demandes[demandes.length - 1].date);
-    if (!n || !r || isNaN(n) || isNaN(r)) return null;
-    return r.getFullYear() - n.getFullYear() - ((r.getMonth() < n.getMonth() || (r.getMonth() === n.getMonth() && r.getDate() < n.getDate())) ? 1 : 0);
-  })();
-  const ligne = [v.csp && v.profil !== 'pm' ? (CSP[v.csp] || lib(v.csp)) : null, age !== null ? `${age} ans` : null,
-    id.type === 'societe' && id.rc ? `RC ${id.rc}${id.tribunal ? ` · ${id.tribunal}` : ''}` : null,
-    demandes.length ? `client depuis ${date(demandes[0].date)}` : null].filter(Boolean);
 
   // ---- données brutes, repliées sous l'étoile -------------------------------------------------------------------------
   const B = {
@@ -74,14 +64,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (gerant) deplier(gerant, false);
   }
 
-  // ---- vue en étoile ------------------------------------------------------------------------------------------------
+  // ---- vue en étoile, lue par la direction (23/11/2026) ---------------------------------------------------------------
+  // Au centre : qui est le client, trois signaux factuels (liste noire, réseau, contrôles) et l'essentiel chiffré.
+  // Autour, trois zones, chacune une question : « Qui est-ce ? » à gauche, « Capacité de remboursement » à droite,
+  // « Historique et vigilance » dessous. Ordre du document : le centre d'abord (lecteurs d'écran, téléphone).
   function vueEtoile(g, niveau, source) {
-    const e = g.vue360.etoile, prof = g.vue360.profil;
+    const e = g.vue360.etoile, prof = g.vue360.profil, pm = prof === 'pm';
     const classe = { salarie: 'profil-salarie', entrepreneur: 'profil-entrepreneur', pm: 'profil-pm' }[prof];
     const THEMES_BRANCHE = { identite: ['identite', 'carte'], emploi: ['emploi', 'mallette'], activite: ['emploi', 'mallette'],
-      revenus: ['argent', 'billet'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'], societes: ['legal', 'immeuble'],
-      legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'], siege: ['identite', 'immeuble'],
-      groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'],
+      revenus: ['argent', 'billet'], credits: ['argent', 'sablier'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'],
+      societes: ['legal', 'immeuble'], legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'],
+      siege: ['identite', 'immeuble'], groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'],
       liste_noire: ['risque', 'bouclier'], controles: ['alerte', 'coche'] };
     const TONS = ['critique', 'attention', 'bon', 'neutre'];
     const ligneBulle = x => {
@@ -107,34 +100,88 @@ document.addEventListener('DOMContentLoaded', async () => {
       const [theme, ico] = THEMES_BRANCHE[b.cle] || ['historique', 'carte'];
       return el('section', { classe: `bulle theme-${theme}`, 'data-cle': b.cle, 'aria-label': b.titre },
         el('header', { classe: 'bulle-tete' }, el('span', { classe: 'bulle-icone', 'aria-hidden': 'true' }, icone(ico)),
-          el('h2', { texte: b.titre }), b.resume ? el('span', { classe: 'bulle-resume', texte: b.resume }) : null),
+          el('h3', { texte: b.titre }), b.resume ? el('span', { classe: 'bulle-resume', texte: b.resume }) : null),
+        visuel(b.visuel),
         b.lignes.length ? el('ul', { classe: 'bulle-lignes' }, b.lignes.map(ligneBulle))
-          : el('p', { classe: 'note', texte: 'Aucune en propre : cité dans le dossier d’un autre client.' }));
+          : (b.visuel ? null : el('p', { classe: 'note', texte: 'Aucune en propre : cité dans le dossier d’un autre client.' })));
     };
-    // Deux colonnes de hauteur voisine : chaque branche va du côté le moins chargé, l'ordre est gardé de chaque côté.
-    const gauche = [], droite = [], poids = b => 2 + Math.max(1, b.lignes.length);
-    let pg = 0, pd = 0;
-    e.branches.forEach(b => { if (pg <= pd) { gauche.push(b); pg += poids(b); } else { droite.push(b); pd += poids(b); } });
-    const sousLigne = niveau === 0 ? ligne : [g.vue360.csp && prof !== 'pm' ? (CSP[g.vue360.csp] || lib(g.vue360.csp)) : null,
-      g.identite.rc ? `RC ${g.identite.rc}` : null].filter(Boolean);
+    const TITRES = { qui: pm ? 'Qui est cette société ?' : 'Qui est-ce ?', capacite: 'Capacité de remboursement',
+      historique: 'Historique et vigilance' };
+    const zone = (cle, cote) => {
+      const plaques = e.branches.filter(b => (b.zone || 'qui') === cle);
+      return plaques.length ? el('div', { classe: `etoile-zone ${cote}`, 'data-zone': cle },
+        el('h2', { classe: 'zone-titre', texte: TITRES[cle] }), el('div', { classe: 'zone-plaques' }, plaques.map(bulle))) : null;
+    };
+    const csp = g.vue360.csp && !pm ? (CSP[g.vue360.csp] || lib(g.vue360.csp)) : null;
+    const sousLigne = [csp, ...(e.centre.faits || [])].filter(Boolean);
+    const ess = e.essentiel || { chiffres: [], forts: [], vigilance: [] };
+    const points = (titre, cl, liste) => liste.length ? el('div', { classe: `points ${cl}` },
+      el('h3', { texte: titre }), el('ul', {}, liste.map(t => el('li', { texte: t })))) : null;
     const indice = source ? source.dataset.fiche : indiceCourant();
     const centre = el('div', { classe: 'etoile-centre' },
       source ? el('span', { classe: 'etoile-parent', texte: `${source.dataset.libelle} · ${source.closest('.etoile').dataset.nom}` }) : null,
       medaillon(e.centre.figure),
-      el('h1', { classe: niveau ? 'etoile-nom secondaire' : 'etoile-nom', texte: e.centre.nom }),
+      el(niveau ? 'h2' : 'h1', { classe: niveau ? 'etoile-nom secondaire' : 'etoile-nom', texte: e.centre.nom }),
       el('span', { classe: 'etoile-profil', texte: e.centre.profil }),
       sousLigne.length ? el('p', { classe: 'etoile-ligne', texte: sousLigne.join(' · ') }) : null,
+      (e.signaux || []).length ? el('ul', { classe: 'signaux', 'aria-label': 'Signaux de l’antifraude' }, e.signaux.map(x =>
+        el('li', { classe: `signal ton-${x.ton}` }, el('span', { classe: 'signal-point', 'aria-hidden': 'true' }),
+          el('span', { classe: 'signal-libelle', texte: x.libelle }), el('strong', { classe: 'signal-valeur', texte: x.valeur }),
+          x.detail ? el('span', { classe: 'signal-detail', texte: x.detail }) : null))) : null,
+      ess.chiffres.length ? el('div', { classe: 'kpis' }, ess.chiffres.map(c => el('div', { classe: `kpi ton-${c.ton || 'neutre'}` },
+        el('span', { classe: 'kpi-libelle', texte: c.libelle }), el('span', { classe: 'kpi-valeur', texte: valeurTuile(c) }),
+        c.detail ? el('span', { classe: 'kpi-detail', texte: c.detail }) : null))) : null,
+      points('Points forts', 'forts', ess.forts), points('Points de vigilance', 'vigilance', ess.vigilance),
       niveau ? el('div', { classe: 'etoile-actions' },
         el('a', { href: `fiche.html?i=${indice}`, texte: 'Ouvrir sa fiche' }),
         (() => { const x = el('button', { type: 'button', classe: 'lien-bouton', texte: 'Replier' });
           x.addEventListener('click', () => deplier(source, false)); return x; })()) : null);
+    const pied = (e.a_venir || []).length ? el('div', { classe: 'a-venir' },
+      el('span', { classe: 'a-venir-titre', texte: 'Pas encore branché' }),
+      el('ul', {}, e.a_venir.map(x => el('li', { title: x.detail || null, texte: x.libelle })))) : null;
     const s = el('section', { classe: `etoile ${classe}${niveau ? ' secondaire' : ''}`, 'aria-label': `Vue 360° de ${e.centre.nom}`,
       'data-niveau': String(niveau), 'data-nom': e.centre.nom, 'data-indice': String(indice) },
-      el('div', { classe: 'etoile-cote gauche' }, gauche.map(bulle)), centre,
-      el('div', { classe: 'etoile-cote droite' }, droite.map(bulle)));
+      centre, zone('qui', 'gauche'), zone('capacite', 'droite'), zone('historique', 'bas'), pied);
     if (source) sources.set(s, source);
     relierEtoile(s);
     return s;
+  }
+  // Visuels des plaques : barres (revenus selon la pièce), jauge (endettement et son repère), tableau des relevés mois
+  // par mois, chemin jusqu'à la personne inscrite. Dessinés en HTML et CSS (aucune bibliothèque).
+  function visuel(x) {
+    if (!x) return null;
+    if (x.type === 'barres') {
+      const max = Math.max(...x.items.map(i => i.valeur || 0)) || 1;
+      return el('ul', { classe: 'barres', 'aria-label': 'Revenu mensuel selon la pièce' }, x.items.map(i => {
+        const r = el('span', { classe: 'barre-remplissage' });
+        r.style.setProperty('--part', `${Math.max(2, Math.round(100 * i.valeur / max))}%`);
+        return el('li', {}, el('span', { classe: 'barre-libelle', texte: i.libelle }), el('span', { classe: 'barre-piste' }, r),
+          el('span', { classe: 'barre-valeur', texte: montant(i.valeur) }));
+      }));
+    }
+    if (x.type === 'jauge') {
+      const r = el('span', { classe: 'jauge-remplissage' }), m = el('span', { classe: 'jauge-repere', title: x.note });
+      r.style.setProperty('--part', `${Math.min(100, Math.round(x.valeur * 100))}%`);
+      m.style.setProperty('--repere', `${Math.round(x.repere * 100)}%`);
+      return el('div', { classe: `jauge ton-${x.ton}` },
+        el('div', { classe: 'jauge-tete' }, el('span', { texte: x.libelle }), el('strong', { texte: `${Math.round(x.valeur * 100)} %` })),
+        el('div', { classe: 'jauge-piste', role: 'img', 'aria-label': `${x.libelle} : ${Math.round(x.valeur * 100)} %, repère ${Math.round(x.repere * 100)} %` }, r, m),
+        el('p', { classe: 'jauge-note', texte: x.note }));
+    }
+    if (x.type === 'tableau') {
+      return el('div', { classe: 'mini-enveloppe' }, el('table', { classe: 'mini' },
+        el('caption', { texte: 'Relevés, mois par mois (DH)' }),
+        el('thead', {}, el('tr', {}, el('th', { texte: '' }), x.colonnes.map(c => el('th', { scope: 'col', texte: c })))),
+        el('tbody', {}, x.lignes.map(l => el('tr', {}, el('th', { scope: 'row', texte: l.libelle }),
+          l.valeurs.map(v => el('td', { texte: v === null || v === undefined ? '—' : nombre(Math.round(v)) })))))));
+    }
+    if (x.type === 'chemin') {
+      const noeud = (nom, inscrit) => el('li', { classe: `chemin-noeud${inscrit ? ' inscrit' : ''}`, texte: nom || '—' });
+      const items = [noeud(x.etapes[0].de, false)];
+      x.etapes.forEach(t => items.push(el('li', { classe: 'chemin-lien', texte: t.lien || 'lien' }), noeud(t.vers, t.inscrit)));
+      return el('ol', { classe: 'chemin', 'aria-label': 'Chemin jusqu’à la personne inscrite' }, items);
+    }
+    return null;
   }
   function indiceCourant() { return indice; }
   // Déplier (ou replier) l'étoile d'une personne ou d'une société citée ; ce qui suivait dans la chaîne se referme.
@@ -179,7 +226,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     return el('div', { classe: 'medaillon' }, svg);
   }
-  // Traits fins du médaillon vers chaque bulle, recalculés quand l'étoile change de taille.
+  // Traits fins du médaillon vers chaque plaque : à gauche et à droite depuis le bord de la colonne du centre, à la
+  // hauteur du médaillon ; dessous depuis le bas de la colonne du centre. Recalculés quand l'étoile change de taille.
   function relierEtoile(racine) {
     const ns = 'http://www.w3.org/2000/svg';
     const calque = document.createElementNS(ns, 'svg');
@@ -190,20 +238,39 @@ document.addEventListener('DOMContentLoaded', async () => {
       calque.replaceChildren();
       if (!racine.isConnected || getComputedStyle(calque).display === 'none') return;
       const r = racine.getBoundingClientRect(), fig = racine.querySelector('.medaillon').getBoundingClientRect();
+      const col = racine.querySelector('.etoile-centre').getBoundingClientRect();
       calque.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
       const cx = fig.left + fig.width / 2 - r.left, cy = fig.top + fig.height / 2 - r.top;
-      racine.querySelectorAll('.bulle').forEach(b => {
-        const q = b.getBoundingClientRect(), aGauche = b.parentElement.classList.contains('gauche');
-        const ex = (aGauche ? q.right : q.left) - r.left, ey = q.top + 20 - r.top;
-        const sx = cx + (aGauche ? -1 : 1) * fig.width / 2, mx = (sx + ex) / 2;
-        const theme = [...b.classList].find(c => c.startsWith('theme-'));
+      const trait = (d, x, y, theme) => {
         const chemin = document.createElementNS(ns, 'path');
-        chemin.setAttribute('d', `M${sx} ${cy} C${mx} ${cy}, ${mx} ${ey}, ${ex} ${ey}`);
+        chemin.setAttribute('d', d);
         chemin.setAttribute('class', 'lien');
         const point = document.createElementNS(ns, 'circle');
-        point.setAttribute('cx', ex); point.setAttribute('cy', ey); point.setAttribute('r', 3);
+        point.setAttribute('cx', x); point.setAttribute('cy', y); point.setAttribute('r', 3);
         point.setAttribute('class', `point ${theme}`);
         calque.append(chemin, point);
+      };
+      [-1, 1].forEach(sens => {                    // du médaillon au bord de sa colonne
+        const bord = (sens < 0 ? col.left : col.right) - r.left;
+        if (racine.querySelector(sens < 0 ? '.etoile-zone.gauche' : '.etoile-zone.droite')) {
+          const l = document.createElementNS(ns, 'path');
+          l.setAttribute('d', `M${cx + sens * fig.width / 2} ${cy} H${bord}`);
+          l.setAttribute('class', 'lien');
+          calque.append(l);
+        }
+      });
+      racine.querySelectorAll('.bulle').forEach(b => {
+        const q = b.getBoundingClientRect(), z = b.closest('.etoile-zone');
+        const theme = [...b.classList].find(c => c.startsWith('theme-'));
+        if (z.classList.contains('bas')) {
+          const sx = cx, sy = col.bottom - r.top + 6, ex = q.left + q.width / 2 - r.left, ey = q.top - r.top, my = (sy + ey) / 2;
+          trait(`M${sx} ${sy} C${sx} ${my}, ${ex} ${my}, ${ex} ${ey}`, ex, ey, theme);
+          return;
+        }
+        const gauche = z.classList.contains('gauche');
+        const sx = (gauche ? col.left : col.right) - r.left, ex = (gauche ? q.right : q.left) - r.left;
+        const ey = q.top + 20 - r.top, mx = (sx + ex) / 2;
+        trait(`M${sx} ${cy} C${mx} ${cy}, ${mx} ${ey}, ${ex} ${ey}`, ex, ey, theme);
       });
     };
     new ResizeObserver(tracer).observe(racine);
