@@ -686,3 +686,8 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   fraude. Page : figure en SVG au centre, bulles en deux colonnes équilibrées reliées par des traits courbes
   (recalculés au redimensionnement), une colonne sur téléphone ; bande antifraude et « Détail » inchangés dessous.
 - **Tests** : `api/tests/test_vue360_etoile.py` (8), rouges d'abord ; 295 réussis sur l'API et le fichier unique.
+- **Reprise (même jour)** : design plus sobre (silhouette ou immeuble en traits fins dans un médaillon, bulles blanches à
+  titres en petites capitales, traits fins) ; une personne ou une société citée dans une bulle se déplie en une nouvelle
+  étoile sous la précédente, reliée par un trait qui part de sa ligne (et ainsi de suite) ; pour une société, le gérant
+  se déplie d'office. Chaque dépliage lit une fiche de plus (journal d'audit et quotas, comme une ouverture de fiche).
+  Le fichier unique embarque les fiches citées sur deux niveaux (5,9 Mo). Test ajouté au fichier unique.

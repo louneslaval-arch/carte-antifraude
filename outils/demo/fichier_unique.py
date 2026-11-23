@@ -69,6 +69,9 @@ def _router(js):
     return ''.join(morceaux) + js[debut:]
 
 
+PROFONDEUR_CITEES = 2
+
+
 def collecter(base, n_clients=100):
     """Réponses de l'API sur la base : résumé, liste des clients retenus, fiche de chaque client, fiches citées (un
     pas) et dossiers. {clé: réponse}, aux clés de `demo_autonome.js`. Clients retenus : les plus graves d'abord (ordre
@@ -129,11 +132,15 @@ def collecter(base, n_clients=100):
                 d = lire(f'/api/base/dossiers/{i}')
                 donnees[f'dossier/{i}'] = d
                 cites.update(p['indice'] for p in d['parties'] if p.get('indice'))
-            for i in sorted(cites - fiches - dossiers):
-                f = lire(f'/api/base/clients/{i}')
-                if f is not None:
-                    donnees[f'fiche/{i}'] = f
-                    fiches.add(i)
+            for _ in range(PROFONDEUR_CITEES):   # fiches citées, puis celles qu'elles citent : la vue en étoile se déplie
+                suivantes = set()
+                for i in sorted(cites - fiches - dossiers):
+                    f = lire(f'/api/base/clients/{i}')
+                    if f is not None:
+                        donnees[f'fiche/{i}'] = f
+                        fiches.add(i)
+                        suivantes.update(indices_cites(f))
+                cites = suivantes
     resumer(donnees, items, dossiers)
     return donnees, dict(clients=len(items), fiches=len(fiches), dossiers=len(dossiers))
 

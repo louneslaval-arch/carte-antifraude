@@ -99,3 +99,17 @@ def test_chiffres_du_portail_sur_les_clients_retenus(page):
     r = _donnees(html)['resume']
     assert r['clients'] == comptes['clients'] and r['dossiers'] == comptes['dossiers']
     assert sum(p['nombre'] for p in r['produits'] if isinstance(p['nombre'], int)) <= comptes['dossiers']
+
+
+def test_l_etoile_se_deplie_sur_deux_niveaux_dans_le_fichier(page):
+    """Vue en étoile (23/11/2026) : une personne ou société citée se déplie, puis celles qu'elle cite."""
+    _, html = page
+    d = _donnees(html)
+
+    def liens(f):
+        return [re.match(r'fiche\.html\?i=(\d+)$', x['lien']).group(1) for b in f['vue360']['etoile']['branches']
+                for x in b['lignes'] if (x.get('lien') or '').startswith('fiche.html')]
+    niveau1 = {i for c in d['clients']['items'] for i in liens(d[f'fiche/{c["indice"]}'])}
+    assert niveau1 and all(f'fiche/{i}' in d for i in niveau1)
+    niveau2 = {j for i in niveau1 for j in liens(d[f'fiche/{i}'])}
+    assert all(f'fiche/{j}' in d for j in niveau2)

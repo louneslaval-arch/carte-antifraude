@@ -142,72 +142,129 @@ document.addEventListener('DOMContentLoaded', async () => {
     el('summary', { texte: 'Détail' }),
     mur, el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
     B.controles(), operations, toutesLesDonnees());
-  // Vue en étoile (23/11/2026) : au centre un bonhomme ou une maison, autour ses informations ; sinon l'ancienne
-  // présentation (API sans étoile).
-  const haut = v.etoile ? [vueEtoile(v.etoile)] : [tete, pres ? presentationClient(pres) : null];
+  // Vue en étoile (23/11/2026) : au centre une silhouette (personne) ou un immeuble (société), ses informations autour.
+  // Une personne ou une société citée dans une bulle se déplie en une nouvelle étoile, reliée à celle d'où elle part ;
+  // et ainsi de suite (une chaîne). Sans étoile servie par l'API : l'ancienne présentation.
+  const chaine = el('div', { classe: 'constellation' });
+  const sources = new Map();                                 // étoile dépliée → ligne de la bulle d'où elle part
+  const haut = v.etoile ? [chaine] : [tete, pres ? presentationClient(pres) : null];
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
     ...haut, pres ? bandeAntifraude(pres.antifraude) : null, detail].filter(Boolean));
   main.removeAttribute('aria-busy');
-  if (v.etoile) relierEtoile(main.querySelector('.etoile'));
+  if (v.etoile) {
+    chaine.append(vueEtoile(f, 0, null));
+    const calque = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    calque.setAttribute('class', 'constellation-ponts');
+    calque.setAttribute('aria-hidden', 'true');
+    chaine.prepend(calque);
+    new ResizeObserver(() => relier()).observe(chaine);
+    relier();
+    // Une société : sa première personne (le gérant d'abord) se déplie d'office.
+    const gerant = v.profil === 'pm' && chaine.querySelector('.bulle[data-cle="dirigeants"] [data-fiche]');
+    if (gerant) deplier(gerant, false);
+  }
 
   // ---- vue en étoile ------------------------------------------------------------------------------------------------
-  function vueEtoile(e) {
+  function vueEtoile(g, niveau, source) {
+    const e = g.vue360.etoile, prof = g.vue360.profil;
+    const classe = { salarie: 'profil-salarie', entrepreneur: 'profil-entrepreneur', pm: 'profil-pm' }[prof];
     const THEMES_BRANCHE = { identite: ['identite', 'carte'], emploi: ['emploi', 'mallette'], activite: ['emploi', 'mallette'],
       revenus: ['argent', 'billet'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'], societes: ['legal', 'immeuble'],
       legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'], siege: ['identite', 'immeuble'],
       groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'] };
+    const ligneBulle = x => {
+      const libelle = el('span', { classe: 'bulle-libelle' },
+        x.ton ? el('span', { classe: `bulle-point verdict-${x.ton}`, 'aria-hidden': 'true' }) : null, x.libelle);
+      const fiche = x.lien && /^fiche\.html\?i=(\d+)$/.exec(x.lien);
+      if (fiche) {                                           // une personne ou une société : se déplie en étoile
+        const b = el('button', { type: 'button', classe: 'bulle-ligne depliable', 'data-fiche': fiche[1], 'aria-expanded': 'false',
+          title: 'Déplier son étoile' }, libelle, el('span', { classe: 'bulle-valeur', texte: valeurTuile(x) }),
+          el('span', { classe: 'chevron', 'aria-hidden': 'true', texte: '›' }));
+        b.dataset.libelle = x.libelle;
+        b.addEventListener('click', () => deplier(b, true));
+        return el('li', {}, b);
+      }
+      const corps = [libelle, el('span', { classe: 'bulle-valeur', texte: valeurTuile(x) })];
+      return el('li', {}, x.lien ? el('a', { href: x.lien, classe: 'bulle-ligne' }, ...corps) : el('div', { classe: 'bulle-ligne' }, ...corps));
+    };
     const bulle = b => {
       const [theme, ico] = THEMES_BRANCHE[b.cle] || ['historique', 'carte'];
-      return el('section', { classe: `bulle theme-${theme}`, 'aria-label': b.titre },
-        el('header', { classe: 'bulle-tete' }, el('span', { classe: 'mur-icone', 'aria-hidden': 'true' }, icone(ico)),
-          el('div', {}, el('h2', { texte: b.titre }), b.resume ? el('p', { classe: 'bulle-resume', texte: b.resume }) : null)),
-        b.lignes.length ? el('ul', { classe: 'bulle-lignes' }, b.lignes.map(x => {
-          const corps = [el('span', { classe: 'bulle-libelle' }, x.ton ? el('span', { classe: `bulle-point verdict-${x.ton}`, 'aria-hidden': 'true' }) : null, x.libelle),
-            el('span', { classe: 'bulle-valeur', texte: valeurTuile(x) })];
-          return el('li', {}, x.lien ? el('a', { href: x.lien, classe: 'bulle-ligne' }, ...corps) : el('div', { classe: 'bulle-ligne' }, ...corps));
-        })) : el('p', { classe: 'note', texte: 'Aucune en propre : cité dans le dossier d’un autre client.' }));
+      return el('section', { classe: `bulle theme-${theme}`, 'data-cle': b.cle, 'aria-label': b.titre },
+        el('header', { classe: 'bulle-tete' }, el('span', { classe: 'bulle-icone', 'aria-hidden': 'true' }, icone(ico)),
+          el('h2', { texte: b.titre }), b.resume ? el('span', { classe: 'bulle-resume', texte: b.resume }) : null),
+        b.lignes.length ? el('ul', { classe: 'bulle-lignes' }, b.lignes.map(ligneBulle))
+          : el('p', { classe: 'note', texte: 'Aucune en propre : cité dans le dossier d’un autre client.' }));
     };
     // Deux colonnes de hauteur voisine : chaque branche va du côté le moins chargé, l'ordre est gardé de chaque côté.
     const gauche = [], droite = [], poids = b => 2 + Math.max(1, b.lignes.length);
     let pg = 0, pd = 0;
     e.branches.forEach(b => { if (pg <= pd) { gauche.push(b); pg += poids(b); } else { droite.push(b); pd += poids(b); } });
-    const centre = el('div', { classe: 'etoile-centre' }, figure(e.centre.figure),
-      el('h1', { texte: e.centre.nom }),
-      el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: e.centre.profil }),
-      ligne.length ? el('p', { classe: 'tete-ligne', texte: ligne.join(' · ') }) : null);
-    return el('section', { classe: `etoile ${P.classe}`, 'aria-label': `Vue 360° de ${e.centre.nom}` },
+    const sousLigne = niveau === 0 ? ligne : [g.vue360.csp && prof !== 'pm' ? (CSP[g.vue360.csp] || lib(g.vue360.csp)) : null,
+      g.identite.rc ? `RC ${g.identite.rc}` : null].filter(Boolean);
+    const indice = source ? source.dataset.fiche : indiceCourant();
+    const centre = el('div', { classe: 'etoile-centre' },
+      source ? el('span', { classe: 'etoile-parent', texte: `${source.dataset.libelle} · ${source.closest('.etoile').dataset.nom}` }) : null,
+      medaillon(e.centre.figure),
+      el('h1', { classe: niveau ? 'etoile-nom secondaire' : 'etoile-nom', texte: e.centre.nom }),
+      el('span', { classe: 'etoile-profil', texte: e.centre.profil }),
+      sousLigne.length ? el('p', { classe: 'etoile-ligne', texte: sousLigne.join(' · ') }) : null,
+      niveau ? el('div', { classe: 'etoile-actions' },
+        el('a', { href: `fiche.html?i=${indice}`, texte: 'Ouvrir sa fiche' }),
+        (() => { const x = el('button', { type: 'button', classe: 'lien-bouton', texte: 'Replier' });
+          x.addEventListener('click', () => deplier(source, false)); return x; })()) : null);
+    const s = el('section', { classe: `etoile ${classe}${niveau ? ' secondaire' : ''}`, 'aria-label': `Vue 360° de ${e.centre.nom}`,
+      'data-niveau': String(niveau), 'data-nom': e.centre.nom, 'data-indice': String(indice) },
       el('div', { classe: 'etoile-cote gauche' }, gauche.map(bulle)), centre,
       el('div', { classe: 'etoile-cote droite' }, droite.map(bulle)));
+    if (source) sources.set(s, source);
+    relierEtoile(s);
+    return s;
   }
-  // Bonhomme bâton (personne) ou maison (société), dessinés ici en SVG.
-  function figure(type) {
+  function indiceCourant() { return indice; }
+  // Déplier (ou replier) l'étoile d'une personne ou d'une société citée ; ce qui suivait dans la chaîne se referme.
+  async function deplier(bouton, defiler) {
+    const depart = bouton.closest('.etoile'), niveau = Number(depart.dataset.niveau);
+    const ouvert = bouton.getAttribute('aria-expanded') === 'true';
+    chaine.querySelectorAll('.etoile').forEach(x => { if (Number(x.dataset.niveau) > niveau) { sources.delete(x); x.remove(); } });
+    chaine.querySelectorAll('.etoile-absente').forEach(x => { if (Number(x.dataset.niveau) > niveau) x.remove(); });
+    depart.querySelectorAll('.depliable[aria-expanded="true"]').forEach(x => x.setAttribute('aria-expanded', 'false'));
+    relier();
+    if (ouvert) return;
+    const deja = [...chaine.querySelectorAll('.etoile')].find(x => x.dataset.indice === bouton.dataset.fiche);
+    if (deja) { deja.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }   // déjà dans la chaîne : on y va
+    bouton.setAttribute('aria-expanded', 'true');
+    let g;
+    try {
+      g = await api(`/api/base/clients/${encodeURIComponent(bouton.dataset.fiche)}`);
+    } catch (err) {
+      chaine.append(el('p', { classe: 'etoile-absente note', 'data-niveau': String(niveau + 1), role: 'status', texte: Commun.erreur(err, 'Fiche') }));
+      return;
+    }
+    if (bouton.getAttribute('aria-expanded') !== 'true' || !g.vue360 || !g.vue360.etoile) return;
+    const s = vueEtoile(g, niveau + 1, bouton);
+    chaine.append(s);
+    relier();
+    if (defiler) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  // Silhouette (personne) ou immeuble (société), traits fins, dans un médaillon.
+  function medaillon(type) {
     const ns = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 160 200');
-    svg.setAttribute('class', `etoile-figure figure-${type}`);
+    svg.setAttribute('viewBox', '0 0 64 64');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', type === 'maison' ? 'Société' : 'Personne');
-    const forme = (nom, attributs) => {
-      const x = document.createElementNS(ns, nom);
-      Object.entries(attributs).forEach(([k, val]) => x.setAttribute(k, val));
-      svg.append(x);
-    };
+    const trace = (d, classe) => { const p = document.createElementNS(ns, 'path'); p.setAttribute('d', d); p.setAttribute('class', classe); svg.append(p); };
     if (type === 'maison') {
-      forme('rect', { x: 106, y: 40, width: 14, height: 34, class: 'trait plein' });
-      forme('rect', { x: 32, y: 88, width: 96, height: 94, rx: 4, class: 'trait pale' });
-      forme('path', { d: 'M18 92 L80 32 L142 92 Z', class: 'trait plein' });
-      forme('rect', { x: 68, y: 132, width: 24, height: 50, rx: 3, class: 'trait plein' });
-      forme('rect', { x: 44, y: 104, width: 18, height: 18, rx: 2, class: 'trait' });
-      forme('rect', { x: 98, y: 104, width: 18, height: 18, rx: 2, class: 'trait' });
+      trace('M14 54V15l18-6v45M32 24h18v30', 'fond');
+      trace('M14 54V15l18-6v45M32 24h18v30M8 54h48M20 19h6M20 26h6M20 33h6M20 40h6M38 31h6M38 38h6M38 45h6M21 54v-7h4v7', 'trait');
     } else {
-      forme('circle', { cx: 80, cy: 40, r: 24, class: 'trait pale' });
-      forme('path', { d: 'M80 64 V128 M80 84 L42 112 M80 84 L118 112 M80 128 L52 184 M80 128 L108 184', class: 'trait' });
+      trace('M32 31a10 10 0 100-20 10 10 0 000 20zM12 54c0-11 9-18 20-18s20 7 20 18z', 'fond');
+      trace('M32 31a10 10 0 100-20 10 10 0 000 20zM12 54c0-11 9-18 20-18s20 7 20 18', 'trait');
     }
-    return svg;
+    return el('div', { classe: 'medaillon' }, svg);
   }
-  // Traits courbes du centre vers chaque bulle, recalculés quand la page change de taille.
+  // Traits fins du médaillon vers chaque bulle, recalculés quand l'étoile change de taille.
   function relierEtoile(racine) {
-    if (!racine) return;
     const ns = 'http://www.w3.org/2000/svg';
     const calque = document.createElementNS(ns, 'svg');
     calque.setAttribute('class', 'etoile-liens');
@@ -215,26 +272,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     racine.prepend(calque);
     const tracer = () => {
       calque.replaceChildren();
-      const r = racine.getBoundingClientRect(), fig = racine.querySelector('.etoile-figure').getBoundingClientRect();
-      if (getComputedStyle(calque).display === 'none') return;
+      if (!racine.isConnected || getComputedStyle(calque).display === 'none') return;
+      const r = racine.getBoundingClientRect(), fig = racine.querySelector('.medaillon').getBoundingClientRect();
       calque.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
       const cx = fig.left + fig.width / 2 - r.left, cy = fig.top + fig.height / 2 - r.top;
       racine.querySelectorAll('.bulle').forEach(b => {
         const q = b.getBoundingClientRect(), aGauche = b.parentElement.classList.contains('gauche');
-        const ex = (aGauche ? q.right : q.left) - r.left, ey = q.top + Math.min(28, q.height / 2) - r.top;
-        const sx = cx + (aGauche ? -1 : 1) * fig.width * 0.32, mx = (sx + ex) / 2;
+        const ex = (aGauche ? q.right : q.left) - r.left, ey = q.top + 20 - r.top;
+        const sx = cx + (aGauche ? -1 : 1) * fig.width / 2, mx = (sx + ex) / 2;
         const theme = [...b.classList].find(c => c.startsWith('theme-'));
         const chemin = document.createElementNS(ns, 'path');
         chemin.setAttribute('d', `M${sx} ${cy} C${mx} ${cy}, ${mx} ${ey}, ${ex} ${ey}`);
-        chemin.setAttribute('class', `lien ${theme}`);
+        chemin.setAttribute('class', 'lien');
         const point = document.createElementNS(ns, 'circle');
-        point.setAttribute('cx', ex); point.setAttribute('cy', ey); point.setAttribute('r', 4);
+        point.setAttribute('cx', ex); point.setAttribute('cy', ey); point.setAttribute('r', 3);
         point.setAttribute('class', `point ${theme}`);
         calque.append(chemin, point);
       });
     };
     new ResizeObserver(tracer).observe(racine);
-    tracer();
+  }
+  // Ponts entre étoiles : de la ligne de bulle dépliée, par la marge de son étoile, jusqu'au médaillon de la suivante.
+  function relier() {
+    const calque = chaine.querySelector('.constellation-ponts');
+    if (!calque) return;
+    calque.replaceChildren();
+    if (getComputedStyle(calque).display === 'none') return;
+    const ns = 'http://www.w3.org/2000/svg', r = chaine.getBoundingClientRect();
+    calque.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+    sources.forEach((bouton, s) => {
+      if (!s.isConnected || !bouton.isConnected) return;
+      const depart = bouton.closest('.etoile').getBoundingClientRect(), q = bouton.getBoundingClientRect();
+      const aGauche = !!bouton.closest('.gauche'), cible = s.querySelector('.etoile-centre').getBoundingClientRect();
+      const bulle = bouton.closest('.bulle').getBoundingClientRect();
+      const bx = (aGauche ? bulle.left : bulle.right) - r.left, by = q.top + q.height / 2 - r.top;
+      const gx = (aGauche ? depart.left + 13 : depart.right - 13) - r.left, bas = depart.bottom - r.top;
+      const haut = s.getBoundingClientRect().top - r.top, cx = cible.left + cible.width / 2 - r.left, fin = cible.top - r.top - 4;
+      const k = 10, sens = aGauche ? 1 : -1, milieu = (bas + haut) / 2;
+      const chemin = document.createElementNS(ns, 'path');
+      chemin.setAttribute('d', `M${bx} ${by} H${gx + sens * k} Q${gx} ${by} ${gx} ${by + k} V${bas} C${gx} ${milieu}, ${cx} ${milieu}, ${cx} ${haut} V${fin}`);
+      chemin.setAttribute('class', `pont ${[...s.classList].find(c => c.startsWith('profil-'))}`);
+      const debut = document.createElementNS(ns, 'circle');
+      debut.setAttribute('cx', bx); debut.setAttribute('cy', by); debut.setAttribute('r', 3.5);
+      debut.setAttribute('class', `pont-point ${[...s.classList].find(c => c.startsWith('profil-'))}`);
+      calque.append(chemin, debut);
+    });
   }
 
   // ---- éléments -----------------------------------------------------------------------------------------------------

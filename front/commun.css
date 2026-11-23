@@ -392,37 +392,63 @@ a.portrait-nom:hover { color: var(--rouge-fonce); }
 @media (max-width: 800px) { .pres-portrait { grid-template-columns: 1fr; } .portrait-personne { grid-template-columns: 38px 1fr; }
   .portrait-parts { grid-column: 1 / -1; } }
 
-/* ---- vue 360° en étoile : un bonhomme ou une maison au centre, ses informations autour ---------------------------- */
-.etoile { --profil-pale: color-mix(in srgb, var(--profil) 14%, white); position: relative; display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr); gap: 22px 72px; align-items: center;
-  margin: 12px 0 16px; padding: 32px 28px; background: radial-gradient(circle at 50% 50%, var(--profil-pale) 0, var(--surface) 46%);
-  border: 1px solid var(--filet); border-radius: 20px; box-shadow: var(--ombre); }
+/* ---- vue 360° en étoile : une silhouette ou un immeuble au centre, ses informations autour ; les personnes et
+   sociétés citées se déplient en étoiles reliées (chaîne) ------------------------------------------------------------ */
+.constellation { position: relative; display: grid; gap: 64px; margin: 12px 0 20px; }
+.constellation-ponts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
+.constellation-ponts .pont { fill: none; stroke: var(--profil); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.constellation-ponts .pont-point { fill: var(--surface); stroke: var(--profil); stroke-width: 2; }
+.etoile { --profil-pale: color-mix(in srgb, var(--profil) 9%, white); position: relative; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr); gap: 18px 80px; align-items: center;
+  padding: 36px 32px; background-color: var(--surface);
+  background-image: radial-gradient(circle at 50% 50%, var(--profil-pale) 0, transparent 34%), radial-gradient(#e6e9f0 1px, transparent 1.2px);
+  background-size: 100% 100%, 20px 20px; border: 1px solid var(--filet); border-radius: 18px; box-shadow: var(--ombre); }
+.etoile.secondaire { padding-block: 28px; box-shadow: none; }
 .etoile-liens { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 0; }
-.etoile-liens .lien { fill: none; stroke: var(--theme); stroke-width: 2; stroke-opacity: .55; stroke-dasharray: 2 5; stroke-linecap: round; }
-.etoile-liens .point { fill: var(--surface); stroke: var(--theme); stroke-width: 2.5; }
-.etoile-cote { position: relative; z-index: 1; display: grid; gap: 16px; }
-.etoile-centre { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; text-align: center; }
-.etoile-centre h1 { margin: 4px 0 0; font-size: 22px; line-height: 1.2; }
-.etoile-centre .tete-ligne { margin: 0; color: var(--affiche); font-size: 13px; }
-.etoile-figure { width: 150px; height: auto; filter: drop-shadow(0 6px 14px rgba(20, 22, 31, .12)); }
-.etoile-figure .trait { fill: none; stroke: var(--profil); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
-.etoile-figure .pale { fill: var(--profil-pale); }
-.etoile-figure .plein { fill: var(--profil); }
-.bulle { background: var(--surface); border: 1px solid var(--filet);
-  border-top: 3px solid var(--theme, #5b6b8c); border-radius: 14px; padding: 12px 14px; box-shadow: var(--ombre); }
-.bulle-tete { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.bulle-tete h2 { margin: 0; font-size: 14px; letter-spacing: .01em; }
-.bulle-resume { margin: 1px 0 0; font-size: 12px; color: var(--affiche); }
-.bulle-lignes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
-.bulle-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 6px;
-  border-radius: 8px; color: inherit; text-decoration: none; }
-a.bulle-ligne:hover, a.bulle-ligne:focus-visible { background: var(--theme-pale); }
-a.bulle-ligne .bulle-valeur { color: var(--theme); }
+.etoile-liens .lien { fill: none; stroke: #cfd5e1; stroke-width: 1.2; }
+.etoile-liens .point { fill: var(--theme, #5b6b8c); }
+.etoile-cote { position: relative; z-index: 1; display: grid; gap: 14px; align-content: center; }
+.etoile-centre { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.medaillon { width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center; background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--profil) 30%, white);
+  box-shadow: 0 0 0 8px var(--profil-pale), 0 10px 30px color-mix(in srgb, var(--profil) 18%, transparent); margin-bottom: 10px; }
+.secondaire .medaillon { width: 104px; height: 104px; }
+.medaillon svg { width: 58%; height: 58%; }
+.medaillon .fond { fill: var(--profil-pale); stroke: none; }
+.medaillon .trait { fill: none; stroke: var(--profil); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.etoile-nom { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.01em; line-height: 1.2; }
+.etoile-nom.secondaire { font-size: 18px; }
+.etoile-profil { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--profil); }
+.etoile-ligne { margin: 2px 0 0; color: var(--affiche); font-size: 12.5px; }
+.etoile-parent { font-size: 11.5px; color: var(--profil); background: var(--surface); border: 1px solid color-mix(in srgb, var(--profil) 35%, white);
+  border-radius: 999px; padding: 3px 10px; margin-bottom: 8px; }
+.etoile-actions { display: flex; gap: 14px; font-size: 12.5px; margin-top: 4px; }
+.lien-bouton { background: none; border: 0; padding: 0; font: inherit; color: var(--affiche); text-decoration: underline; cursor: pointer; }
+.etoile-absente { text-align: center; }
+.bulle { background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; padding: 12px 14px 8px;
+  box-shadow: 0 1px 2px rgba(20, 22, 31, .04), 0 6px 18px rgba(20, 22, 31, .04); }
+.bulle-tete { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.bulle-icone { display: grid; place-items: center; width: 18px; height: 18px; color: var(--theme, #5b6b8c); }
+.bulle-icone svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bulle-tete h2 { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #5a6378; }
+.bulle-resume { margin-left: auto; font-size: 11.5px; color: var(--affiche); }
+.bulle-lignes { list-style: none; margin: 0; padding: 0; }
+.bulle-lignes li + li { border-top: 1px solid #f0f2f6; }
+.bulle-ligne { width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 2px;
+  color: inherit; text-decoration: none; background: none; border: 0; font: inherit; text-align: left; border-radius: 6px; }
+a.bulle-ligne:hover, .depliable:hover, a.bulle-ligne:focus-visible, .depliable:focus-visible { background: #f6f7fb; }
+.depliable { cursor: pointer; padding-inline: 6px; margin-inline: -4px; width: calc(100% + 8px); }
+.depliable .bulle-valeur { color: var(--encre); }
+.depliable .chevron { color: var(--affiche); font-size: 16px; line-height: 1; transition: transform .15s; }
+.depliable[aria-expanded="true"] { background: color-mix(in srgb, var(--profil, #4f5bd5) 8%, white); }
+.depliable[aria-expanded="true"] .chevron { transform: rotate(90deg); color: var(--profil, #4f5bd5); }
 .bulle-libelle { display: inline-flex; align-items: center; gap: 6px; color: var(--affiche); font-size: 12px; }
-.bulle-valeur { font-weight: 650; font-size: 13.5px; text-align: right; overflow-wrap: anywhere; }
-.bulle-point { width: 8px; height: 8px; border-radius: 50%; background: var(--c, #94a3b8); flex: none; }
+.bulle-valeur { margin-left: auto; font-weight: 600; font-size: 13px; text-align: right; overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums; }
+.bulle-point { width: 7px; height: 7px; border-radius: 50%; background: var(--c, #94a3b8); flex: none; }
 @media (max-width: 900px) {
-  .etoile { grid-template-columns: 1fr; gap: 16px; padding: 20px 16px; }
-  .etoile-centre { order: -1; }
-  .etoile-liens { display: none; }
+  .etoile { grid-template-columns: 1fr; gap: 14px; padding: 22px 16px; }
+  .etoile-centre { order: -1; margin-bottom: 6px; }
+  .etoile-liens, .constellation-ponts { display: none; }
+  .constellation { gap: 24px; }
 }
