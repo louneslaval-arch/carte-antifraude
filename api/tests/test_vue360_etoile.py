@@ -40,7 +40,7 @@ def _connu(f):
 def test_branches_du_salarie_dans_l_ordre():
     e = _etoile(_connu(fiche_salarie()))
     assert [b['cle'] for b in e['branches']] == ['identite', 'emploi', 'revenus', 'banque', 'societes', 'demandes',
-                                                 'eqdom', 'liste_noire', 'alertes', 'controles']
+                                                 'eqdom', 'liste_noire', 'controles']
     assert _valeur(_branche(e, 'identite'), 'CIN') == 'ZZ123456'
     assert _valeur(_branche(e, 'identite'), 'Adresse') == '12 RUE EXEMPLE RABAT'
     assert _valeur(_branche(e, 'emploi'), 'Employeur') == 'EMPLOYEUR EXEMPLE SARL'
@@ -78,7 +78,7 @@ def test_branches_de_la_societe_avec_gerants_et_parts():
                       dict(indice=4, nom='ASSOCIE EXEMPLE', role='associé', parts=40)]
     e = _etoile(_connu(f))
     assert [b['cle'] for b in e['branches']] == ['legal', 'activite', 'dirigeants', 'siege', 'groupe', 'flux',
-                                                 'demandes', 'eqdom', 'liste_noire', 'alertes', 'controles']
+                                                 'demandes', 'eqdom', 'liste_noire', 'controles']
     assert _valeur(_branche(e, 'legal'), 'RC') == '9991234 · RABAT'
     assert _valeur(_branche(e, 'legal'), 'ICE') == '999000000000001'
     assert _valeur(_branche(e, 'legal'), 'Capital') == 100000
@@ -98,7 +98,7 @@ def test_les_demandes_menent_au_dossier_et_portent_le_rythme():
                                   lien='dossier.html?i=1', ton='conforme')
 
 
-ANTIFRAUDE = ('liste_noire', 'alertes', 'controles')
+ANTIFRAUDE = ('liste_noire', 'controles')
 
 
 def test_la_fraude_reste_sur_ses_plaques():
@@ -110,7 +110,7 @@ def test_la_fraude_reste_sur_ses_plaques():
         texte = ' '.join(str(x.get(k)) for b in autres for x in b['lignes'] for k in ('libelle', 'valeur', 'detail'))
         texte += ' '.join(b['titre'] for b in autres)
         assert not any(m in texte.lower() for m in MOTS_DE_FRAUDE), fabrique.__name__
-        assert [b['cle'] for b in e['branches']][-3:] == list(ANTIFRAUDE), 'les plaques antifraude ferment l’étoile'
+        assert [b['cle'] for b in e['branches']][-len(ANTIFRAUDE):] == list(ANTIFRAUDE), 'les plaques antifraude ferment l’étoile'
         assert _valeur(_branche(e, 'liste_noire'), 'Liste noire') == 'Inscrit'
 
 
@@ -133,13 +133,14 @@ def test_chaque_tuile_du_detail_est_sur_une_plaque():
                     or t.get('lien') in vus, (fabrique.__name__, t['libelle'])
 
 
-def test_les_alertes_une_a_une_sans_resume_en_double():
-    f = fiche_salarie()
-    alertes = _branche(_etoile(f), 'alertes')['lignes']
-    assert alertes == [dict(libelle='Même RIB', valeur='incohérence', format='texte', lien='dossier.html?i=1',
-                            ton='attention')]
-    f['incoherences'] = []
-    assert _branche(_etoile(f), 'alertes') is None, 'sans incohérence, pas de plaque « Alertes » (Lounès, 23/11/2026)'
+def test_aucune_plaque_alertes_meme_avec_des_incoherences():
+    """Lounès, 23/11/2026 : « retire-la partout ». Les incohérences restent dans les données brutes."""
+    for fabrique in (fiche_salarie, fiche_entrepreneur, fiche_societe):
+        f = fabrique()
+        assert f['incoherences'] or fabrique is not fiche_salarie
+        e = _etoile(f)
+        assert _branche(e, 'alertes') is None, fabrique.__name__
+        assert 'Alertes' not in [b['titre'] for b in e['branches']]
 
 
 def test_les_lignes_venues_du_detail_gardent_ton_et_precision():

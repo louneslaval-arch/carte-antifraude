@@ -708,11 +708,11 @@ def etoile(f, p):
 TITRES_BRANCHES = dict(identite='Identité', emploi='Emploi', activite='Activité', revenus='Revenus', banque='Banque',
                        societes='Ses sociétés', demandes='Demandes de prêt', eqdom='Chez EQDOM', legal='Identité légale',
                        dirigeants='Gérants et associés', siege='Siège', groupe='Sociétés sœurs', flux='Flux bancaires',
-                       liste_noire='Liste noire et réseau', alertes='Alertes', controles='Contrôles de l’antifraude')
-ANTIFRAUDE = ('liste_noire', 'alertes', 'controles')
+                       liste_noire='Liste noire et réseau', controles='Contrôles de l’antifraude')
+ANTIFRAUDE = ('liste_noire', 'controles')      # pas de plaque « Alertes » (Lounès, 23/11/2026)
 ORDRE_BRANCHES = dict(pp=('identite', 'emploi', 'activite', 'revenus', 'banque', 'societes', 'demandes', 'eqdom') + ANTIFRAUDE,
                       pm=('legal', 'activite', 'dirigeants', 'siege', 'groupe', 'flux', 'demandes', 'eqdom') + ANTIFRAUDE)
-ROUTE_GROUPE = {'Liste noire': 'liste_noire', 'Alertes': 'alertes', 'Revenus et charges': 'revenus',
+ROUTE_GROUPE = {'Liste noire': 'liste_noire', 'Revenus et charges': 'revenus',
                 'Revenus et pièces': 'revenus', 'Emploi et compte': 'emploi', 'Pension et compte': 'emploi',
                 'Identité légale': 'legal', 'Sociétés et activité': 'societes', 'Dirigeants': 'dirigeants',
                 'Comptes et réseau': 'flux', 'Identité': 'identite', 'Historique des dossiers': 'demandes',
@@ -721,7 +721,6 @@ ROUTE_LIBELLE = {'Compte': 'banque', 'Type de compte': 'banque', 'N° CNSS': 'id
                  'Profession': 'activite', 'Carte professionnelle valide jusqu’au': 'activite',
                  'Activité depuis': 'activite', 'Sociétés au même siège': 'siege', 'Sociétés sœurs': 'groupe',
                  'Chiffre d’affaires déclaré': 'flux'}
-GRAVITES = dict(incoherence='incohérence', signal='signal', critique='critique')
 NOMS_IDENTIFIANTS = dict(CIN='CIN', CNSS='N° CNSS', PENSION='N° de pension', ICE='ICE', RC='RC', RC_TRIB='RC',
                          IF='Identifiant fiscal',
                          PATENTE='Patente', AFFILIATION='N° d’affiliation')
@@ -777,20 +776,17 @@ def _completer(branches, f, prof):
     echeances = _releves(f)['echeances']
     if echeances:
         ajouter('banque', _ligne('Échéances de crédit repérées', echeances, 'montant'))
-    # tuiles du détail ; les alertes y sont des résumés : chaque incohérence et chaque famille de contrôles ont leur ligne
+    # tuiles du détail, sauf les alertes : ni plaque ni ligne « Alertes » (Lounès, 23/11/2026, « retire-la partout ») ;
+    # les incohérences restent dans les données brutes
     for g in tuiles(f):
         for t in g['tuiles']:
-            if connu(t) or g['groupe'] == 'Alertes':     # sans incohérence, pas de plaque « Alertes » (Lounès, 23/11)
+            if connu(t) or g['groupe'] == 'Alertes':
                 continue
             a_venir = t['valeur'] in (None, '')
             x = _ligne(t['libelle'], 'à venir' if a_venir else t['valeur'], 'texte' if a_venir else t['format'], t.get('lien'))
             x.update(ton=t.get('ton'), detail=t.get('detail'), source=t.get('source'))
             ajouter(ROUTE_LIBELLE.get(t['libelle']) or ROUTE_GROUPE.get(g['groupe'], 'eqdom'), x)
-    # incohérences une à une, contrôles par famille
-    for i in f.get('incoherences') or []:
-        x = _ligne(i.get('libelle') or i.get('type'), GRAVITES.get(i.get('gravite'), i.get('gravite')), lien=f"dossier.html?i={i['dossier']}" if i.get('dossier') else None)
-        x.update(ton='attention')
-        ajouter('alertes', x)
+    # contrôles par famille
     for fam in v.get('controles') or []:
         n, a = len(fam['controles']), fam['anomalies']
         anomalies = [c for c in fam['controles'] if c['resultat'] == 'ANOMALIE']

@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       revenus: ['argent', 'billet'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'], societes: ['legal', 'immeuble'],
       legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'], siege: ['identite', 'immeuble'],
       groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'],
-      liste_noire: ['risque', 'bouclier'], alertes: ['alerte', 'alerte'], controles: ['alerte', 'coche'] };
+      liste_noire: ['risque', 'bouclier'], controles: ['alerte', 'coche'] };
     const TONS = ['critique', 'attention', 'bon', 'neutre'];
     const ligneBulle = x => {
       const ton = x.ton && (TONS.includes(x.ton) ? `ton-${x.ton}` : `verdict-${x.ton}`);
