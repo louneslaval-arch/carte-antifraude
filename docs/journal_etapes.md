@@ -718,3 +718,7 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   constantes, soldes enchaînés). Identifiants inchangés (ZZ, 999), pièges gardés ; le générateur, ses résultats attendus
   et la base livrée ne changent pas. Tests : `tests/test_demo_habillage.py` (6). Vérification complète : vert ; garde :
   0 constat.
+- **Retour à l'étoile d'avant la refonte** : à la demande de Lounès (« revient à la version d'avant qui était bcp
+  mieux »), `vue360.py`, `fiche.js`, `commun.css` et `test_vue360_etoile.py` reviennent à l'état de `3f62013` (étoile à
+  plaques, sans plaque « Alertes ») ; la lecture par la direction (signaux, essentiel, zones, visuels) est retirée avec
+  `test_vue360_lecture.py`. L'habillage marocain de la démonstration est gardé.

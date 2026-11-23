@@ -392,110 +392,45 @@ a.portrait-nom:hover { color: var(--rouge-fonce); }
 @media (max-width: 800px) { .pres-portrait { grid-template-columns: 1fr; } .portrait-personne { grid-template-columns: 38px 1fr; }
   .portrait-parts { grid-column: 1 / -1; } }
 
-/* ---- vue 360° en étoile, lue par la direction : au centre le client, ses signaux et l'essentiel ; à gauche « qui
-   est-ce ? », à droite la capacité de remboursement, dessous l'historique et la vigilance. Les personnes et sociétés
-   citées se déplient en étoiles reliées (chaîne) ------------------------------------------------------------------- */
+/* ---- vue 360° en étoile : une silhouette ou un immeuble au centre, ses informations autour ; les personnes et
+   sociétés citées se déplient en étoiles reliées (chaîne) ------------------------------------------------------------ */
 .constellation { position: relative; display: grid; gap: 64px; margin: 12px 0 20px; }
 .constellation-ponts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 2; }
 .constellation-ponts .pont { fill: none; stroke: var(--profil); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .constellation-ponts .pont-point { fill: var(--surface); stroke: var(--profil); stroke-width: 2; }
 .etoile { --profil-pale: color-mix(in srgb, var(--profil) 9%, white); position: relative; display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px) minmax(0, 1fr);
-  grid-template-areas: "gauche centre droite" "bas bas bas" "pied pied pied"; gap: 28px 64px; align-items: start;
-  padding: 32px; background-color: var(--surface);
-  background-image: radial-gradient(circle at 50% 120px, var(--profil-pale) 0, transparent 260px), radial-gradient(#e9ecf2 1px, transparent 1.2px);
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px) minmax(0, 1fr); gap: 18px 80px; align-items: center;
+  padding: 36px 32px; background-color: var(--surface);
+  background-image: radial-gradient(circle at 50% 50%, var(--profil-pale) 0, transparent 34%), radial-gradient(#e6e9f0 1px, transparent 1.2px);
   background-size: 100% 100%, 20px 20px; border: 1px solid var(--filet); border-radius: 18px; box-shadow: var(--ombre); }
 .etoile.secondaire { padding-block: 28px; box-shadow: none; }
 .etoile-liens { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 0; }
 .etoile-liens .lien { fill: none; stroke: #cfd5e1; stroke-width: 1.2; }
 .etoile-liens .point { fill: var(--theme, #5b6b8c); }
-.etoile-zone { position: relative; z-index: 1; min-width: 0; }
-.etoile-zone.gauche { grid-area: gauche; } .etoile-zone.droite { grid-area: droite; } .etoile-zone.bas { grid-area: bas; }
-.zone-titre { margin: 0 0 10px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--profil); }
-.etoile-zone.droite .zone-titre { text-align: right; }
-.etoile-zone.bas .zone-titre { text-align: center; }
-.zone-plaques { display: grid; gap: 14px; }
-.etoile-zone.bas .zone-plaques { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); align-items: start; }
-.etoile-centre { grid-area: centre; position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; }
-.etoile-centre > .signaux, .etoile-centre > .kpis, .etoile-centre > .points { width: 100%; text-align: left; }
-.medaillon { width: 112px; height: 112px; border-radius: 50%; display: grid; place-items: center; background: var(--surface);
+.etoile-cote { position: relative; z-index: 1; display: grid; gap: 14px; align-content: center; }
+.etoile-centre { position: relative; z-index: 1; display: grid; justify-items: center; gap: 6px; text-align: center; }
+.medaillon { width: 128px; height: 128px; border-radius: 50%; display: grid; place-items: center; background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--profil) 30%, white);
   box-shadow: 0 0 0 8px var(--profil-pale), 0 10px 30px color-mix(in srgb, var(--profil) 18%, transparent); margin-bottom: 10px; }
-.secondaire .medaillon { width: 96px; height: 96px; }
+.secondaire .medaillon { width: 104px; height: 104px; }
 .medaillon svg { width: 58%; height: 58%; }
 .medaillon .fond { fill: var(--profil-pale); stroke: none; }
 .medaillon .trait { fill: none; stroke: var(--profil); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.etoile-nom { margin: 0; font-size: 22px; font-weight: 750; letter-spacing: -.01em; line-height: 1.2; }
-.etoile-nom.secondaire { font-size: 19px; }
+.etoile-nom { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.01em; line-height: 1.2; }
+.etoile-nom.secondaire { font-size: 18px; }
 .etoile-profil { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--profil); }
-.etoile-ligne { margin: 2px 0 10px; color: var(--affiche); font-size: 12.5px; line-height: 1.5; }
+.etoile-ligne { margin: 2px 0 0; color: var(--affiche); font-size: 12.5px; }
 .etoile-parent { font-size: 11.5px; color: var(--profil); background: var(--surface); border: 1px solid color-mix(in srgb, var(--profil) 35%, white);
   border-radius: 999px; padding: 3px 10px; margin-bottom: 8px; }
-.etoile-actions { display: flex; gap: 14px; font-size: 12.5px; margin-top: 8px; }
+.etoile-actions { display: flex; gap: 14px; font-size: 12.5px; margin-top: 4px; }
 .lien-bouton { background: none; border: 0; padding: 0; font: inherit; color: var(--affiche); text-decoration: underline; cursor: pointer; }
 .etoile-absente { text-align: center; }
-/* signaux de l'antifraude : des faits, jamais un verdict */
-.signaux { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; }
-.signal { display: grid; grid-template-columns: 8px auto minmax(0, 1fr); gap: 2px 10px; align-items: center; padding: 9px 12px; }
-.signal + .signal { border-top: 1px solid #f0f2f6; }
-.signal-point { width: 8px; height: 8px; border-radius: 50%; background: var(--ton); }
-.signal-libelle { font-size: 12px; color: var(--affiche); }
-.signal-valeur { font-size: 12.5px; font-weight: 650; color: var(--ton-texte); text-align: right; }
-.signal-detail { grid-column: 2 / -1; font-size: 11px; line-height: 1.35; color: var(--affiche); }
-/* l'essentiel chiffré */
-.kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
-.kpi { display: grid; gap: 2px; align-content: start; padding: 10px 12px; background: var(--surface); border: 1px solid var(--filet); border-radius: 10px; }
-.kpi.ton-attention, .kpi.ton-critique { background: var(--ton-pale); border-color: color-mix(in srgb, var(--ton) 30%, white); }
-.kpi-libelle { font-size: 11px; color: var(--affiche); line-height: 1.3; }
-.kpi-valeur { font-size: 20px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--ton-texte, var(--encre)); }
-.kpi-detail { font-size: 10.5px; color: var(--affiche); line-height: 1.3; }
-.points { margin-top: 6px; }
-.points h3 { margin: 6px 0 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--affiche); }
-.points ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.points li { position: relative; padding-left: 20px; font-size: 12.5px; line-height: 1.4; }
-.points li::before { position: absolute; left: 0; top: 1px; width: 14px; height: 14px; border-radius: 50%; display: grid;
-  place-items: center; font-size: 10px; font-weight: 800; color: #fff; }
-.points.forts li::before { content: "✓"; background: #17a06b; }
-.points.vigilance li::before { content: "!"; background: #e08a00; }
-/* sources pas encore branchées */
-.a-venir { grid-area: pied; position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px;
-  padding-top: 14px; border-top: 1px dashed var(--filet-fort); font-size: 12px; color: var(--affiche); }
-.a-venir-titre { font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 10.5px; }
-.a-venir ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
-.a-venir li { cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
-/* visuels des plaques */
-.barres { list-style: none; margin: 2px 0 8px; padding: 0; display: grid; gap: 6px; }
-.barres li { display: grid; grid-template-columns: minmax(90px, 38%) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 12px; }
-.barre-libelle { color: var(--affiche); }
-.barre-piste { height: 8px; border-radius: 4px; background: #eef1f6; overflow: hidden; }
-.barre-remplissage { display: block; height: 100%; width: var(--part); border-radius: 4px; background: var(--profil); }
-.barre-valeur { font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
-.jauge { margin: 2px 0 8px; }
-.jauge-tete { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; color: var(--affiche); margin-bottom: 6px; }
-.jauge-tete strong { font-size: 18px; color: var(--ton-texte); font-variant-numeric: tabular-nums; }
-.jauge-piste { position: relative; height: 10px; border-radius: 5px; background: #eef1f6; }
-.jauge-remplissage { position: absolute; inset: 0 auto 0 0; width: var(--part); border-radius: 5px; background: var(--ton); }
-.jauge-repere { position: absolute; top: -4px; bottom: -4px; left: var(--repere); width: 2px; border-radius: 1px; background: var(--encre); }
-.jauge-note { margin: 6px 0 0; font-size: 10.5px; color: var(--affiche); }
-.mini-enveloppe { overflow-x: auto; margin: 2px 0 8px; }
-.mini { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
-.mini caption { text-align: left; font-size: 10.5px; color: var(--affiche); padding-bottom: 4px; }
-.mini th, .mini td { padding: 4px 6px; border-bottom: 1px solid #f0f2f6; white-space: nowrap; }
-.mini thead th { font-weight: 600; color: var(--affiche); text-align: right; font-size: 11px; text-transform: none; letter-spacing: normal; }
-.mini tbody th { font-weight: 400; color: var(--affiche); text-align: left; text-transform: none; letter-spacing: normal; font-size: 12px; }
-.mini td { text-align: right; font-weight: 600; }
-.chemin { list-style: none; margin: 2px 0 10px; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.chemin-noeud { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--filet); background: var(--surface); font-size: 12px; font-weight: 600; }
-.chemin-noeud.inscrit { background: #fff1f2; border-color: #f5c2c7; color: #b4141e; }
-.chemin-lien { font-size: 11px; color: var(--affiche); }
-.chemin-lien::before { content: "— "; } .chemin-lien::after { content: " →"; }
 .bulle { background: var(--surface); border: 1px solid var(--filet); border-radius: 12px; padding: 12px 14px 8px;
   box-shadow: 0 1px 2px rgba(20, 22, 31, .04), 0 6px 18px rgba(20, 22, 31, .04); }
 .bulle-tete { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .bulle-icone { display: grid; place-items: center; width: 18px; height: 18px; color: var(--theme, #5b6b8c); }
 .bulle-icone svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.bulle-tete h3 { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #5a6378; }
+.bulle-tete h2 { margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #5a6378; }
 .bulle-resume { margin-left: auto; font-size: 11.5px; color: var(--affiche); }
 .bulle-lignes { list-style: none; margin: 0; padding: 0; }
 .bulle-lignes li + li { border-top: 1px solid #f0f2f6; }
@@ -511,21 +446,15 @@ a.bulle-ligne:hover, .depliable:hover, a.bulle-ligne:focus-visible, .depliable:f
 .bulle-valeur { margin-left: auto; font-weight: 600; font-size: 13px; text-align: right; overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums; }
 .bulle-point { width: 7px; height: 7px; border-radius: 50%; background: var(--c, #94a3b8); flex: none; }
-@media (max-width: 1180px) {
-  .etoile { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "centre centre" "gauche droite" "bas bas" "pied pied";
-    gap: 24px; }
-  .etoile-centre { max-width: 460px; justify-self: center; }
+@media (max-width: 900px) {
+  .etoile { grid-template-columns: 1fr; gap: 14px; padding: 22px 16px; }
+  .etoile-centre { order: -1; margin-bottom: 6px; }
   .etoile-liens, .constellation-ponts { display: none; }
-  .etoile-zone.droite .zone-titre { text-align: left; }
-}
-@media (max-width: 760px) {
-  .etoile { grid-template-columns: 1fr; grid-template-areas: "centre" "gauche" "droite" "bas" "pied"; gap: 18px; padding: 22px 16px; }
   .constellation { gap: 24px; }
-  .etoile-zone.bas .zone-titre { text-align: left; }
 }
 /* tons et précisions des lignes de plaque (données venues du détail) */
 .bulle-point.ton-critique, .bulle-point.ton-attention, .bulle-point.ton-bon, .bulle-point.ton-neutre { background: var(--ton); }
 .bulle-lignes li.ton-critique .bulle-valeur, .bulle-lignes li.ton-attention .bulle-valeur,
 .bulle-lignes li.ton-bon .bulle-valeur { color: var(--ton-texte); }
 .bulle-detail { display: block; margin: -4px 0 6px; padding: 0 2px; font-size: 11px; line-height: 1.35; color: var(--affiche); }
-.bulle[data-cle="liste_noire"], .bulle[data-cle="controles"] { background: #fffdfd; border-color: #f3dfe1; }
+.bulle[data-cle="liste_noire"], .bulle[data-cle="alertes"], .bulle[data-cle="controles"] { background: #fffdfd; border-color: #f3dfe1; }
