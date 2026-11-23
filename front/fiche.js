@@ -160,11 +160,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       'Historique des dossiers': ['historique', 'horloge'], 'À venir': ['avenir', 'sablier'] };
     const cartes = groupes.map(g => {
       const [theme, ico] = THEMES[g.groupe] || ['identite', 'carte'];
-      const alertes = g.tuiles.filter(x => x.ton === 'critique' || x.ton === 'attention').length;
       const carte_ = el('section', { classe: `mur-carte theme-${theme}`, 'aria-label': g.groupe },
         el('header', { classe: 'mur-carte-tete' }, el('span', { classe: 'mur-icone', 'aria-hidden': 'true' }, icone(ico)),
-          el('h3', { texte: g.groupe }),
-          alertes ? el('span', { classe: 'mur-badge', texte: `${alertes} signal${alertes > 1 ? 'aux' : ''}` }) : null),
+          el('h3', { texte: g.groupe })),
         el('div', { classe: 'mur-tuiles' }, g.tuiles.map(tuileMur)));
       carte_.style.gridColumn = `span ${Math.min(12, Math.max(3, g.tuiles.length * 3))}`;
       return carte_;
