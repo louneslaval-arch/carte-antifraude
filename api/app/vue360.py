@@ -610,3 +610,92 @@ def presentation(f):
                 antifraude=dict(liste_noire=bool(f['identite'].get('inscrit')),
                                 lien=chemins[0].get('niveau') if chemins else None,
                                 alertes=len(f.get('incoherences') or []) + anomalies))
+
+
+# ---- vue en étoile (Lounès, 23/11/2026) : au centre un bonhomme ou une maison, autour ses informations ---------------
+# Les branches reprennent la présentation (chiffres, portrait, demandes) et l'identité ; rien de l'antifraude.
+PRODUITS = dict(DISPO='Crédit disponible', AUTO_CLASSIQUE='Crédit auto', LOA='Location avec option d’achat')
+PROFILS_LISIBLES = dict(salarie='Personne physique · salariée', entrepreneur='Personne physique · entrepreneur',
+                        pm='Personne morale')
+
+
+def _ligne(libelle, valeur, format_='texte', lien=None):
+    return dict(libelle=libelle, valeur=valeur, format=format_, lien=lien)
+
+
+def _fiche_lien(indice):
+    return f'fiche.html?i={indice}' if indice else None
+
+
+def etoile(f, p):
+    """{centre: {figure, nom, profil}, branches: [{cle, titre, resume, lignes}]} ; une branche sans ligne disparaît,
+    sauf les demandes de prêt."""
+    v, ident = f['vue360'], f['identite']
+    prof, retraite = v['profil'], v.get('retraite')
+    chiffre = {c['libelle']: c for c in p['chiffres']}
+    fait = {x['libelle']: x['valeur'] for x in p['portrait']['faits']}
+    val = lambda libelle: (chiffre.get(libelle) or {}).get('valeur')  # noqa: E731
+    branches = []
+
+    def branche(cle, titre, lignes, resume=None, garder=False):
+        lignes = [x for x in lignes if x['valeur'] not in (None, '')]
+        if lignes or garder:
+            branches.append(dict(cle=cle, titre=titre, resume=resume, lignes=lignes))
+
+    def personnes(liste):
+        sortie = []
+        for q in liste:
+            pct = q.get('pourcentage')
+            pct = None if pct is None else (f'{int(pct)} %' if pct == int(pct) else f'{pct} %'.replace('.', ','))
+            libelle = ', '.join(q['roles']) + (f' · {pct}' if pct else '') + (' · terminé' if q.get('termine') else '')
+            sortie.append(_ligne(libelle or 'rôle non lu', q['nom'], lien=_fiche_lien(q.get('indice'))))
+        return sortie
+
+    if prof == 'pm':
+        rc = ' · '.join(filter(None, (ident.get('rc'), ident.get('tribunal')))) or None
+        forme = _fait(f, ['REGISTRE_COMMERCE', 'STATUTS'], ['forme_juridique'])[0]
+        branche('legal', 'Identité légale', [_ligne('RC', rc), _ligne('ICE', ident.get('ice')), _ligne('Forme', forme),
+                                             _ligne('Capital', val('Capital'), 'montant')])
+        branche('activite', 'Activité', [_ligne('Objet', fait.get('Activité')),
+                                         _ligne('Ancienneté', val('Ancienneté de la société'), 'ans')])
+        branche('dirigeants', 'Gérants et associés', personnes(p['portrait']['personnes']))
+        branche('siege', 'Siège', [_ligne('Adresse', ident.get('adresse'))])
+        branche('groupe', 'Sociétés sœurs', [_ligne('même dirigeant', g) for g in p['portrait'].get('groupe') or []])
+        branche('flux', 'Flux bancaires', [_ligne('Crédits mensuels', val('Crédits mensuels'), 'montant'),
+                                           _ligne('Banque', ((f.get('comptes') or [{}])[0]).get('banque'))])
+    else:
+        cin = ident.get('cin')
+        branche('identite', 'Identité', [_ligne('CIN', cin), _ligne('Date de naissance', ident.get('date_naissance'), 'date'),
+                                         _ligne('Adresse', ident.get('adresse'))])
+        if prof == 'entrepreneur':
+            branche('activite', 'Activité', [_ligne('Profession', fait.get('Profession')),
+                                             _ligne('Secteur', fait.get('Secteur')),
+                                             _ligne('Activité depuis', val('Activité depuis'), 'ans')])
+        elif retraite:
+            branche('emploi', 'Pension', [_ligne('Organisme', fait.get('Organisme de pension'))])
+        else:
+            branche('emploi', 'Emploi', [_ligne('Employeur', fait.get('Employeur')), _ligne('Fonction', fait.get('Fonction')),
+                                         _ligne('Contrat', fait.get('Contrat')),
+                                         _ligne('Ancienneté', val('Ancienneté chez l’employeur'), 'ans')])
+        branche('revenus', 'Revenus', [_ligne(c['libelle'], c['valeur'], c['format']) for c in p['chiffres']
+                                       if c['format'] in ('montant', 'pourcent')])
+        comptes = f.get('comptes') or []
+        branche('banque', 'Banque', [_ligne('Banque', (comptes[0] if comptes else {}).get('banque')),
+                                     _ligne('Comptes lus', len(comptes) or None, 'nombre')])
+        if prof == 'entrepreneur':
+            branche('societes', 'Ses sociétés', personnes(p['portrait']['personnes']))
+        else:
+            branche('societes', 'Ses sociétés', [_ligne(s.get('role') or 'rôle non lu', s['nom'],
+                                                        lien=_fiche_lien(s.get('indice'))) for s in v.get('aussi') or []])
+
+    demandes = []
+    for d in p['demandes']:
+        x = _ligne(_jour_lisible(_jour(d['date'])), PRODUITS.get(d.get('produit'), d.get('produit') or 'prêt'),
+                   lien=f"dossier.html?i={d['indice']}" if d.get('indice') else None)
+        x['ton'] = (d.get('verdict') or 'attente').lower()
+        demandes.append(x)
+    branche('demandes', 'Demandes de prêt', demandes, resume=p['rythme'], garder=True)
+    branche('eqdom', 'Chez EQDOM', [_ligne('Client connu', val('Client connu d’EQDOM'))])
+    nom_profil = 'Personne physique · retraitée' if retraite and prof != 'pm' else PROFILS_LISIBLES[prof]
+    return dict(centre=dict(figure='maison' if prof == 'pm' else 'personne', nom=ident.get('nom'), profil=nom_profil),
+                branches=branches)

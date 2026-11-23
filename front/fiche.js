@@ -142,9 +142,100 @@ document.addEventListener('DOMContentLoaded', async () => {
     el('summary', { texte: 'Détail' }),
     mur, el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
     B.controles(), operations, toutesLesDonnees());
+  // Vue en étoile (23/11/2026) : au centre un bonhomme ou une maison, autour ses informations ; sinon l'ancienne
+  // présentation (API sans étoile).
+  const haut = v.etoile ? [vueEtoile(v.etoile)] : [tete, pres ? presentationClient(pres) : null];
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
-    tete, pres ? presentationClient(pres) : null, pres ? bandeAntifraude(pres.antifraude) : null, detail].filter(Boolean));
+    ...haut, pres ? bandeAntifraude(pres.antifraude) : null, detail].filter(Boolean));
   main.removeAttribute('aria-busy');
+  if (v.etoile) relierEtoile(main.querySelector('.etoile'));
+
+  // ---- vue en étoile ------------------------------------------------------------------------------------------------
+  function vueEtoile(e) {
+    const THEMES_BRANCHE = { identite: ['identite', 'carte'], emploi: ['emploi', 'mallette'], activite: ['emploi', 'mallette'],
+      revenus: ['argent', 'billet'], banque: ['reseau', 'billet'], flux: ['argent', 'billet'], societes: ['legal', 'immeuble'],
+      legal: ['legal', 'immeuble'], dirigeants: ['personnes', 'personnes'], siege: ['identite', 'immeuble'],
+      groupe: ['reseau', 'reseau'], demandes: ['historique', 'horloge'], eqdom: ['argent', 'coche'] };
+    const bulle = b => {
+      const [theme, ico] = THEMES_BRANCHE[b.cle] || ['historique', 'carte'];
+      return el('section', { classe: `bulle theme-${theme}`, 'aria-label': b.titre },
+        el('header', { classe: 'bulle-tete' }, el('span', { classe: 'mur-icone', 'aria-hidden': 'true' }, icone(ico)),
+          el('div', {}, el('h2', { texte: b.titre }), b.resume ? el('p', { classe: 'bulle-resume', texte: b.resume }) : null)),
+        b.lignes.length ? el('ul', { classe: 'bulle-lignes' }, b.lignes.map(x => {
+          const corps = [el('span', { classe: 'bulle-libelle' }, x.ton ? el('span', { classe: `bulle-point verdict-${x.ton}`, 'aria-hidden': 'true' }) : null, x.libelle),
+            el('span', { classe: 'bulle-valeur', texte: valeurTuile(x) })];
+          return el('li', {}, x.lien ? el('a', { href: x.lien, classe: 'bulle-ligne' }, ...corps) : el('div', { classe: 'bulle-ligne' }, ...corps));
+        })) : el('p', { classe: 'note', texte: 'Aucune en propre : cité dans le dossier d’un autre client.' }));
+    };
+    // Deux colonnes de hauteur voisine : chaque branche va du côté le moins chargé, l'ordre est gardé de chaque côté.
+    const gauche = [], droite = [], poids = b => 2 + Math.max(1, b.lignes.length);
+    let pg = 0, pd = 0;
+    e.branches.forEach(b => { if (pg <= pd) { gauche.push(b); pg += poids(b); } else { droite.push(b); pd += poids(b); } });
+    const centre = el('div', { classe: 'etoile-centre' }, figure(e.centre.figure),
+      el('h1', { texte: e.centre.nom }),
+      el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: e.centre.profil }),
+      ligne.length ? el('p', { classe: 'tete-ligne', texte: ligne.join(' · ') }) : null);
+    return el('section', { classe: `etoile ${P.classe}`, 'aria-label': `Vue 360° de ${e.centre.nom}` },
+      el('div', { classe: 'etoile-cote gauche' }, gauche.map(bulle)), centre,
+      el('div', { classe: 'etoile-cote droite' }, droite.map(bulle)));
+  }
+  // Bonhomme bâton (personne) ou maison (société), dessinés ici en SVG.
+  function figure(type) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 200');
+    svg.setAttribute('class', `etoile-figure figure-${type}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', type === 'maison' ? 'Société' : 'Personne');
+    const forme = (nom, attributs) => {
+      const x = document.createElementNS(ns, nom);
+      Object.entries(attributs).forEach(([k, val]) => x.setAttribute(k, val));
+      svg.append(x);
+    };
+    if (type === 'maison') {
+      forme('rect', { x: 106, y: 40, width: 14, height: 34, class: 'trait plein' });
+      forme('rect', { x: 32, y: 88, width: 96, height: 94, rx: 4, class: 'trait pale' });
+      forme('path', { d: 'M18 92 L80 32 L142 92 Z', class: 'trait plein' });
+      forme('rect', { x: 68, y: 132, width: 24, height: 50, rx: 3, class: 'trait plein' });
+      forme('rect', { x: 44, y: 104, width: 18, height: 18, rx: 2, class: 'trait' });
+      forme('rect', { x: 98, y: 104, width: 18, height: 18, rx: 2, class: 'trait' });
+    } else {
+      forme('circle', { cx: 80, cy: 40, r: 24, class: 'trait pale' });
+      forme('path', { d: 'M80 64 V128 M80 84 L42 112 M80 84 L118 112 M80 128 L52 184 M80 128 L108 184', class: 'trait' });
+    }
+    return svg;
+  }
+  // Traits courbes du centre vers chaque bulle, recalculés quand la page change de taille.
+  function relierEtoile(racine) {
+    if (!racine) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const calque = document.createElementNS(ns, 'svg');
+    calque.setAttribute('class', 'etoile-liens');
+    calque.setAttribute('aria-hidden', 'true');
+    racine.prepend(calque);
+    const tracer = () => {
+      calque.replaceChildren();
+      const r = racine.getBoundingClientRect(), fig = racine.querySelector('.etoile-figure').getBoundingClientRect();
+      if (getComputedStyle(calque).display === 'none') return;
+      calque.setAttribute('viewBox', `0 0 ${r.width} ${r.height}`);
+      const cx = fig.left + fig.width / 2 - r.left, cy = fig.top + fig.height / 2 - r.top;
+      racine.querySelectorAll('.bulle').forEach(b => {
+        const q = b.getBoundingClientRect(), aGauche = b.parentElement.classList.contains('gauche');
+        const ex = (aGauche ? q.right : q.left) - r.left, ey = q.top + Math.min(28, q.height / 2) - r.top;
+        const sx = cx + (aGauche ? -1 : 1) * fig.width * 0.32, mx = (sx + ex) / 2;
+        const theme = [...b.classList].find(c => c.startsWith('theme-'));
+        const chemin = document.createElementNS(ns, 'path');
+        chemin.setAttribute('d', `M${sx} ${cy} C${mx} ${cy}, ${mx} ${ey}, ${ex} ${ey}`);
+        chemin.setAttribute('class', `lien ${theme}`);
+        const point = document.createElementNS(ns, 'circle');
+        point.setAttribute('cx', ex); point.setAttribute('cy', ey); point.setAttribute('r', 4);
+        point.setAttribute('class', `point ${theme}`);
+        calque.append(chemin, point);
+      });
+    };
+    new ResizeObserver(tracer).observe(racine);
+    tracer();
+  }
 
   // ---- éléments -----------------------------------------------------------------------------------------------------
   // Mur de données : une carte par thème (couleur et icône du thème), des tuiles sobres

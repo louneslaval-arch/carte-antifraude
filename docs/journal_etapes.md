@@ -675,3 +675,14 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Vérification complète** : 1 376 réussis, 2 sautés. Base de démonstration livrée régénérée (même graine, 1 500
   dossiers, 5 000 sociétés ; accord de Lounès) : 274 mentions rattachées par `societe_dans_dossier`, plus aucun dossier
   à deux sociétés demandeuses (113 avant) ; carte globale inchangée (registre et liste noire seulement).
+
+## 23/11/2026 — vue 360° en étoile (branche `vue-360`)
+- **Demande de Lounès** : changer complètement de visuel ; en cliquant sur un nom, un bonhomme bâton (personne) ou une
+  maison (société) au centre, toutes ses informations autour (son image n'a pas pu être lue : faite sans elle, à sa
+  demande).
+- **Fait** : `vue360.etoile()` (fonction pure) : centre (figure, nom, profil) et branches par profil (identité, emploi ou
+  activité, revenus, banque, sociétés, demandes de prêt, chez EQDOM ; pour une société : identité légale, activité,
+  gérants et associés avec leurs parts, siège, sociétés sœurs, flux) ; une branche vide disparaît ; aucune donnée de
+  fraude. Page : figure en SVG au centre, bulles en deux colonnes équilibrées reliées par des traits courbes
+  (recalculés au redimensionnement), une colonne sur téléphone ; bande antifraude et « Détail » inchangés dessous.
+- **Tests** : `api/tests/test_vue360_etoile.py` (8), rouges d'abord ; 295 réussis sur l'API et le fichier unique.

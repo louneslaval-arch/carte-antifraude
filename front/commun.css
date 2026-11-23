@@ -391,3 +391,38 @@ a.portrait-nom:hover { color: var(--rouge-fonce); }
 .portrait-groupe-titre { font-size: 12px; font-weight: 600; color: var(--encre-3); }
 @media (max-width: 800px) { .pres-portrait { grid-template-columns: 1fr; } .portrait-personne { grid-template-columns: 38px 1fr; }
   .portrait-parts { grid-column: 1 / -1; } }
+
+/* ---- vue 360° en étoile : un bonhomme ou une maison au centre, ses informations autour ---------------------------- */
+.etoile { --profil-pale: color-mix(in srgb, var(--profil) 14%, white); position: relative; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 300px) minmax(0, 1fr); gap: 22px 72px; align-items: center;
+  margin: 12px 0 16px; padding: 32px 28px; background: radial-gradient(circle at 50% 50%, var(--profil-pale) 0, var(--surface) 46%);
+  border: 1px solid var(--filet); border-radius: 20px; box-shadow: var(--ombre); }
+.etoile-liens { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: 0; }
+.etoile-liens .lien { fill: none; stroke: var(--theme); stroke-width: 2; stroke-opacity: .55; stroke-dasharray: 2 5; stroke-linecap: round; }
+.etoile-liens .point { fill: var(--surface); stroke: var(--theme); stroke-width: 2.5; }
+.etoile-cote { position: relative; z-index: 1; display: grid; gap: 16px; }
+.etoile-centre { position: relative; z-index: 1; display: grid; justify-items: center; gap: 8px; text-align: center; }
+.etoile-centre h1 { margin: 4px 0 0; font-size: 22px; line-height: 1.2; }
+.etoile-centre .tete-ligne { margin: 0; color: var(--affiche); font-size: 13px; }
+.etoile-figure { width: 150px; height: auto; filter: drop-shadow(0 6px 14px rgba(20, 22, 31, .12)); }
+.etoile-figure .trait { fill: none; stroke: var(--profil); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.etoile-figure .pale { fill: var(--profil-pale); }
+.etoile-figure .plein { fill: var(--profil); }
+.bulle { background: var(--surface); border: 1px solid var(--filet);
+  border-top: 3px solid var(--theme, #5b6b8c); border-radius: 14px; padding: 12px 14px; box-shadow: var(--ombre); }
+.bulle-tete { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bulle-tete h2 { margin: 0; font-size: 14px; letter-spacing: .01em; }
+.bulle-resume { margin: 1px 0 0; font-size: 12px; color: var(--affiche); }
+.bulle-lignes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.bulle-ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 5px 6px;
+  border-radius: 8px; color: inherit; text-decoration: none; }
+a.bulle-ligne:hover, a.bulle-ligne:focus-visible { background: var(--theme-pale); }
+a.bulle-ligne .bulle-valeur { color: var(--theme); }
+.bulle-libelle { display: inline-flex; align-items: center; gap: 6px; color: var(--affiche); font-size: 12px; }
+.bulle-valeur { font-weight: 650; font-size: 13.5px; text-align: right; overflow-wrap: anywhere; }
+.bulle-point { width: 8px; height: 8px; border-radius: 50%; background: var(--c, #94a3b8); flex: none; }
+@media (max-width: 900px) {
+  .etoile { grid-template-columns: 1fr; gap: 16px; padding: 20px 16px; }
+  .etoile-centre { order: -1; }
+  .etoile-liens { display: none; }
+}

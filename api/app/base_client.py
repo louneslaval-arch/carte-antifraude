@@ -329,6 +329,7 @@ class BaseClient:
             vue['entite'] = self._entite(cx, fiche, prof)
             vue['tuiles'] = vue360.tuiles(servie)            # sur tous les chemins ; la fiche n'en montre que 5
             vue['presentation'] = vue360.presentation(servie)
+            vue['etoile'] = vue360.etoile(servie, vue['presentation'])
             servie['chemins'] = chemins[:5]
             return servie
         finally:
