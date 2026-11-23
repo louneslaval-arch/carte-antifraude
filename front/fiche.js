@@ -189,15 +189,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         el('span', { classe: 'jalon-produit', texte: PRODUITS[d.produit] || d.produit || 'prêt' }),
         el('span', { classe: 'jalon-verdict', texte: d.verdict ? lib(d.verdict) : 'en cours' })))
         : el('p', { classe: 'note', texte: 'Aucune demande en propre : cité dans le dossier d’un autre client.' }));
-    const liste = (titre, classe, items, vide_) => el('div', { classe: `pres-points ${classe}` }, el('h3', { texte: titre }),
-      items.length ? el('ul', {}, items.map(x => el('li', { texte: x }))) : el('p', { classe: 'note', texte: vide_ }));
     return el('section', { classe: 'presentation', 'aria-label': 'Présentation du client' },
       chiffres, p.portrait ? portrait(p.portrait) : null,
       el('div', { classe: 'pres-bloc' }, el('div', { classe: 'pres-bloc-tete' }, el('h2', { texte: 'Ses demandes de prêt' }),
         el('span', { classe: 'pres-rythme', texte: p.rythme })), frise),
-      el('div', { classe: 'pres-deux' },
-        liste('Points forts', 'forts', p.forts, 'Rien de saillant dans les pièces lues.'),
-        liste('Points de vigilance', 'vigilance', p.vigilance, 'Aucun point de vigilance.')),
       el('p', { classe: 'pres-remboursements' }, el('strong', { texte: 'Remboursements chez EQDOM. ' }), p.remboursements));
   }
   function portrait(po) {
@@ -231,8 +226,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('span', { classe: 'af-titre', texte: 'Contrôle antifraude' }),
       puce(a.liste_noire ? 'Inscrit sur la liste noire' : 'Absent de la liste noire', a.liste_noire ? 'critique' : 'bon'),
       puce(a.lien ? `Lien ${lib(a.lien)} avec un inscrit` : 'Aucun lien avec un inscrit',
-        !a.lien ? 'bon' : a.lien === 'critique' ? 'critique' : a.lien === 'majeure' ? 'attention' : 'neutre'),
-      puce(a.alertes ? `${nombre(a.alertes)} alerte${a.alertes > 1 ? 's' : ''} à examiner` : 'Aucune alerte', a.alertes ? 'attention' : 'bon'));
+        !a.lien ? 'bon' : a.lien === 'critique' ? 'critique' : a.lien === 'majeure' ? 'attention' : 'neutre'));
   }
   function tuileMur(t) {
     const valeur = valeurTuile(t);
