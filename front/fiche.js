@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Présentation pour la direction en haut ; l'antifraude en une bande en bas, son détail replié dessous.
   const detail = el('details', { classe: 'detail-antifraude' },
-    el('summary', { texte: 'Détail pour la cellule fraude : données lues, contrôles, pièces' }),
+    el('summary', { texte: 'Détail' }),
     mur, el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
     B.controles(), operations, toutesLesDonnees());
   main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
