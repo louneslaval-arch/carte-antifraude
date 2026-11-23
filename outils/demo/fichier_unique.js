@@ -4,7 +4,10 @@
 // Données entièrement fictives. Assemblé par outils/demo/fichier_unique.py ; jamais servi par la plateforme.
 'use strict';
 const DemoUnique = (() => {
-  const INCLUSES = ['index', 'base', 'fiche', 'dossier'];
+  // Pages jointes au fichier (DEMO_PAGES, écrit par l'assembleur) ; « base client seule » : sans accueil ni carte.
+  const INCLUSES = typeof DEMO_PAGES !== 'undefined' ? DEMO_PAGES : ['index', 'base', 'fiche', 'dossier'];
+  const ACCUEIL = INCLUSES.includes('index') ? 'index' : INCLUSES[0];
+  const LIBELLES = { index: 'le portail', base: 'la base client', fiche: 'la vue 360°', dossier: 'les dossiers' };
   const NOMS = { carte: 'la carte antifraude', reseau: 'la vue réseau', statistiques: 'les statistiques',
     connexion: 'la connexion' };
   let donnees = {};
@@ -68,9 +71,10 @@ const DemoUnique = (() => {
   }
   function aller(href) {
     const m = String(href).match(/(?:^|\/)([a-z_-]+)\.html(\?[^#]*)?$/);
+    if (m && m[1] === 'index' && !INCLUSES.includes('index')) { aller(`${ACCUEIL}.html`); return; }
     if (!m || !INCLUSES.includes(m[1])) {
       message(`${m && NOMS[m[1]] ? NOMS[m[1]][0].toUpperCase() + NOMS[m[1]].slice(1) : 'Cette page'} n’est pas dans ce fichier `
-        + ': il contient le portail, la base client, la vue 360° et les dossiers.');
+        + `: il contient ${INCLUSES.map((p) => LIBELLES[p]).join(', ').replace(/, ([^,]*)$/, ' et $1')}.`);
       return;
     }
     const cible = `#${m[1]}${m[2] || ''}`;
@@ -80,7 +84,7 @@ const DemoUnique = (() => {
   function demarrer() {
     donnees = JSON.parse(document.getElementById('donnees').textContent);
     const [nom, requete] = location.hash.slice(1).split('?');
-    const page = INCLUSES.includes(nom) ? nom : 'index';
+    const page = INCLUSES.includes(nom) ? nom : ACCUEIL;
     const params = new URLSearchParams(requete || '');
     try { sessionStorage.setItem('carte_role', 'ANALYSTE'); } catch (e) { /* stockage indisponible */ }
     Object.assign(Commun, { api, aller, role: () => 'ANALYSTE', parametre: (n) => params.get(n) });
@@ -105,6 +109,13 @@ const DemoUnique = (() => {
       return ajouter.call(this, type, rappel, options);
     };
     try { PAGES_DEMO[page](); } finally { document.addEventListener = ajouter; }
+    // En-tête : les pages absentes du fichier (accueil, carte) disparaissent ; la marque mène à la première page.
+    document.querySelectorAll('.entete a[href]').forEach((a) => {
+      const m = a.getAttribute('href').match(/^([a-z_-]+)\.html/);
+      if (!m || INCLUSES.includes(m[1])) return;
+      if (a.classList.contains('marque')) a.setAttribute('href', `${ACCUEIL}.html`);
+      else a.remove();
+    });
 
     const b = document.createElement('div');
     b.textContent = 'Démonstration · données fictives (noms inventés, CIN en « ZZ ») · aucune personne ni société réelle';

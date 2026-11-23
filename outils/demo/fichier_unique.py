@@ -7,7 +7,8 @@ Les réponses sont demandées à l'API elle-même (même code, mêmes masquages)
 par `construire_demo.py` ; elles sont jointes à la page en JSON. Un petit routeur affiche chaque page selon l'adresse
 (`#base`, `#fiche?i=…`) ; la carte, le réseau et les statistiques ne sont pas dans ce fichier : leurs liens le disent.
 
-Usage : fichier_unique.py --sortie FICHIER.html [--clients 100] [--dossiers 300] [--societes 400]
+Usage : fichier_unique.py --sortie FICHIER.html [--clients 100] [--dossiers 300] [--societes 400] [--base-seule]
+`--base-seule` : la base client, la vue 360° et les dossiers seulement (ni l'accueil sur fond noir, ni la carte).
 Sortie console : comptages seulement.
 """
 import argparse
@@ -22,6 +23,7 @@ RACINE = os.path.dirname(os.path.dirname(ICI))
 sys.path[:0] = [ICI, os.path.join(RACINE, 'api'), RACINE]
 FRONT = os.path.join(RACINE, 'front')
 PAGES = {'index': ('portail.js',), 'base': ('base.js',), 'fiche': ('fiche.js',), 'dossier': ('dossier.js',)}
+PAGES_BASE = ('base', 'fiche', 'dossier')          # base client seule : ni accueil sur fond noir, ni carte
 STYLES = ('commun.css', 'portail.css')
 NAVIGATION = re.compile(r'location\.href\s*=(?!=)\s*')
 QUOTAS = {'salarie': 0.6, 'entrepreneur': 0.2, 'pm': 0.2}   # part des clients retenus par profil
@@ -173,11 +175,13 @@ def _corps(nom):
     return (classe.group(1) if classe else ''), titre.group(1).strip(), corps.group(2)
 
 
-def assembler(donnees):
-    """Le fichier : styles, gabarits des quatre pages, données jointes, scripts (commun, routeur, contenu, pages)."""
-    styles = '\n'.join(_lire(n) for n in STYLES)
+def assembler(donnees, pages=tuple(PAGES)):
+    """Le fichier : styles, gabarits des pages retenues (les quatre par défaut ; `PAGES_BASE` pour la base client
+    seule), données jointes, scripts (commun, routeur, contenu, pages)."""
+    styles = '\n'.join(_lire(n) for n in STYLES if n != 'portail.css' or 'index' in pages)
     gabarits, pages_js = [], []
-    for nom, scripts in PAGES.items():
+    for nom in pages:
+        scripts = PAGES[nom]
         classe, titre, corps = _corps(nom)
         gabarits.append(f'<template id="page-{nom}" data-classe="{classe}" data-titre="{titre}">{corps}</template>')
         code = '\n'.join(_router(_lire(s)) for s in scripts)
@@ -185,7 +189,7 @@ def assembler(donnees):
     with open(os.path.join(ICI, 'fichier_unique.js'), encoding='utf-8') as f:
         routeur = f.read()
     json_donnees = json.dumps(donnees, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-    scripts = [_router(_lire('commun.js')), routeur, _lire('contenu.js'), 'const PAGES_DEMO = {};', *pages_js,
+    scripts = [_router(_lire('commun.js')), f'const DEMO_PAGES = {json.dumps(list(pages), separators=(",", ":"))};', routeur, _lire('contenu.js'), 'const PAGES_DEMO = {};', *pages_js,
                'DemoUnique.demarrer();']
     return ('<!doctype html>\n<html lang="fr">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
@@ -197,13 +201,13 @@ def assembler(donnees):
             + '\n</body>\n</html>\n')
 
 
-def construire(sortie, n_clients=100, n_dossiers=300, n_societes=400, graine=20261119):
+def construire(sortie, n_clients=100, n_dossiers=300, n_societes=400, graine=20261119, pages=tuple(PAGES)):
     import construire_demo
     with tempfile.TemporaryDirectory() as t:
         base = os.path.join(t, 'base_legere.sqlite')
         construire_demo.construire(base, n_dossiers=n_dossiers, n_societes=n_societes, graine=graine, habillage=True)
         donnees, comptes = collecter(base, n_clients)
-    html = assembler(donnees)
+    html = assembler(donnees, pages)
     with open(sortie, 'w', encoding='utf-8') as f:
         f.write(html)
     comptes['taille_ko'] = len(html.encode('utf-8')) // 1024
@@ -216,8 +220,9 @@ def main(argv=None):
     p.add_argument('--clients', type=int, default=100)
     p.add_argument('--dossiers', type=int, default=300)
     p.add_argument('--societes', type=int, default=400)
+    p.add_argument('--base-seule', action='store_true', help='base client, vue 360° et dossiers ; ni accueil ni carte')
     a = p.parse_args(argv)
-    comptes = construire(a.sortie, a.clients, a.dossiers, a.societes)
+    comptes = construire(a.sortie, a.clients, a.dossiers, a.societes, pages=PAGES_BASE if a.base_seule else tuple(PAGES))
     print(' ; '.join(f'{k} : {v}' for k, v in comptes.items()))
     return 0
 

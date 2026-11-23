@@ -722,3 +722,7 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
   mieux »), `vue360.py`, `fiche.js`, `commun.css` et `test_vue360_etoile.py` reviennent à l'état de `3f62013` (étoile à
   plaques, sans plaque « Alertes ») ; la lecture par la direction (signaux, essentiel, zones, visuels) est retirée avec
   `test_vue360_lecture.py`. L'habillage marocain de la démonstration est gardé.
+- **Base client seule** : à la demande de Lounès (« l'HTML uniquement de la base client », sans la carte ni l'accueil
+  sur fond noir), `fichier_unique.py --base-seule` n'assemble que la base client, la vue 360° et les dossiers ; le
+  fichier s'ouvre sur la base, l'en-tête n'a plus de lien vers l'accueil ni vers la carte (la marque mène à la base).
+  Test ajouté au fichier unique.

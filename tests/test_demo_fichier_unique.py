@@ -113,3 +113,18 @@ def test_l_etoile_se_deplie_sur_deux_niveaux_dans_le_fichier(page):
     assert niveau1 and all(f'fiche/{i}' in d for i in niveau1)
     niveau2 = {j for i in niveau1 for j in liens(d[f'fiche/{i}'])}
     assert all(f'fiche/{j}' in d for j in niveau2)
+
+
+def test_la_base_client_seule_sans_accueil_ni_carte(page):
+    """Lounès, 23/11/2026 : « l'HTML uniquement de la base client », sans la carte ni l'accueil sur fond noir. La base
+    s'ouvre d'emblée ; la vue 360° et les dossiers restent (on y arrive depuis la base) ; ni portail, ni lien vers la
+    carte ou l'accueil dans l'en-tête."""
+    import fichier_unique as fu
+    _, html = page
+    seule = fu.assembler(_donnees(html), pages=fu.PAGES_BASE)
+    for nom in ('base', 'fiche', 'dossier'):
+        assert f'<template id="page-{nom}"' in seule, nom
+    assert '<template id="page-index"' not in seule
+    assert 'const DEMO_PAGES = ["base","fiche","dossier"];' in seule
+    assert 'PAGES_DEMO["index"]' not in seule
+    assert '.portail' not in seule.split('<style>')[1].split('</style>')[0], 'styles de l’accueil absents'
