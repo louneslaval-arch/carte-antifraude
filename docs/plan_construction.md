@@ -16,7 +16,7 @@
 | I | c6 contrôle réseau, alertes, propagation, nuit | 4–5 j | à faire |
 | J | API temps réel, dont les chiffres agrégés du portail | 4,5–5,5 j | à faire |
 | K | pages (K1 : cartes et vue dossier, 7–10 j ; K2 : portail, 3–4 j) | 10–14 j | avancé (16/11) : portail, base client, fiche complète, dossier, sur base fictive ; vue réseau d'un client rallumée (niveaux masqués) ; carte globale et carte du Maroc (17/11), servies en deux couches ; restent temps réel, carte anonyme DIRECTION, essais automatiques dans le navigateur |
-| L | PostgreSQL et déploiement | 4–5 j | à faire |
+| L | PostgreSQL et déploiement | 4–5 j | commencé (24/11) : lecteur direct des tables de dossiers (`flux/lecteur_direct.py`), vérifié sur SQLite ; PostgreSQL non vérifié ; feu vert CNDP annoncé par Lounès |
 | M | jeton Tandem, notification de la v2, pseudonymisation | 3–4 j | à faire |
 | N | performance (c4) et analytique (c7) | 6–8 sem. | avancé (17/11) : statistiques des dossiers (c7 : dictionnaire, variables par dossier, agrégats avec secret, page autonome) ; restent c4, table d'analyse et défaut à 12 mois |
 

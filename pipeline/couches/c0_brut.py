@@ -113,8 +113,11 @@ def projeter(cx, ref):
     identifiant = d['id']
     _inserer(cx, 'Dossier', dict({c: d.get(c) for c in _DOSSIER}, actif=actif))
     for p in d.get('pieces') or []:
-        _inserer(cx, 'Piece', dict({c: p.get(c) for c in _PIECE}, id=f"{identifiant}:{p.get('upstreamPieceId')}",
-                                   dossierId=identifiant, createdAt=d.get('createdAt'), updatedAt=d.get('updatedAt')))
+        # identifiant et dates de Kamal quand la lecture directe les donne ; dérivés pour une réponse d'API
+        _inserer(cx, 'Piece', dict({c: p.get(c) for c in _PIECE},
+                                   id=p.get('id') or f"{identifiant}:{p.get('upstreamPieceId')}",
+                                   dossierId=identifiant, createdAt=p.get('createdAt') or d.get('createdAt'),
+                                   updatedAt=p.get('updatedAt') or d.get('updatedAt')))
     derniere = d.get('latestAnalysis')
     analyses = {a['id']: a for a in d.get('analyses') or []}
     if derniere:
@@ -126,8 +129,8 @@ def projeter(cx, ref):
         ligne['applicabilityReason'] = ligne['applicabilityReason'] or ''     # obligatoire dans la base, vide permis
         _inserer(cx, 'AnalysisControl', ligne)
     for k, r in enumerate(d.get('reanalyses') or []):
-        _inserer(cx, 'Reanalysis', dict({c: r.get(c) for c in _RELECTURE}, id=f'{identifiant}:relecture:{k}',
-                                        dossierId=identifiant))
+        _inserer(cx, 'Reanalysis', dict({c: r.get(c) for c in _RELECTURE},
+                                        id=r.get('id') or f'{identifiant}:relecture:{k}', dossierId=identifiant))
 
 
 def recevoir(cx, passage, detail, actif=True, maintenant=None):

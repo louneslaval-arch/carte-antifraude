@@ -729,3 +729,21 @@ Une entrée par étape ou par reprise, la plus récente en bas. Le rappel de dé
 - **Force des liens retirée de l'affichage** : à la demande de Lounès, la vue 360° (« Meilleur chemin ») et la page du
   dossier (chemins vers un inscrit) ne montrent plus la force ; elle reste calculée et sert toujours au tri. La carte
   antifraude (`carte.js`) l'affiche encore dans le détail d'un nœud.
+
+## 24/11/2026 — étape L commencée : lecteur direct de la base de l'antifraude (branche `etape-l-lecteur-direct`)
+- **Demande de Lounès** : relier le back et le front à la base PostgreSQL de l'antifraude (dossiers EQDOM et registres
+  du commerce extraits par Kamal) ; feu vert CNDP annoncé. Règle 1 inchangée : Claude ne se connecte pas à la base
+  réelle, Lounès lance la lecture et rapporte les comptages.
+- **Fait** : `flux/lecteur_direct.py` lit en lecture seule `Dossier`, `Piece`, `Analysis`, `AnalysisControl`,
+  `Reanalysis` par lots, remet chaque dossier sous la forme de `DossierDetail` et le passe à `c0_brut.recevoir` (mode
+  de passage `lecture_directe`, déjà prévu par le schéma) : miroir et couches inchangés. Dates mises en texte ISO,
+  booléens, JSON et listes décodés ; types comparés à `schema.prisma` par un test. Adresse dans `CARTE_SOURCE_PG`,
+  jamais affichée ; console : comptages. `c0_brut.projeter` reprend `Piece.id`, ses dates et `Reanalysis.id` quand la
+  source les donne (dérivés sinon, comme avant).
+- **Tests** : `tests/test_lecteur_direct.py` (12, plus 1 sur PostgreSQL qui tourne si `CARTE_PG_ESSAI` désigne une base
+  d'essai) : même miroir et mêmes faits c1 que le collecteur, relecture sans version nouvelle, `--depuis`, dossier
+  écarté, dernière analyse, dossier refusé compté sans être cité, adresse jamais affichée. Vérification complète verte
+  (1 409 réussis).
+- **Reste** : essai sur un PostgreSQL d'essai ; tables du registre du commerce (structure à recevoir) ; questions
+  n°135 à 137.
+
