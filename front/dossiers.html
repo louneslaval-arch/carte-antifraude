@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tous les dossiers · EQDOM</title>
+<link rel="stylesheet" href="commun.css">
+<script src="commun.js" defer></script>
+<script src="dossiers.js" defer></script>
+</head>
+<body>
+<main>
+  <p class="fil"><a href="base.html">Base client</a> › Tous les dossiers</p>
+  <h1>Tous les dossiers</h1>
+  <p class="sous-titre">Dossiers avec ou sans demandeur identifié, dont les alertes de test C6.</p>
+  <section class="carte" aria-label="Liste des dossiers">
+    <div class="tableau-enveloppe"><table>
+      <thead><tr><th>Dossier</th><th>Produit</th><th>Réception</th><th>Demandeur</th><th class="nombre">Signaux C6</th><th class="nombre">Relations C7</th></tr></thead>
+      <tbody id="dossiers-lignes"><tr><td colspan="6" class="vide">Chargement…</td></tr></tbody>
+    </table></div>
+    <div class="pagination"><span id="dossiers-compte"></span>
+      <button class="bouton" type="button" id="dossiers-precedent">Précédent</button>
+      <button class="bouton" type="button" id="dossiers-suivant">Suivant</button>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -25,7 +25,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const parties = carte('Parties du dossier', tableau(['Nom', 'Rôle', ''], d.parties.map(p =>
     [Commun.lienFiche(p), p.role, p.demandeur ? el('span', { classe: 'etiquette', texte: 'demandeur' }) : ''])));
   const chemins = carte('Liens avec la liste noire', d.chemins.length
-    ? el('div', { classe: 'pile' }, d.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit.'));
+    ? Commun.listeChemins(d.chemins) : vide('Aucun chemin vers un inscrit.'));
+  const incoherences = carte('Incohérences détectées', d.incoherences.length
+    ? tableau(['Signal', 'Gravité', 'Autre dossier'], d.incoherences.map(i => [
+      i.libelle || i.type, i.gravite || '—',
+      Number.isInteger(i.autre_dossier) ? el('a', { href: `dossier.html?i=${i.autre_dossier}`, texte: 'Consulter' }) : '—',
+    ])) : vide('Aucune incohérence détectée.'));
+  const relationsC7 = carte('Relations complémentaires vérifiées (C7)', (d.relations_c7 || []).length
+    ? tableau(['Relation', 'Fiche associée'], d.relations_c7.map(r => [
+      r.libelle || r.code, r.fiche_associee ? 'Oui' : 'Non ou non résolue',
+    ])) : vide('Aucune relation complémentaire déclarée par Tandem.'));
+  const alertesC6 = carte('Signaux calculés (C6)', (d.alertes_c6 || []).length
+    ? tableau(['Signal', 'Niveau', 'Explication'], d.alertes_c6.map(a => [
+      a.libelle || a.code, a.niveau || '—', a.justification || '—',
+    ])) : vide('Aucun signal C6 calculé pour ce dossier.'));
   const pieces = carte('Pièces lues', tableau(['Pièce', 'Lecture', 'Champs'],
     d.pieces.map(p => [p.type, p.statut || '—', nombre(p.champs)])));
   const revenus = carte('Revenus et charges', el('div', {},
@@ -39,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   main.replaceChildren(el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Dossier'),
     tete, chiffres, el('div', { classe: 'grille grille-2' },
-      el('div', { classe: 'pile' }, parties, chemins),
+      el('div', { classe: 'pile' }, parties, chemins, incoherences, relationsC7, alertesC6),
       el('div', { classe: 'pile' }, revenus, pieces, operations)));
 
   function chiffre(v, l, accent) {

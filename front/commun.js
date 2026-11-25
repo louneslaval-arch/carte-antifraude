@@ -106,6 +106,7 @@ const Commun = (() => {
     }));
   }
   function lienFiche(n) {
+    if (!Number.isInteger(n.indice)) return el('span', { classe: 'chemin-noeud', texte: n.nom || 'Identité non disponible' });
     const a = el('a', { classe: 'chemin-noeud' + (n.inscrit ? ' inscrit' : ''), href: `fiche.html?i=${n.indice}`, texte: n.nom });
     if (n.inscrit) a.title = 'Inscrit sur la liste noire';
     return a;
@@ -121,6 +122,7 @@ const Commun = (() => {
     }
     return el('div', { classe: 'carte' },
       el('div', { classe: 'chemin-entete' },
+        niveau(ch.niveau, ch.niveau_libelle),
         el('span', { texte: `${ch.longueur} lien${ch.longueur > 1 ? 's' : ''} · force ${String(ch.force).replace('.', ',')}` }),
         ch.homonymie ? el('span', { classe: 'etiquette', texte: 'homonymie à lever' }) : null,
         ch.foyer ? el('span', { classe: 'etiquette', texte: 'même foyer qu’un inscrit' }) : null),
@@ -128,5 +130,20 @@ const Commun = (() => {
         : el('div', { classe: 'chemin' }, el('span', { classe: 'chemin-noeud inscrit', texte: `${ch.inscrit.nom} (inscrit)` })));
   }
 
-  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, lienFiche, role, erreur };
+  function listeChemins(chemins) {
+    const niveaux = ['critique', 'majeure', 'mineure', 'affiche', 'hors_alerte'];
+    const filtre = el('select', { 'aria-label': 'Filtrer les relations par niveau de risque' },
+      el('option', { value: '', texte: 'Tous les niveaux' }),
+      niveaux.map(c => el('option', { value: c, texte: c.replaceAll('_', ' ') })));
+    const resultat = el('div', { classe: 'pile' });
+    const afficher = () => {
+      const liste = chemins.filter(c => !filtre.value || c.niveau === filtre.value);
+      resultat.replaceChildren(...(liste.length ? liste.map(chemin) : [el('p', { classe: 'vide', texte: 'Aucune relation pour ce niveau.' })]));
+    };
+    filtre.addEventListener('change', afficher);
+    afficher();
+    return el('div', { classe: 'pile' }, filtre, resultat);
+  }
+
+  return { el, api, entete, nombre, montant, date, niveau, initiales, parametre, barres, chemin, listeChemins, lienFiche, role, erreur };
 })();

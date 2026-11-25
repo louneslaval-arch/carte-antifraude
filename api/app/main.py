@@ -11,7 +11,7 @@ from .config import Reglages
 from .debit import Debit
 from .erreurs import attraper_tout, validation
 from .graphe import charger
-from .base_client import BaseClient
+from .base_client_postgresql import BaseClient
 from .routes import admin, auth, base, carte, chaines, flux, stats
 
 VERSION = '0.3.0'

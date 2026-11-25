@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
 
   const chemins = carte('Liens avec la liste noire', f.chemins.length
-    ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
+    ? Commun.listeChemins(f.chemins) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
 
   const revenusVerifies = f.revenus.filter(r => r.nature === 'verifie');
   const revenus = carte('Revenus et charges', f.revenus.length ? tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'],
