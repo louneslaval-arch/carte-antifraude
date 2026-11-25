@@ -75,6 +75,11 @@ def structure(source, schema='public'):
     return tables
 
 
+def tables_a_copier(tables):
+    """Sans les tables internes de SQLite (`sqlite_stat1`…) recopiées dans PostgreSQL : leur nom est réservé."""
+    return {t: c for t, c in tables.items() if not t.lower().startswith('sqlite_')}
+
+
 def index_simples(source, schema='public'):
     """Index sur des colonnes nommées (sans expression) : [(nom, table, [colonnes], unique)]."""
     trouves = []
@@ -174,7 +179,7 @@ def main(argv=None):
         print(f'arrêt : connexion à la base impossible ({type(e).__name__})', file=sys.stderr)
         return 1
     try:
-        tables = structure(source, a.schema)
+        tables = tables_a_copier(structure(source, a.schema))
         print(f'tables trouvées : {len(tables)}', flush=True)
         comptes = copier(source, a.sortie, tables, index=index_simples(source, a.schema), afficher=True)
     except Exception as e:                            # noqa: BLE001  jamais de contenu ni d'adresse dans la sortie

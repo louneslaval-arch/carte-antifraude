@@ -57,6 +57,14 @@ def test_chaque_table_est_copiee_a_l_identique(tmp_path):
     assert [c[2] for c in copie.execute('PRAGMA table_info(bl_entite)')] == ['INTEGER', 'TEXT', 'REAL']
 
 
+def test_les_tables_internes_de_sqlite_recopiees_dans_postgresql_sont_ecartees(tmp_path):
+    src = _source(tmp_path / 'src.sqlite')
+    src.execute('CREATE TABLE stat_zz (tbl TEXT, idx TEXT, stat TEXT)')
+    tables = dict(TABLES, sqlite_stat1=[('tbl', 'text'), ('idx', 'text'), ('stat', 'text')])
+    assert set(cp.tables_a_copier(tables)) == set(TABLES)
+    assert cp.copier(src, str(tmp_path / 'copie.sqlite'), cp.tables_a_copier(tables))['cle'] == 1
+
+
 def test_une_copie_interrompue_ne_laisse_pas_de_base_a_moitie_faite(tmp_path):
     src = _source(tmp_path / 'src.sqlite')
     sortie = tmp_path / 'copie.sqlite'
