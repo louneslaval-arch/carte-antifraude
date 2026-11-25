@@ -177,3 +177,32 @@ def test_precalcul_a_3_liens_sur_plusieurs_processus_garde_les_memes_alertes(bas
                           for r, v in ch.items()}  # noqa: E731
     assert alertes(court) == alertes(complet)
     assert all(c['longueur'] <= 3 for v in court.values() for c in v)
+
+
+def test_a_la_demande_le_site_demarre_sans_calcul_et_la_fiche_a_ses_chemins(base):
+    """CARTE_CHEMINS_A_LA_DEMANDE : aucun chemin calculé au démarrage ; ceux d'un dossier le sont à l'ouverture de la
+    fiche ou du dossier, les mêmes qu'un calcul complet."""
+    import os as _os
+    from app.base_client import BaseClient, fichier_chemins
+    if _os.path.exists(fichier_chemins(base)):
+        _os.remove(fichier_chemins(base))
+    complet = BaseClient(base)
+    paresseux = BaseClient(base, a_la_demande=True)
+    assert paresseux.chemins_dossier == {}
+    personne = next(c for c in paresseux.clients() if c['type'] == 'personne')
+    indice = next(c for c in complet.clients() if c['type'] == 'personne')['indice']
+    f_complet = complet.fiche(indice)
+    f = paresseux.fiche(personne['indice'])
+    assert f['chemins'] and [c['niveau'] for c in f['chemins']] == [c['niveau'] for c in f_complet['chemins']]
+    assert set(paresseux.chemins_dossier) <= set(complet.chemins_dossier)
+    for ref, ch in paresseux.chemins_dossier.items():
+        assert ch == complet.chemins_dossier[ref]
+    d = paresseux.dossier(f['dossiers'][0]['indice'])
+    assert d['chemins']
+
+
+def test_le_reglage_a_la_demande_se_lit_dans_l_environnement():
+    from app.config import lire_reglages
+    env = {'CARTE_CLE_JWT': 'x' * 40, 'CARTE_BASE_URL': 'sqlite:///:memory:'}
+    assert lire_reglages(env).chemins_a_la_demande is False
+    assert lire_reglages(dict(env, CARTE_CHEMINS_A_LA_DEMANDE='1')).chemins_a_la_demande is True

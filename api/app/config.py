@@ -34,6 +34,7 @@ class Reglages:
     flux_base: Optional[str] = None              # base du temps réel où la notification met le dossier en file
     base_client: Optional[str] = None            # base des couches c0 à c5 (lecture seule) pour les pages
     front: Optional[str] = None                  # dossier des pages servies à la racine (aucune ressource externe)
+    chemins_a_la_demande: bool = False           # CARTE_CHEMINS_A_LA_DEMANDE=1 : chemins calculés à l'ouverture d'une fiche
 
 
 def _texte(env, nom):
@@ -75,7 +76,8 @@ def lire_reglages(env: Mapping[str, str] = os.environ) -> Reglages:
         flux_v2_secret=_texte(env, 'CARTE_FLUX_V2_SECRET'),
         flux_base=_texte(env, 'CARTE_FLUX_BASE'),
         base_client=_texte(env, 'CARTE_BASE_CLIENT'),
-        front=_texte(env, 'CARTE_FRONT'))
+        front=_texte(env, 'CARTE_FRONT'),
+        chemins_a_la_demande=env.get('CARTE_CHEMINS_A_LA_DEMANDE') == '1')
     if lus['flux_v2_secret'] and len(lus['flux_v2_secret']) < 32:
         raise ReglageInvalide('CARTE_FLUX_V2_SECRET trop court (32 caractères au moins)')
     # une variable absente garde la valeur par défaut de Reglages : chaque défaut n'est écrit qu'une fois

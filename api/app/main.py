@@ -29,7 +29,8 @@ class Etat:
                             if reglages.publication else None)
         self.publication_globale = (charger(reglages.publication_globale, reglages.donnees_reelles, type='globale')
                                     if reglages.publication_globale else None)
-        self.base_client = BaseClient(reglages.base_client, reglages.donnees_reelles) if reglages.base_client else None
+        self.base_client = BaseClient(reglages.base_client, reglages.donnees_reelles,
+                                      a_la_demande=reglages.chemins_a_la_demande) if reglages.base_client else None
 
 
 def creer_app(reglages: Reglages) -> FastAPI:

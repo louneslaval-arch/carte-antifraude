@@ -15,6 +15,7 @@ import random
 import re
 import sqlite3
 import sys
+import threading
 
 RACINE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if RACINE not in sys.path:
@@ -121,10 +122,11 @@ def lire_chemins_precalcules(chemin_base, epoque):
 
 
 class BaseClient:
-    def __init__(self, chemin, donnees_reelles=False):
+    def __init__(self, chemin, donnees_reelles=False, a_la_demande=False):
         if not os.path.exists(chemin):
             raise FileNotFoundError('base client introuvable')
         self.chemin = chemin
+        self.a_la_demande = a_la_demande
         self.epoque = self._empreinte(chemin)
         cx = self.connexion()
         try:
@@ -172,12 +174,35 @@ class BaseClient:
     def _chemins(self, cx):
         """Chemins de chaque dossier : lus dans le fichier précalculé (`<base>.chemins.json`) s'il a été calculé sur
         cette même base (même époque), sinon calculés ici."""
+        self._verrou = threading.Lock()
+        self._contexte = None
         lus = lire_chemins_precalcules(self.chemin, self.epoque)
         if lus is not None and set(lus) >= set(self.indice_dossier):
             self.chemins_dossier = {ref: lus[ref] for ref in self.indice_dossier}
+        elif self.a_la_demande:
+            self.chemins_dossier = {}                 # calculés dossier par dossier, à l'ouverture d'une fiche
         else:
             self.chemins_dossier = calculer_chemins(cx, list(self.indice_dossier))
         self.niveau_dossier = {ref: (ch[0]['niveau'] if ch else None) for ref, ch in self.chemins_dossier.items()}
+
+    def _chemins_de(self, ref):
+        """Chemins d'un dossier : déjà connus, ou calculés maintenant (mode à la demande) avec un contexte gardé."""
+        if ref in self.chemins_dossier or not self.a_la_demande:
+            return self.chemins_dossier.get(ref, [])
+        with self._verrou:
+            if ref not in self.chemins_dossier:
+                if self._contexte is None:
+                    cx = sqlite3.connect(f'file:{self.chemin}?mode=ro', uri=True, check_same_thread=False)
+                    self._contexte = c5_graphe.Contexte(cx)
+                    # 3 liens au plus : tout ce qui peut alerter (un chemin de 4 liens n'alerte jamais), en quelques
+                    # secondes à l'ouverture d'une fiche même sur le registre entier
+                    p = self._contexte.p
+                    self._contexte.p = dict(p, c5_longueur_recherche=min(3, p['c5_longueur_recherche']))
+                k = self._contexte
+                ch = c5_graphe.chercher(k, c5_graphe._departs(k.cx, ref))
+                self.chemins_dossier[ref] = ch
+                self.niveau_dossier[ref] = ch[0]['niveau'] if ch else None
+        return self.chemins_dossier[ref]
 
     @staticmethod
     def _rang(niveau):
@@ -338,7 +363,7 @@ class BaseClient:
                 f"WHERE v.ref IN ({self._dans(refs_propres)})", refs_propres)] if refs_propres else []
             chemins = []
             for ref in refs:
-                for ch in self.chemins_dossier.get(ref, []):
+                for ch in self._chemins_de(ref):
                     if ref not in propres and self._depart(ch) != fiche:
                         continue                              # chemin d'une autre partie du dossier : pas le sien
                     chemins.append(self._chemin_lisible(cx, ch, ref))
@@ -517,6 +542,8 @@ class BaseClient:
             roles = sorted({LIBELLES_ROLE.get(r, r) for r, in cx.execute(
                 'SELECT DISTINCT role FROM c2_mention WHERE ref = ? AND fiche = ?', (ref, fiche)) if r})
             role = ', '.join(roles) or 'cité'
+        if demandeur:
+            self._chemins_de(ref)                         # à la demande : le niveau du dossier ouvert est calculé
         niveau = self.niveau_dossier.get(ref) if demandeur else None
         propre = (lambda v: v) if demandeur else (lambda v: None)    # ce qui appartient au demandeur ne passe pas
         return dict(indice=self.indice_dossier.get(ref), produit=d['productType'], csp=propre(d['csp']),
@@ -598,7 +625,7 @@ class BaseClient:
                 'SELECT c."controlId" AS controle, c.outcome AS resultat, c.criticality AS criticite '
                 'FROM "AnalysisControl" c JOIN "Dossier" d ON d.id = c."dossierId" WHERE d.ref = ? '
                 'ORDER BY c."controlId"', (ref,))]
-            chemins = [self._chemin_lisible(cx, ch, ref) for ch in self.chemins_dossier.get(ref, [])[:3]]
+            chemins = [self._chemin_lisible(cx, ch, ref) for ch in self._chemins_de(ref)[:3]]
             return dict(indice=indice, entete=entete, pieces=pieces, parties=parties, revenus=revenus, charges=charges,
                         operations=operations, vehicules=vehicules, incoherences=incoherences, controles=controles,
                         chemins=chemins)
