@@ -242,3 +242,28 @@ def test_gerant_et_associe_lus_sur_une_autre_piece_que_la_societe_lui_restent_ra
     v = b.dossier(dossier['indice'])['vue']
     dirigeants = next(x for x in v['vue360']['etoile']['branches'] if x['cle'] == 'dirigeants')
     assert len([l for l in dirigeants['lignes'] if (l.get('lien') or '').startswith('fiche.html?i=')]) == 2
+
+
+def test_le_precalcul_a_les_garde_fous_des_autres_scripts(base, capsys, monkeypatch):
+    from outils import precalculer_chemins as pc
+    monkeypatch.delenv('CARTE_DONNEES_REELLES', raising=False)
+    assert pc.main(['--base', base]) == 2                                   # sans le garde-fou des données réelles
+    assert 'CARTE_DONNEES_REELLES' in capsys.readouterr().err
+    assert pc.main(['--base', os.path.join(RACINE, 'jeu_essai', 'sortie', 'zz_base.sqlite')]) == 2
+    assert 'hors du dépôt' in capsys.readouterr().err
+
+
+def test_a_la_demande_le_resume_ne_publie_pas_les_niveaux(base):
+    """Chemins calculés à l'ouverture des fiches : un compte par niveau changerait à chaque fiche ouverte par un
+    analyste, et dirait à un autre rôle le niveau du dossier consulté. Le résumé les dit indisponibles."""
+    import os as _os
+    from app.base_client import BaseClient, fichier_chemins
+    if _os.path.exists(fichier_chemins(base)):
+        _os.remove(fichier_chemins(base))
+    b = BaseClient(base, a_la_demande=True)
+    avant = b.resume()
+    b.fiche(next(c for c in b.clients() if c['type'] == 'personne')['indice'])
+    apres = b.resume()
+    assert avant == apres
+    assert apres['niveaux'] == [] and apres['dossiers_lies'] is None and apres['niveaux_disponibles'] is False
+    assert BaseClient(base).resume()['niveaux_disponibles'] is True

@@ -180,9 +180,11 @@ class BaseClient:
         self._verrou = threading.Lock()
         self._contexte = None
         lus = lire_chemins_precalcules(self.chemin, self.epoque)
+        self.chemins_complets = True              # faux seulement à la demande sans fichier précalculé
         if lus is not None and set(lus) >= set(self.indice_dossier):
             self.chemins_dossier = {ref: lus[ref] for ref in self.indice_dossier}
         elif self.a_la_demande:
+            self.chemins_complets = False
             self.chemins_dossier = {}                 # calculés dossier par dossier, à l'ouverture d'une fiche
         else:
             self.chemins_dossier = calculer_chemins(cx, list(self.indice_dossier))
@@ -247,12 +249,16 @@ class BaseClient:
     # ---- résumé (aucun nom) ----------------------------------------------------------------------------------------
     def resume(self):
         fixe = self._lire_une_fois('resume', self._resume_fixe)
+        if not self.chemins_complets:
+            # chemins calculés à l'ouverture des fiches : un compte par niveau changerait à chaque fiche ouverte, et
+            # dirait à un autre rôle le niveau du dossier consulté ; il n'est pas publié
+            return dict(fixe['chiffres'], fictive=self.fictive, niveaux_disponibles=False, dossiers_lies=None, niveaux=[])
         niveaux = {}
         for ref, niveau in list(self.niveau_dossier.items()):     # à la demande : grandit au fil des fiches ouvertes
             if ref in fixe['actifs']:
                 niveaux[niveau] = niveaux.get(niveau, 0) + 1
         return dict(
-            fixe['chiffres'], fictive=self.fictive, dossiers_lies=compte(niveaux.get('critique', 0) + niveaux.get('majeure', 0)),
+            fixe['chiffres'], fictive=self.fictive, niveaux_disponibles=True, dossiers_lies=compte(niveaux.get('critique', 0) + niveaux.get('majeure', 0)),
             niveaux=masquer_groupe([dict(niveau=n or 'aucun', libelle=LIBELLES_NIVEAU[n], nombre=compte(niveaux.get(n, 0)))
                                     for n in (*NIVEAUX, None)]))
 

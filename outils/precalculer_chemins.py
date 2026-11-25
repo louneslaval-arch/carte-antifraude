@@ -3,8 +3,9 @@
 
 Sur un grand registre, la recherche des chemins prend longtemps ; l'API la faisait à chaque démarrage. Ce script la
 fait une fois, en montrant sa progression, et l'écrit à côté de la base (`<base>.chemins.json`, avec l'empreinte de
-la base) : l'API le lit au démarrage tant que la base n'a pas changé. Le fichier ne contient que des identifiants
-internes de fiche, des codes de lien et des nombres, aucun nom.
+la base) : l'API le lit au démarrage tant que la base n'a pas changé. Le fichier contient les références des dossiers
+(ses clés), des identifiants internes de fiche, des codes de lien et des nombres, aucun nom : il se range, comme la
+base, hors du dépôt. Sortie console : comptages seulement.
 
 - `--longueur 3` : chemins de 3 liens au plus. Un chemin de 4 liens ou plus ne donne jamais d'alerte (règle du score,
   décision n°20 : « calculé à la demande, affiché en gris ») ; les niveaux critique, majeure et mineure sont les mêmes
@@ -99,6 +100,12 @@ def main(argv=None):
     ap.add_argument('--longueur', type=int, help='longueur maximale des chemins (3 : tout ce qui peut alerter)')
     ap.add_argument('--processus', type=int, default=1, help='nombre de processus de calcul')
     a = ap.parse_args(argv)
+    if os.path.realpath(a.base).startswith(os.path.realpath(RACINE) + os.sep):
+        print('arrêt : la base client se range hors du dépôt (par exemple dans ~/antifraude-donnees)', file=sys.stderr)
+        return 2
+    if os.environ.get('CARTE_DONNEES_REELLES') != '1':
+        print('arrêt : données réelles : la commande doit commencer par CARTE_DONNEES_REELLES=1', file=sys.stderr)
+        return 2
     if not os.path.exists(a.base):
         print('arrêt : base introuvable', file=sys.stderr)
         return 2
