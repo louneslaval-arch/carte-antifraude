@@ -321,9 +321,13 @@ class Contexte:
             poids, plafond, regle = self.rapprochements[(u, voisin)]
             sortie.append((voisin, 1, poids, dict(type='rapprochement', code=regle, de=u, vers=voisin), plafond,
                            False, None))
-        return sortie + self.liens_homonymes(u)
+        return sortie + self._homonymes(u)
 
     def liens_homonymes(self, u):
+        """Les seuls liens d'homonymie d'une fiche (lus en mémoire, sans requête)."""
+        return self._homonymes(u)
+
+    def _homonymes(self, u):
         sortie = []
         for voisin in sorted(self.voisins_homonymes.get(u, ())):
             fiabilite, a_lever, regle = self.homonymies[(u, voisin)]
@@ -389,8 +393,11 @@ def chercher(k, departs):
                     meilleurs[u] = candidat
             if not origine:
                 continue                                  # on s'arrête au premier inscrit atteint
-        # fiche trop chargée pour être traversée : seules restent les homonymies qui rejoignent un inscrit (sans coût)
-        liens = k.liens_homonymes(u) if not bout and k.infranchissable(u) else k.liens(u)
+        # Seules les homonymies (0 lien, sans coût vers un inscrit) peuvent encore donner un chemin quand : la longueur
+        # maximale est atteinte ; ou la fiche, traversée, ferait passer tout lien sous le seuil d'affichage (trop
+        # chargée, ou chemin déjà trop faible). Ses autres voisins ne sont alors pas lus : même résultat, bien plus vite.
+        trop_faible = not bout and force * cout(k.n(u)) * k.borne_poids() < plancher
+        liens = k.liens_homonymes(u) if longueur >= limite or trop_faible else k.liens(u)
         for voisin, ajout, poids, etape, plafond_lien, foyer_lien, noeud in liens:
             homonymie = etape['type'] == 'homonymie'
             vers_inscrit = voisin in k.inscrits

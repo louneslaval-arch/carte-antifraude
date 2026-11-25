@@ -141,8 +141,9 @@ def test_des_chemins_calcules_sur_une_autre_version_de_la_base_sont_ignores(base
     assert any(BaseClient(base).chemins_dossier.values())
 
 
-def test_les_noeuds_trop_charges_ne_changent_aucun_chemin(base, tmp_path):
-    """Coupure des nœuds de plus de 800 liens (√(2/n) sous le seuil d'affichage) : mêmes chemins qu'en les lisant."""
+def test_les_coupures_de_la_recherche_ne_changent_aucun_chemin(base, tmp_path, monkeypatch):
+    """Coupures (nœud de plus de 800 liens, chemin déjà trop faible, longueur maximale atteinte) : mêmes chemins
+    qu'en lisant tous les voisins de chaque fiche, sur une base où trois nœuds sont très chargés."""
     import shutil
     from app.base_client import calculer_chemins
     from pipeline.couches import c5_graphe as g
@@ -153,11 +154,26 @@ def test_les_noeuds_trop_charges_ne_changent_aucun_chemin(base, tmp_path):
     cx.commit()
     refs = [r for (r,) in cx.execute('SELECT ref FROM c3_dossier ORDER BY ref')]
     avec = calculer_chemins(cx, refs)
-    d_origine = g.Contexte.infranchissable
-    try:
-        g.Contexte.infranchissable = lambda self, n: False
-        sans = calculer_chemins(cx, refs)
-    finally:
-        g.Contexte.infranchissable = d_origine
-    assert avec == sans
+    for longueur in (4, 3, 2, 1):
+        from outils import precalculer_chemins as pc
+        court = pc.chemins(copie, longueur=longueur)
+        with monkeypatch.context() as m:
+            m.setattr(g.Contexte, 'infranchissable', lambda self, n: False)
+            m.setattr(g.Contexte, 'borne_poids', lambda self: float('inf'))
+            m.setattr(g.Contexte, 'liens_homonymes', lambda self, u: self.liens(u))
+            if longueur == 4:
+                assert calculer_chemins(cx, refs) == avec
+            assert pc.chemins(copie, longueur=longueur) == court, longueur
     cx.close()
+
+
+def test_precalcul_a_3_liens_sur_plusieurs_processus_garde_les_memes_alertes(base, tmp_path):
+    """Un chemin de 4 liens ou plus n'alerte jamais : à 3 liens, mêmes niveaux d'alerte ; en parallèle, même résultat."""
+    from outils import precalculer_chemins as pc
+    complet = pc.chemins(base)
+    court = pc.chemins(base, longueur=3)
+    assert pc.chemins(base, longueur=3, processus=2, paquet=1) == court
+    alertes = lambda ch: {r: [(c['cible'], c['niveau']) for c in v if c['niveau'] in ('critique', 'majeure', 'mineure')]
+                          for r, v in ch.items()}  # noqa: E731
+    assert alertes(court) == alertes(complet)
+    assert all(c['longueur'] <= 3 for v in court.values() for c in v)
