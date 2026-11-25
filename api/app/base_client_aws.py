@@ -305,17 +305,33 @@ class BaseClient:
             # Signaux issus des rapprochements AWS : ne jamais exposer cible_id,
             # cle_valeur ni les identifiants internes dans la réponse du graphe.
             signaux = cx.execute(
-                'SELECT lien_id, identite_id, regle, niveau FROM af_lien '
-                'WHERE identite_id = ANY(%s) ORDER BY lien_id LIMIT %s',
+                'SELECT l.identite_id, l.regle, l.niveau, l.cible, '
+                'b.entite_id AS bl_id, b.nom_affiche AS bl_nom, b.type_entite AS bl_type '
+                'FROM af_lien l LEFT JOIN bl_entite b '
+                "ON l.cible = 'bl_entite' AND l.cible_id = b.entite_id::text "
+                'WHERE l.identite_id = ANY(%s) '
+                "ORDER BY CASE WHEN l.cible = 'bl_entite' THEN 0 ELSE 1 END, l.lien_id "
+                'LIMIT %s',
                 (list(connus), max(0, limite - len(noeuds)))).fetchall()
+            noeuds_bl = {}
             for s in signaux:
                 ident = s['identite_id']
                 if ident not in connus:
                     continue
-                signal_id = f"signal{len(noeuds)}"
                 code = s['regle'] or 'signal'
-                noeuds.append(dict(id=signal_id, type='identifiant', nom=f'Signal {code}',
-                                   niveau=connus[ident] + 1, inscrit=False, depart=False))
+                if s['cible'] == 'bl_entite' and s['bl_id'] is not None:
+                    # Indice opaque de réponse : aucune clé interne / cible_id ne sort.
+                    if s['bl_id'] not in noeuds_bl:
+                        signal_id = f"liste_noire{len(noeuds_bl)}"
+                        noeuds_bl[s['bl_id']] = signal_id
+                        noeuds.append(dict(id=signal_id, type=_type_identite(s['bl_type']),
+                                           nom=s['bl_nom'] or 'Entité de la liste noire',
+                                           niveau=connus[ident] + 1, inscrit=True, depart=False))
+                    signal_id = noeuds_bl[s['bl_id']]
+                else:
+                    signal_id = f"signal{len(noeuds)}"
+                    noeuds.append(dict(id=signal_id, type='identifiant', nom=f'Signal {code}',
+                                       niveau=connus[ident] + 1, inscrit=False, depart=False))
                 liens.append(dict(de=self.indice_fiche[ident], vers=signal_id, code=code))
             uniques = list({(l['de'], l['vers'], l['code']): l for l in liens}.values())
             return dict(noeuds=noeuds, liens=uniques)
