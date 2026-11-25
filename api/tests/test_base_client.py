@@ -561,3 +561,74 @@ def test_meme_rc_dans_un_autre_tribunal_n_est_pas_la_meme_societe(client_avec, c
         r = c.get(f'/api/base/carte/{etat.base_client.indice_fiche[fiche]}')
         assert r.status_code == 404 or r.json()['indice'] != i
 
+
+
+# ---- vitesse : les vues lourdes sont lues une fois, la fiche passe par les index ----------------------------------------
+def _vues_directes(base):
+    """Ce que la base client lisait avant dans les vues, requête par requête : la référence des lectures gardées."""
+    cx = sqlite3.connect(base)
+    inc = {}
+    for ref, t, g, ref_b in cx.execute('SELECT ref, type, gravite, ref_b FROM c3_incoherence'):
+        inc.setdefault(ref, []).append((t, g, ref_b))
+    dem = set(cx.execute('SELECT ref, fiche FROM c3_demandeur'))
+    return cx, inc, dem
+
+
+def test_les_lectures_gardees_en_memoire_sont_celles_des_vues(base_demo):
+    from app.base_client import BaseClient
+    b = BaseClient(base_demo)
+    cx, inc, dem = _vues_directes(base_demo)
+    assert inc, 'le jeu de démonstration doit porter des incohérences'
+    assert {r: sorted(v) for r, v in b._incoherences_par_ref().items()} == {r: sorted(v) for r, v in inc.items()}
+    assert b._demandeurs()[0] == dem
+
+
+def test_l_entite_lue_par_les_index_est_celle_des_vues(base_demo):
+    from app.base_client import BaseClient
+    b = BaseClient(base_demo)
+    cx, _, _ = _vues_directes(base_demo)
+    salaries = [f for f, in cx.execute("SELECT DISTINCT fiche FROM c2_role WHERE role = 'employe'")]
+    societes = [f for f, in cx.execute('SELECT identifiant FROM c2_societe')]
+    assert salaries and societes
+    lecture = b.connexion()
+    for f in salaries:
+        attendu = cx.execute(
+            "SELECT max(n) FROM (SELECT count(DISTINCT d.fiche) AS n FROM c2_role r JOIN c2_role e ON "
+            "e.societe = r.societe AND e.role = 'employe' JOIN c3_demandeur d ON d.fiche = e.fiche "
+            "WHERE r.fiche = ? AND r.role = 'employe' GROUP BY r.societe) x", (f,)).fetchone()[0]
+        assert b._entite(lecture, f, 'salarie') == dict(employeur_clients=attendu)
+    avec_soeurs = 0
+    for f in societes:
+        soeurs = [n for n, in cx.execute(
+            "SELECT DISTINCT s.denomination FROM c2_role a JOIN c2_role b ON b.fiche = a.fiche AND b.societe <> a.societe "
+            "JOIN c2_societe s ON s.identifiant = b.societe WHERE a.societe = ? AND s.denomination IS NOT NULL "
+            "AND s.denomination <> coalesce((SELECT denomination FROM c2_societe WHERE identifiant = a.societe), '') "
+            "ORDER BY 1 LIMIT 50", (f,))]
+        avec_soeurs += bool(soeurs)
+        assert b._entite(lecture, f, 'pm')['soeurs'] == soeurs
+    assert avec_soeurs, 'le jeu de démonstration doit porter des sociétés sœurs'
+
+
+def test_la_page_et_la_fiche_ne_relisent_pas_les_vues_lourdes(base_demo):
+    """Base en lecture seule : incohérences, demandeurs et chiffres du résumé sont calculés une fois ; ensuite ni la page
+    (résumé, liste) ni une fiche ni un dossier ne relisent ces vues, ni ne croisent la vue des rôles avec elle-même."""
+    from app.base_client import BaseClient
+    b = BaseClient(base_demo)
+    lues = []
+    ouvrir = b.connexion
+
+    def tracee():
+        cx = ouvrir()
+        cx.set_trace_callback(lues.append)
+        return cx
+    b.connexion = tracee
+    b.resume()
+    clients = b.clients()
+    lues.clear()
+    assert b.resume() and b.rechercher(page=1)['items']
+    for c in clients[:15]:
+        f = b.fiche(c['indice'])
+        for d in f['dossiers'][:2]:
+            b.dossier(d['indice'])
+    lourdes = [q for q in lues if 'c3_incoherence' in q or 'c3_demandeur' in q or re.search(r'c2_role \w+ JOIN c2_role', q)]
+    assert lues and lourdes == []
