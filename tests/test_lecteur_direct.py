@@ -196,13 +196,44 @@ def test_sans_adresse_de_la_base_le_lecteur_s_arrete_sans_rien_citer(tmp_path, c
     assert 'CARTE_SOURCE_PG' in capsys.readouterr().err
 
 
-def test_l_adresse_de_la_base_n_apparait_jamais_dans_une_erreur(tmp_path, capsys, monkeypatch):
+def test_l_adresse_de_la_base_n_apparait_jamais_dans_une_erreur(capsys):
     adresse = 'host=127.0.0.1 port=1 dbname=zzbase user=zzcompte password=zzsecret connect_timeout=1'
-    monkeypatch.setenv('CARTE_SOURCE_PG', adresse)
-    assert ld.main(['--base', str(tmp_path / 'carte.sqlite')]) == 1
+    with pytest.raises(ld.ConnexionImpossible) as erreur:
+        ld.ouvrir_source(adresse)
+    assert erreur.value.__cause__ is None and erreur.value.__suppress_context__
     sortie = capsys.readouterr()
     for morceau in ('zzbase', 'zzcompte', 'zzsecret', '127.0.0.1'):
-        assert morceau not in sortie.out + sortie.err
+        assert morceau not in str(erreur.value) + sortie.out + sortie.err
+
+
+def test_sans_le_garde_fou_des_donnees_reelles_rien_n_est_lu(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv('CARTE_SOURCE_PG', 'host=127.0.0.1 port=1 dbname=zzbase connect_timeout=1')
+    monkeypatch.delenv('CARTE_DONNEES_REELLES', raising=False)
+    assert ld.main(['--base', str(tmp_path / 'carte.sqlite')]) == 2
+    assert ld.main(['--compter']) == 2
+    assert 'CARTE_DONNEES_REELLES' in capsys.readouterr().err
+    assert not (tmp_path / 'carte.sqlite').exists()
+
+
+def test_la_base_de_la_carte_n_est_jamais_ecrite_dans_le_depot(capsys, monkeypatch):
+    monkeypatch.setenv('CARTE_SOURCE_PG', 'host=127.0.0.1 port=1 dbname=zzbase connect_timeout=1')
+    dedans = os.path.join(RACINE, 'jeu_essai', 'sortie', 'zz_carte_lecteur.sqlite')
+    assert ld.main(['--base', dedans]) == 2
+    assert 'hors du dépôt' in capsys.readouterr().err and not os.path.exists(dedans)
+
+
+def test_limite_ne_lit_que_les_dossiers_les_plus_recents(source, cible):
+    dates = sorted((r[0], r[1]) for r in source.execute('SELECT "updatedAt", ref FROM "Dossier"').fetchall())
+    attendues = {ref for _, ref in dates[-50:]}
+    bilan = _lire(source, cible, limite=50)
+    assert bilan['dossiers'] == 50
+    assert {r[0] for r in cible.execute('SELECT ref FROM "Dossier"').fetchall()} == attendues
+
+
+def test_compter_rend_le_nombre_de_lignes_de_chaque_table_sans_rien_ecrire(source):
+    avant = miroir(source)
+    assert ld.compter(source) == {t: len(avant[t]) for t in TABLES_MIROIR}
+    assert miroir(source) == avant
 
 
 # ---- PostgreSQL réel (base d'essai vide, désignée par CARTE_PG_ESSAI) ----------------------------------------------

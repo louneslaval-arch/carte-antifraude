@@ -13,8 +13,9 @@ réponse du collecteur : versions brutes, miroir, couches au-dessus, flux = lot,
 - Connexion en lecture seule ; l'adresse vient de `CARTE_SOURCE_PG` et n'apparaît jamais dans une sortie. Console :
   comptages seulement, jamais une référence ni un contenu de dossier.
 
-Usage : CARTE_SOURCE_PG='host=… dbname=… user=…' python -m flux.lecteur_direct --base CHEMIN [--depuis DATE]
-(mot de passe dans ~/.pgpass ou PGPASSWORD, jamais dans le dépôt).
+Usage, par Lounès seulement, hors de Claude Code (garde-fou des données réelles exigé, base cible hors du dépôt) :
+CARTE_SOURCE_PG='host=… dbname=… user=…' python -m flux.lecteur_direct --base CHEMIN [--limite N] [--depuis DATE]
+ou --compter à la place de --base (nombre de lignes par table, rien n'est écrit) ; mot de passe dans ~/.pgpass.
 """
 import argparse
 import datetime
@@ -109,11 +110,19 @@ def _detail(dossier, pieces, analyses, controles, relectures):
     return d
 
 
-def dossiers(source, depuis=None, lot=500):
-    """Chaque dossier de la base, sous la forme de `DossierDetail`, par ordre de référence."""
+def compter(source):
+    """Nombre de lignes de chacune des tables lues ; rien n'est écrit."""
+    return {t: source.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0] for t in COLONNES}
+
+
+def dossiers(source, depuis=None, limite=None, lot=500):
+    """Chaque dossier de la base, sous la forme de `DossierDetail`, par ordre de référence. `limite` : seulement
+    les `limite` dossiers mis à jour le plus récemment."""
     condition, parametres = ('"updatedAt" >= ' + _marque(source), (depuis,)) if depuis else ('', ())
-    texte = 'SELECT "id" FROM "Dossier"' + (f' WHERE {condition}' if condition else '') + ' ORDER BY "ref"'
-    tous = [r[0] for r in source.execute(texte, parametres).fetchall()]
+    texte = 'SELECT "id", "ref" FROM "Dossier"' + (f' WHERE {condition}' if condition else '')
+    if limite is not None:
+        texte += f' ORDER BY "updatedAt" DESC, "ref" DESC LIMIT {int(limite)}'
+    tous = [r[0] for r in sorted(source.execute(texte, parametres).fetchall(), key=lambda r: r[1])]
     for k in range(0, len(tous), lot):
         identifiants = tous[k:k + lot]
         condition = f'"id" IN ({", ".join([_marque(source)] * len(identifiants))})'
@@ -126,10 +135,10 @@ def dossiers(source, depuis=None, lot=500):
                               enfants['Reanalysis'][i])
 
 
-def lire(source, cx, passage, depuis=None, maintenant=None, lot=500):
+def lire(source, cx, passage, depuis=None, limite=None, maintenant=None, lot=500):
     """Lit la base de l'antifraude et passe chaque dossier à la couche 0. Rend des comptages."""
     bilan = dict(dossiers=0, versions_nouvelles=0, miroir_refuse=0, illisibles=0)
-    for detail in dossiers(source, depuis=depuis, lot=lot):
+    for detail in dossiers(source, depuis=depuis, limite=limite, lot=lot):
         bilan['dossiers'] += 1
         actif = detail.pop('actif', True)
         try:
@@ -142,41 +151,73 @@ def lire(source, cx, passage, depuis=None, maintenant=None, lot=500):
     return bilan
 
 
-def _connecter(adresse):
-    import psycopg
-    cx = psycopg.connect(adresse, options='-c default_transaction_read_only=on', connect_timeout=15)
-    cx.read_only = True
-    return cx
+class ConnexionImpossible(Exception):
+    """La base de l'antifraude ne répond pas. Le message ne donne que le type de l'erreur, jamais l'adresse."""
+
+
+def ouvrir_source(adresse):
+    """Connexion en lecture seule ; une erreur ne cite ni l'adresse, ni le compte, ni le mot de passe."""
+    try:
+        import psycopg
+        cx = psycopg.connect(adresse, options='-c default_transaction_read_only=on', connect_timeout=15)
+        cx.read_only = True
+        return cx
+    except Exception as e:                            # noqa: BLE001  le message d'origine peut citer l'adresse
+        raise ConnexionImpossible(type(e).__name__) from None
+
+
+def _dans_le_depot(chemin):
+    return os.path.realpath(chemin).startswith(os.path.realpath(RACINE) + os.sep)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument('--base', required=True, help='base de la carte (SQLite) à remplir')
+    action = ap.add_mutually_exclusive_group(required=True)
+    action.add_argument('--base', help='base de la carte (SQLite) à remplir, hors du dépôt')
+    action.add_argument('--compter', action='store_true', help='compter les lignes des tables, sans rien écrire')
     ap.add_argument('--depuis', help='seulement les dossiers mis à jour depuis cette date (ISO)')
+    ap.add_argument('--limite', type=int, help='seulement les N dossiers mis à jour le plus récemment')
     a = ap.parse_args(argv)
     adresse = os.environ.get('CARTE_SOURCE_PG')
     if not adresse:
         print('arrêt : variable absente : CARTE_SOURCE_PG', file=sys.stderr)
         return 2
+    if a.base and _dans_le_depot(a.base):
+        print('arrêt : la base de la carte se range hors du dépôt (par exemple dans ~/antifraude-donnees)',
+              file=sys.stderr)
+        return 2
+    if os.environ.get('CARTE_DONNEES_REELLES') != '1':
+        print('arrêt : données réelles : la commande doit commencer par CARTE_DONNEES_REELLES=1', file=sys.stderr)
+        return 2
     try:
-        source = _connecter(adresse)
-    except Exception as e:                            # noqa: BLE001  le message peut citer l'adresse : son type seul
-        print(f'arrêt : connexion à la base de l’antifraude impossible ({type(e).__name__})', file=sys.stderr)
+        source = ouvrir_source(adresse)
+    except ConnexionImpossible as e:
+        print(f'arrêt : connexion à la base de l’antifraude impossible ({e})', file=sys.stderr)
         return 1
-    cx = sqlite3.connect(a.base)
     try:
-        cx.execute('PRAGMA journal_mode = WAL')
-        cx.execute('PRAGMA foreign_keys = ON')
-        migrer.appliquer(cx)
-        passage = c0.ouvrir_passage(cx, 'base antifraude', 'lecture_directe')
+        if a.compter:
+            try:
+                comptes = compter(source)
+            except Exception as e:                    # noqa: BLE001  jamais de contenu ni d'adresse dans la sortie
+                print(f'arrêt : lecture des tables impossible ({type(e).__name__})', file=sys.stderr)
+                return 1
+            print('connexion réussie ; ' + ' ; '.join(f'{t} : {n}' for t, n in comptes.items()))
+            return 0
+        cx = sqlite3.connect(a.base)
         try:
-            bilan = lire(source, cx, passage, depuis=a.depuis)
-        except Exception as e:                        # noqa: BLE001  jamais de contenu ni d'adresse dans la sortie
-            print(f'arrêt : lecture interrompue ({type(e).__name__})', file=sys.stderr)
-            return 1
-        c0.fermer_passage(cx, passage, bilan['dossiers'], bilan['versions_nouvelles'])
+            cx.execute('PRAGMA journal_mode = WAL')
+            cx.execute('PRAGMA foreign_keys = ON')
+            migrer.appliquer(cx)
+            passage = c0.ouvrir_passage(cx, 'base antifraude', 'lecture_directe')
+            try:
+                bilan = lire(source, cx, passage, depuis=a.depuis, limite=a.limite)
+            except Exception as e:                    # noqa: BLE001  jamais de contenu ni d'adresse dans la sortie
+                print(f'arrêt : lecture interrompue ({type(e).__name__})', file=sys.stderr)
+                return 1
+            c0.fermer_passage(cx, passage, bilan['dossiers'], bilan['versions_nouvelles'])
+        finally:
+            cx.close()
     finally:
-        cx.close()
         source.close()
     print(' ; '.join(f'{k} : {v}' for k, v in bilan.items()))
     return 0
