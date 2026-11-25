@@ -5,15 +5,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { el, api, nombre, montant, date } = Commun;
   Commun.entete('base.html');
   const main = document.getElementById('contenu');
-  const indice = Commun.parametre('i');
-  let f;
+  // Deux usages : la vue 360° d'un client (fiche.html) et celle d'un dossier (dossier.html, data-vue="dossier") : l'étoile
+  // de son demandeur, remplie des seules données de ce dossier, avec l'en-tête du dossier au-dessus.
+  const modeDossier = document.body.dataset.vue === 'dossier';
+  let indice = Commun.parametre('i');
+  let f, d = null;
   try {
-    f = await api(`/api/base/clients/${encodeURIComponent(indice)}`);
+    if (modeDossier) { d = await api(`/api/base/dossiers/${encodeURIComponent(indice)}`); f = d.vue; }
+    else f = await api(`/api/base/clients/${encodeURIComponent(indice)}`);
   } catch (e) {
-    main.replaceChildren(el('p', { classe: 'carte', role: 'alert', texte: Commun.erreur(e, 'Fiche') }));
+    main.replaceChildren(el('p', { classe: 'carte', role: 'alert', texte: Commun.erreur(e, modeDossier ? 'Dossier' : 'Fiche') }));
     main.removeAttribute('aria-busy');
     return;
   }
+  if (modeDossier && !f) { window.VueDossierSimple(d, main); main.removeAttribute('aria-busy'); return; }
+  if (modeDossier) indice = String(d.client);                 // l'étoile est celle du demandeur
   const id = f.identite;
   const v = f.vue360 || { profil: id.type === 'personne' ? 'salarie' : 'pm', retraite: false, csp: null, aussi: [],
     revenus: { declare: null, pieces: {}, ecart: null }, controles: [] };
@@ -50,15 +56,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Tout est sur les plaques de l'étoile ; restent repliées les seules données brutes (contrôles un par un, opérations
   // des relevés, pièces champ par champ).
   const detail = el('details', { classe: 'detail-antifraude' },
-    el('summary', { texte: 'Données brutes' }), B.controles(), operations, toutesLesDonnees());
+    el('summary', { texte: 'Données brutes' }), modeDossier ? partiesDuDossier() : null, B.controles(), operations,
+    toutesLesDonnees());
 
   // Vue en étoile (23/11/2026) : au centre une silhouette (personne) ou un immeuble (société), ses informations autour.
   // Une personne ou une société citée dans une bulle se déplie en une nouvelle étoile, reliée à celle d'où elle part ;
   // et ainsi de suite (une chaîne).
   const chaine = el('div', { classe: 'constellation' });
   const sources = new Map();                                 // étoile dépliée → ligne de la bulle d'où elle part
-  main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
-    chaine, detail].filter(Boolean));
+  const fil = modeDossier
+    ? el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ` › Dossier ${d.entete.reference}`)
+    : el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°');
+  main.replaceChildren(...[fil, modeDossier ? enteteDossier() : null, chaine, detail].filter(Boolean));
   main.removeAttribute('aria-busy');
   if (!v.etoile) chaine.append(vide('Vue 360° indisponible pour cette fiche.'));
   else {
@@ -312,8 +321,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (k === 0) ouvrir();
       return { onglet, ouvrir };
     });
-    return carte('Toutes les données du client',
-      el('p', { classe: 'note', texte: 'Chaque valeur lue dans chaque pièce de chaque dossier.' }),
+    return carte(modeDossier ? 'Toutes les données du dossier' : 'Toutes les données du client',
+      el('p', { classe: 'note', texte: modeDossier ? 'Chaque valeur lue dans chaque pièce du dossier.'
+        : 'Chaque valeur lue dans chaque pièce de chaque dossier.' }),
       f.donnees.length ? [navigation, volets] : vide('Aucun dossier.'));
   }
   function voletDossier(x) {
@@ -335,6 +345,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     return el('div', { classe: 'pile' },
       el('div', {}, el('h3', { texte: 'Contexte déclaré' }), contexte, lien),
       el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces));
+  }
+  // ---- vue d'un dossier : son en-tête et ses parties ---------------------------------------------------------------
+  function enteteDossier() {
+    const e = d.entete;
+    const faits = [e.produit, e.recu ? `reçu le ${date(e.recu)}` : null, e.ville, e.revenu_declare ? `revenu déclaré ${montant(e.revenu_declare)}` : null,
+      e.verdict ? `verdict de la v2 : ${lib(e.verdict)}` : null, e.analyse && e.analyse !== 'COMPLETE' ? `analyse : ${lib(e.analyse)}` : null]
+      .filter(Boolean);
+    const autres = f.dossiers.length - 1;
+    return el('section', { classe: 'carte dossier-entete' },
+      el('div', { classe: 'chemin-entete' },
+        e.actif ? null : el('span', { classe: 'etiquette', texte: 'archivé' }),
+        e.niveau ? el('span', { classe: `etiquette${['critique', 'majeure'].includes(e.niveau) ? ' etiquette-rouge' : ''}`, texte: e.niveau_libelle }) : null,
+        e.incoherences ? el('span', { classe: 'etiquette', texte: `${nombre(e.incoherences)} incohérence(s)` }) : null),
+      el('h1', { texte: `Dossier ${e.reference}` }),
+      el('p', { classe: 'sous-titre', texte: faits.join(' · ') }),
+      el('p', {}, el('a', { href: `fiche.html?i=${d.client}`,
+        texte: autres > 0 ? `Voir le client et ses ${nombre(autres)} autre(s) dossier(s)` : 'Voir la fiche du client' })));
+  }
+  function partiesDuDossier() {
+    return carte('Parties du dossier', tableau(['Nom', 'Rôle', ''], d.parties.map(p =>
+      [Commun.lienFiche(p), p.role, p.demandeur ? el('span', { classe: 'etiquette', texte: 'demandeur' }) : ''])));
   }
   function lib(s) { return String(s).toLowerCase().replaceAll('_', ' '); }
   function lienDossier(i) { return i ? el('a', { href: `dossier.html?i=${i}`, texte: 'Ouvrir' }) : '—'; }

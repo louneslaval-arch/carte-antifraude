@@ -76,7 +76,7 @@ def masquer_groupe(lignes, cle='nombre'):
     return lignes
 
 
-def trier(lignes, tri):
+def trier(lignes, tri, date='derniere_demande', revenu='revenu'):
     """Ordre de la liste des clients. « gravite » : l'ordre calculé par `clients()` (niveau, incohérences, nom).
     Les autres : la clé choisie, puis le nom ; une valeur absente (date, revenu) va toujours en fin de liste."""
     if tri == 'gravite':
@@ -86,7 +86,7 @@ def trier(lignes, tri):
         return sorted(lignes, key=lambda c: (nom(c), c['indice']), reverse=tri == 'alpha_inverse')
     if tri == 'dossiers':
         return sorted(lignes, key=lambda c: (-c['dossiers'], nom(c)))
-    cle = {'recent': 'derniere_demande', 'ancien': 'derniere_demande', 'revenu': 'revenu'}[tri]
+    cle = {'recent': date, 'ancien': date, 'revenu': revenu}[tri]
     presents = [c for c in lignes if c[cle] is not None]
     absents = sorted((c for c in lignes if c[cle] is None), key=nom)
     presents.sort(key=nom)                                   # à valeur égale, ordre alphabétique (tri stable)
@@ -127,6 +127,7 @@ class BaseClient:
             raise FileNotFoundError('base client introuvable')
         self.chemin = chemin
         self.a_la_demande = a_la_demande
+        self.fictive = not donnees_reelles
         self._verrou_lectures = threading.RLock()       # le résumé lit lui-même les incohérences et les demandeurs
         self._lectures = {}                       # vues lourdes lues une fois : la base est ouverte en lecture seule
         self.epoque = self._empreinte(chemin)
@@ -251,7 +252,7 @@ class BaseClient:
             if ref in fixe['actifs']:
                 niveaux[niveau] = niveaux.get(niveau, 0) + 1
         return dict(
-            fixe['chiffres'], dossiers_lies=compte(niveaux.get('critique', 0) + niveaux.get('majeure', 0)),
+            fixe['chiffres'], fictive=self.fictive, dossiers_lies=compte(niveaux.get('critique', 0) + niveaux.get('majeure', 0)),
             niveaux=masquer_groupe([dict(niveau=n or 'aucun', libelle=LIBELLES_NIVEAU[n], nombre=compte(niveaux.get(n, 0)))
                                     for n in (*NIVEAUX, None)]))
 
@@ -318,6 +319,55 @@ class BaseClient:
         finally:
             cx.close()
 
+    # ---- liste des dossiers ----------------------------------------------------------------------------------------
+    def liste_dossiers(self):
+        """Une ligne par dossier, avec son demandeur (le premier s'il y en a plusieurs) ; gardée pour le filtrage."""
+        def lire(cx):
+            demandeur = {}
+            for ref, fiche in sorted(self._demandeurs()[0]):
+                demandeur.setdefault(ref, fiche)
+            noms = {}
+            for f in set(demandeur.values()):
+                noms[f] = self._nom(cx, f)
+            sortie = []
+            for ref, produit, recu, ville, actif, revenu, verdict in cx.execute(
+                    'SELECT ref, "productType", "businessReceivedAt", agency_city, actif, declared_monthly_income, '
+                    'verdict FROM c3_dossier'):
+                f = demandeur.get(ref)
+                sortie.append(dict(indice=self.indice_dossier[ref], reference=ref,
+                                   client=self.indice_fiche.get(f) if f else None, nom=noms.get(f) or '—',
+                                   type='societe' if f and f.startswith('pm_') else 'personne', inscrit=f in self.inscrits,
+                                   produit=produit, recu=recu, ville=ville, actif=bool(actif), revenu_declare=revenu,
+                                   verdict=verdict, incoherences=len(self._incoherences_par_ref().get(ref, []))))
+            return sortie
+        lignes = self._lire_une_fois('liste_dossiers', lire)
+        for x in lignes:                                   # le niveau grandit au fil des fiches ouvertes (à la demande)
+            x['niveau'] = self.niveau_dossier.get(self.dossier_de[x['indice']])
+            x['niveau_libelle'] = LIBELLES_NIVEAU[x['niveau']]
+        return lignes
+
+    def rechercher_dossiers(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1,
+                            taille=50, tri='recent'):
+        lignes = [dict(x) for x in self.liste_dossiers()]
+        if texte:
+            t = texte.strip().upper()
+            lignes = [x for x in lignes if t in x['nom'].upper() or t in x['reference'].upper()]
+        if type_:
+            lignes = [x for x in lignes if x['type'] == type_]
+        if niveau:
+            lignes = [x for x in lignes if (x['niveau'] or 'aucun') == niveau]
+        if produit:
+            lignes = [x for x in lignes if x['produit'] == produit]
+        if avec_incoherence:
+            lignes = [x for x in lignes if x['incoherences']]
+        if tri in ('gravite', 'dossiers'):                 # du plus grave au moins grave, puis le plus récent
+            lignes = trier(lignes, 'recent', date='recu', revenu='revenu_declare')
+            lignes.sort(key=lambda x: (self._rang(x['niveau']), -x['incoherences']))
+        else:
+            lignes = trier(lignes, tri, date='recu', revenu='revenu_declare')
+        debut = (page - 1) * taille
+        return dict(total=len(lignes), page=page, taille=taille, items=lignes[debut:debut + taille])
+
     def rechercher(self, texte=None, type_=None, niveau=None, produit=None, avec_incoherence=None, page=1, taille=50,
                    tri='gravite'):
         lignes = self.clients()
@@ -337,7 +387,9 @@ class BaseClient:
         return dict(total=len(lignes), page=page, taille=taille, items=lignes[debut:debut + taille])
 
     # ---- fiche client ----------------------------------------------------------------------------------------------
-    def fiche(self, indice):
+    def fiche(self, indice, seul_dossier=None):
+        """Vue 360° d'une fiche. `seul_dossier` (une ref) : vue 360° de ce dossier, celle de son demandeur remplie des
+        seules données du dossier ; l'historique de ses dossiers reste, pour aller aux autres."""
         fiche = self.fiche_de.get(indice)
         if fiche is None:
             return None
@@ -354,14 +406,16 @@ class BaseClient:
                                'WHERE identifiant = ?', (fiche,)).fetchone()
                 identite = dict(type='societe', nom=r['denomination'], rc=r['rc'], tribunal=r['tribunal'], ice=r['ice'],
                                 adresse=r['adresse'], inscrit=bool(r['inscrit']))
-            refs = [x[0] for x in cx.execute('SELECT DISTINCT ref FROM c2_mention WHERE fiche = ? AND source = ? '
+            tous = [x[0] for x in cx.execute('SELECT DISTINCT ref FROM c2_mention WHERE fiche = ? AND source = ? '
                                              'ORDER BY ref', (fiche, 'v2'))]
+            refs = [seul_dossier] if seul_dossier else tous
             # Dossiers où la fiche est demandeur : tout ce que le dossier dit est à elle. Dossiers où elle est seulement
             # citée (salarié, employeur, vendeur…) : revenus, charges, véhicules, contexte et contrôles appartiennent au
             # demandeur et ne passent pas ; seules les pièces qui la citent sont montrées.
             propres = self._demandeurs()[1].get(fiche, set())
             refs_propres = [r for r in refs if r in propres]
-            dossiers = [self._resume_dossier(cx, ref, fiche, demandeur=ref in propres) for ref in refs]
+            dossiers = [self._resume_dossier(cx, ref, fiche, demandeur=ref in propres, niveau_seul=ref not in refs)
+                        for ref in tous]
             dossiers.sort(key=lambda d: d['recu'] or '', reverse=True)
             alias = [dict(nom=a, ecriture=e, nombre=n) for a, e, n in cx.execute(
                 'SELECT alias, ecriture, sum(nb_mentions) FROM c2_alias WHERE fiche = ? GROUP BY 1, 2 ORDER BY 3 DESC',
@@ -589,7 +643,7 @@ class BaseClient:
             "SELECT coalesce(s.nom, m.nom), m.role, m.parts, m.adresse FROM c2_mention m LEFT JOIN c2_mention s "
             "ON s.id = m.societe_mention WHERE m.fiche = ? AND m.source = 'registre' ORDER BY 1", (fiche,))]
 
-    def _resume_dossier(self, cx, ref, fiche=None, demandeur=True):
+    def _resume_dossier(self, cx, ref, fiche=None, demandeur=True, niveau_seul=False):
         d = cx.execute('SELECT "productType", csp, "paymentMode", verdict, category, "analysisStatus", actif, '
                        '"businessReceivedAt", agency_city, declared_monthly_income FROM c3_dossier WHERE ref = ?',
                        (ref,)).fetchone()
@@ -600,7 +654,7 @@ class BaseClient:
             roles = sorted({LIBELLES_ROLE.get(r, r) for r, in cx.execute(
                 'SELECT DISTINCT role FROM c2_mention WHERE ref = ? AND fiche = ?', (ref, fiche)) if r})
             role = ', '.join(roles) or 'cité'
-        if demandeur:
+        if demandeur and not niveau_seul:             # niveau_seul : le niveau déjà connu, sans le calculer
             self._chemins_de(ref)                         # à la demande : le niveau du dossier ouvert est calculé
         niveau = self.niveau_dossier.get(ref) if demandeur else None
         propre = (lambda v: v) if demandeur else (lambda v: None)    # ce qui appartient au demandeur ne passe pas
@@ -682,9 +736,12 @@ class BaseClient:
                 'FROM "AnalysisControl" c JOIN "Dossier" d ON d.id = c."dossierId" WHERE d.ref = ? '
                 'ORDER BY c."controlId"', (ref,))]
             chemins = [self._chemin_lisible(cx, ch, ref) for ch in self._chemins_de(ref)[:3]]
+            demandeurs = sorted(f for r, f in self._demandeurs()[0] if r == ref)
+            client = self.indice_fiche.get(demandeurs[0]) if demandeurs else None
             return dict(indice=indice, entete=entete, pieces=pieces, parties=parties, revenus=revenus, charges=charges,
                         operations=operations, vehicules=vehicules, incoherences=incoherences, controles=controles,
-                        chemins=chemins)
+                        chemins=chemins, client=client,
+                        vue=self.fiche(client, seul_dossier=ref) if client else None)
         finally:
             cx.close()
 

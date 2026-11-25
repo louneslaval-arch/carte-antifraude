@@ -1,15 +1,7 @@
 'use strict';
-document.addEventListener('DOMContentLoaded', async () => {
-  const { el, api, nombre, montant, date } = Commun;
-  Commun.entete('base.html');
-  const main = document.getElementById('contenu');
-  let d;
-  try {
-    d = await api(`/api/base/dossiers/${encodeURIComponent(Commun.parametre('i'))}`);
-  } catch (e) {
-    main.replaceChildren(el('p', { classe: 'carte', role: 'alert', texte: Commun.erreur(e, 'Dossier') }));
-    return;
-  }
+// Vue simple d'un dossier, quand il n'a pas de demandeur reconnu (pas d'étoile possible) : fiche.js l'appelle.
+window.VueDossierSimple = (d, main) => {
+  const { el, nombre, montant, date } = Commun;
   const e = d.entete;
   const demandeur = d.parties.find(p => p.demandeur);
   const chiffres = el('section', { classe: 'grille grille-3' },
@@ -53,4 +45,4 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('thead', {}, el('tr', {}, entetes.map(t => el('th', { texte: t })))),
       el('tbody', {}, lignes.map(l => el('tr', {}, l.map(c => el('td', {}, c ?? '—')))))));
   }
-});
+};

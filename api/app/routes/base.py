@@ -51,6 +51,22 @@ def clients(demande: Recherche, request: Request, session: Session = Depends(exi
     return resultat
 
 
+@routeur.post('/dossiers')
+def dossiers(demande: Recherche, request: Request, session: Session = Depends(exige('base.clients')),
+             b=Depends(base_client)):
+    """Liste des dossiers (une ligne par dossier, son demandeur nommé) : même droit et même journal que la liste des
+    clients ; le journal garde les indices des demandeurs nommés, jamais la recherche."""
+    etat = request.app.state.etat
+    tri = demande.tri if 'tri' in demande.model_fields_set else 'recent'
+    resultat = b.rechercher_dossiers(demande.texte, demande.type, demande.niveau, demande.produit,
+                                     demande.avec_incoherence, demande.page, demande.taille, tri)
+    indices = sorted({x['client'] for x in resultat['items'] if x['client']})
+    quotas.etiquettes(etat, session, indices, b.epoque)
+    journal.ecrire(etat.base, session.utilisateur, session.role.value, 'recherche', indices, ip=session.ip,
+                   epoque=b.epoque)
+    return resultat
+
+
 def _servir(request, session, action, objet, indice):
     """Une fiche ou un dossier : la consultation compte au quota de fiches ; chaque tiers nommé dans la réponse
     compte au quota d'étiquettes et entre dans le journal (action « noms »), avec l'époque de la base."""

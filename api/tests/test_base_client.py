@@ -632,3 +632,72 @@ def test_la_page_et_la_fiche_ne_relisent_pas_les_vues_lourdes(base_demo):
             b.dossier(d['indice'])
     lourdes = [q for q in lues if 'c3_incoherence' in q or 'c3_demandeur' in q or re.search(r'c2_role \w+ JOIN c2_role', q)]
     assert lues and lourdes == []
+
+
+# ---- organisation par dossier : la liste des dossiers et la vue 360° d'un dossier ---------------------------------------
+def test_liste_des_dossiers_une_ligne_par_dossier_avec_son_demandeur(avec_base, base_demo):
+    cx = sqlite3.connect(base_demo)
+    n_dossiers = cx.execute('SELECT count(*) FROM c3_dossier').fetchone()[0]
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        tout = c.post('/api/base/dossiers', json={'taille': 200}).json()
+        assert tout['total'] == n_dossiers and len(tout['items']) == min(200, n_dossiers)
+        premier = tout['items'][0]
+        assert set(premier) == {'indice', 'reference', 'client', 'nom', 'type', 'inscrit', 'produit', 'recu', 'ville',
+                                'actif', 'revenu_declare', 'verdict', 'niveau', 'niveau_libelle', 'incoherences'}
+        assert all(x['reference'].startswith('ZZ') for x in tout['items'])
+        assert len({x['indice'] for x in tout['items']}) == len(tout['items'])
+        recus = [x['recu'] for x in tout['items'] if x['recu']]
+        assert recus == sorted(recus, reverse=True)                     # par défaut : le plus récent d'abord
+        cible = next(x for x in tout['items'] if x['client'])
+        par_ref = c.post('/api/base/dossiers', json={'texte': cible['reference'].lower()}).json()
+        assert [x['indice'] for x in par_ref['items']] == [cible['indice']]
+        par_nom = c.post('/api/base/dossiers', json={'texte': cible['nom'][:6], 'taille': 200}).json()
+        assert any(x['indice'] == cible['indice'] for x in par_nom['items'])
+        avec = c.post('/api/base/dossiers', json={'avec_incoherence': True, 'taille': 200}).json()
+        assert avec['total'] >= 1 and all(x['incoherences'] for x in avec['items'])
+        noms = [x['nom'].upper() for x in c.post('/api/base/dossiers', json={'taille': 200, 'tri': 'alpha'}).json()['items']]
+        assert noms == sorted(noms)
+        from conftest import tout_le_journal
+        assert cible['nom'][:6] not in tout_le_journal(etat)              # la recherche n'est jamais journalisée
+        assert c.post('/api/base/dossiers', json={'inconnu': 1}).status_code == 422
+
+
+@pytest.mark.parametrize('role', ['DIRECTION', 'AGENCE', 'ADMIN'])
+def test_liste_des_dossiers_reservee_a_la_cellule_fraude(avec_base, role):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'u', role)
+        assert c.post('/api/base/dossiers', json={}).status_code == 403
+    with avec_base() as (c, etat):
+        assert c.post('/api/base/dossiers', json={}).status_code == 401
+
+
+def test_vue_360_d_un_dossier_ne_porte_que_ce_dossier(avec_base):
+    """La vue 360° d'un dossier : l'étoile de son demandeur, remplie des seules données de ce dossier (pièces, relevés,
+    revenus, contrôles, incohérences, chemins) ; l'historique du client reste, pour aller à ses autres dossiers."""
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'ana', 'ANALYSTE')
+        clients = c.post('/api/base/clients', json={'taille': 200}).json()['items']
+        personnes = [x for x in clients if x['type'] == 'personne'][:40]
+        fiches = [(x, c.get(f'/api/base/clients/{x["indice"]}').json()) for x in personnes]
+        multi, f = max(fiches, key=lambda xf: len(xf[1]['dossiers']))      # cité aussi ailleurs, si le jeu en a
+        propre = next(d for d in f['dossiers'] if d['demandeur'])
+        d = c.get(f'/api/base/dossiers/{propre["indice"]}').json()
+        assert d['entete']['reference'].startswith('ZZ') and d['pieces'] and d['parties']   # l'en-tête d'avant reste
+        v = d['vue']
+        assert v['identite']['nom'] == f['identite']['nom'] and v['vue360']['etoile']
+        assert [x['dossier'] for x in v['donnees']] == [propre['indice']]                 # un seul dossier, le sien
+        assert v['donnees'][0]['pieces'] and v['donnees'][0]['contexte']
+        assert all(r['dossier'] == propre['indice'] for r in v['revenus'])
+        assert all(i['dossier'] == propre['indice'] for i in v['incoherences'])
+        assert all(ch['dossier'] == propre['indice'] for ch in v['chemins'])
+        assert len(v['dossiers']) == len(f['dossiers'])                                  # historique complet du client
+        assert d['client'] == multi['indice']
+        texte = json.dumps(d)
+        assert not re.search(r'999\d{18,}', texte) and not MOTIFS[2].search(texte)
+
+
+def test_le_resume_dit_si_la_base_est_fictive(avec_base):
+    with avec_base() as (c, etat):
+        connecte(c, etat, 'dir', 'DIRECTION')
+        assert c.get('/api/base/resume').json()['fictive'] is True

@@ -12,7 +12,7 @@
 <main>
   <p class="fil">Plateforme clients › Base client</p>
   <h1>Base client</h1>
-  <p class="sous-titre">Chaque client, ses dossiers et ses revenus vérifiés. Données fictives.</p>
+  <p class="sous-titre">Chaque dossier, son demandeur et tout ce qu’il contient.<span id="fictive" hidden> Données fictives.</span></p>
 
   <section class="grille grille-3" aria-label="Chiffres clés">
     <div class="carte chiffre"><span class="chiffre-valeur" id="c-clients">—</span><span class="chiffre-libelle">clients</span></div>
@@ -24,11 +24,17 @@
     <h2>Produits demandés</h2><div class="barres" id="r-produits"></div>
   </section>
 
-  <section class="carte" id="liste" aria-label="Clients" hidden>
-    <h2>Clients</h2>
+  <section class="carte" id="liste" aria-label="Liste" hidden>
+    <div class="liste-tete">
+      <h2 id="titre-liste">Dossiers</h2>
+      <div class="bascule" role="group" aria-label="Afficher">
+        <button class="bouton" type="button" id="mode-dossiers" aria-pressed="true">Par dossier</button>
+        <button class="bouton" type="button" id="mode-clients" aria-pressed="false">Par client</button>
+      </div>
+    </div>
     <form class="filtres" id="filtres">
-      <label class="champ"><span aria-hidden="true">⌕</span><span class="visuellement-cache">Rechercher un nom</span>
-        <input id="texte" type="search" placeholder="Rechercher un nom" maxlength="80" autocomplete="off"></label>
+      <label class="champ"><span aria-hidden="true">⌕</span><span class="visuellement-cache">Rechercher un nom ou une référence</span>
+        <input id="texte" type="search" placeholder="Nom du demandeur ou référence du dossier" maxlength="80" autocomplete="off"></label>
       <label class="champ"><span class="visuellement-cache">Type</span>
         <select id="type"><option value="">Personnes et sociétés</option><option value="personne">Personnes</option><option value="societe">Sociétés</option></select></label>
       <label class="champ"><span class="visuellement-cache">Produit</span>
@@ -39,13 +45,12 @@
           <option value="ancien">Demande la plus ancienne</option>
           <option value="alpha">Nom, de A à Z</option>
           <option value="alpha_inverse">Nom, de Z à A</option>
-          <option value="revenu">Revenu vérifié</option>
+          <option value="revenu" id="tri-revenu">Revenu déclaré</option>
         </select></label>
     </form>
     <div class="tableau-enveloppe">
       <table>
-        <thead><tr><th>Client</th><th class="nombre">Dossiers</th><th>Produits</th>
-          <th class="nombre">Revenu vérifié</th><th>Dernière demande</th><th>Ville</th></tr></thead>
+        <thead id="entetes"></thead>
         <tbody id="lignes"></tbody>
       </table>
     </div>
@@ -53,7 +58,7 @@
       <button class="bouton" type="button" id="precedent">Précédent</button>
       <button class="bouton" type="button" id="suivant">Suivant</button></div>
   </section>
-  <p class="carte" id="reserve" hidden>Votre rôle voit les chiffres agrégés. La liste des clients est réservée à la cellule fraude.</p>
+  <p class="carte" id="reserve" hidden>Votre rôle voit les chiffres agrégés. La liste des dossiers et des clients est réservée à la cellule fraude.</p>
 </main>
 </body>
 </html>

@@ -12,11 +12,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('c-clients').textContent = nombre(resume.clients);
   document.getElementById('c-dossiers').textContent = nombre(resume.dossiers);
   document.getElementById('c-inscrits').textContent = nombre(resume.inscrits);
+  document.getElementById('fictive').hidden = !resume.fictive;
   Commun.barres(document.getElementById('r-produits'), resume.produits.slice(0, 6));
 
   if (Commun.role() !== 'ANALYSTE') { document.getElementById('reserve').hidden = false; return; }
   document.getElementById('liste').hidden = false;
-  const etat = { page: 1, taille: 25 };
+  const etat = { page: 1, taille: 25, mode: 'dossiers' };
+  // Deux façons de lire la base : par dossier (par défaut, une ligne par dossier) ou par client (ses dossiers regroupés).
+  const COLONNES = {
+    dossiers: [['Dossier'], ['Demandeur'], ['Produit'], ['Revenu déclaré', 'nombre'], ['Reçu le'], ['Ville']],
+    clients: [['Client'], ['Dossiers', 'nombre'], ['Produits'], ['Revenu vérifié', 'nombre'], ['Dernière demande'], ['Ville']] };
+  const boutons = { dossiers: document.getElementById('mode-dossiers'), clients: document.getElementById('mode-clients') };
+  function choisirMode(mode) {
+    etat.mode = mode; etat.page = 1;
+    for (const [m, b] of Object.entries(boutons)) b.setAttribute('aria-pressed', String(m === mode));
+    document.getElementById('titre-liste').textContent = mode === 'dossiers' ? 'Dossiers' : 'Clients';
+    document.getElementById('texte').placeholder = mode === 'dossiers' ? 'Nom du demandeur ou référence du dossier' : 'Rechercher un nom';
+    document.getElementById('tri-revenu').textContent = mode === 'dossiers' ? 'Revenu déclaré' : 'Revenu vérifié';
+    document.getElementById('entetes').replaceChildren(el('tr', {}, COLONNES[mode].map(([t, c]) => el('th', { classe: c || null, texte: t }))));
+    charger();
+  }
+  for (const [m, b] of Object.entries(boutons)) b.addEventListener('click', () => { if (etat.mode !== m) choisirMode(m); });
   const choix = document.getElementById('produit');
   for (const p of resume.produits) choix.append(el('option', { value: p.valeur, texte: p.valeur }));
   let minuterie = null;
@@ -36,9 +52,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (texte) corps.texte = texte;
     for (const id of ['type', 'produit', 'tri']) { const v = document.getElementById(id).value; if (v) corps[id] = v; }
     const tbody = document.getElementById('lignes');
+    const mode = etat.mode;
     let r;
     try {
-      r = await api('/api/base/clients', { corps });
+      r = await api(mode === 'dossiers' ? '/api/base/dossiers' : '/api/base/clients', { corps });
     } catch (e) {
       if (moi !== numero) return;
       tbody.replaceChildren(el('tr', {}, el('td', { colspan: 6, classe: 'vide', role: 'alert', texte: messageErreur(e) })));
@@ -48,7 +65,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (moi !== numero) return;
     if (!r.items.length) {
-      tbody.replaceChildren(el('tr', {}, el('td', { colspan: 6, classe: 'vide', texte: 'Aucun client ne correspond.' })));
+      tbody.replaceChildren(el('tr', {}, el('td', { colspan: 6, classe: 'vide',
+        texte: mode === 'dossiers' ? 'Aucun dossier ne correspond.' : 'Aucun client ne correspond.' })));
+    } else if (mode === 'dossiers') {
+      tbody.replaceChildren(...r.items.map(x => {
+        const lien = el('a', { href: `dossier.html?i=${x.indice}`, texte: x.reference });
+        const tr = el('tr', { classe: 'cliquable' },
+          el('td', {}, lien, x.actif ? null : el('span', { classe: 'etiquette', texte: 'archivé' }),
+            x.incoherences ? el('div', { classe: 'note', texte: `${nombre(x.incoherences)} incohérence(s)` }) : null),
+          el('td', {}, x.nom, x.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'inscrit' }) : null,
+            el('div', { classe: 'note', texte: x.type === 'societe' ? 'Société' : 'Personne' })),
+          el('td', {}, x.produit ? el('span', { classe: 'etiquette', texte: x.produit }) : '—'),
+          el('td', { classe: 'nombre', texte: montant(x.revenu_declare) }),
+          el('td', { texte: date(x.recu) }),
+          el('td', { texte: x.ville || '—' }));
+        tr.addEventListener('click', ev => { if (ev.target.tagName !== 'A') location.href = lien.href; });
+        return tr;
+      }));
     } else {
       tbody.replaceChildren(...r.items.map(c => {
         const lien = el('a', { href: `fiche.html?i=${c.indice}`, texte: c.nom });
@@ -69,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('precedent').disabled = r.page <= 1;
     document.getElementById('suivant').disabled = fin >= r.total;
   }
-  charger();
+  choisirMode('dossiers');
 
   function messageErreur(e) {
     if (e.statut === 429) return 'Trop de demandes pour l’heure : réessayez dans quelques minutes.';
