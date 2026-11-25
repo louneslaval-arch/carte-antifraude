@@ -119,3 +119,45 @@ def test_garde_fou_et_base_hors_du_depot(carte, tmp_path, capsys, monkeypatch):
     assert 'CARTE_DONNEES_REELLES' in capsys.readouterr().err
     assert bc.main(['--carte', carte, '--base', os.path.join(RACINE, 'jeu_essai', 'sortie', 'zz_b.sqlite')]) == 2
     assert 'hors du dépôt' in capsys.readouterr().err
+
+
+def test_les_chemins_precalcules_sont_ceux_que_l_api_calculerait(base):
+    import json
+    from app.base_client import BaseClient, fichier_chemins
+    from outils import precalculer_chemins as pc
+    calcules = BaseClient(base).chemins_dossier
+    assert pc.precalculer(base)['dossiers'] == 2
+    lus = BaseClient(base).chemins_dossier
+    assert json.loads(json.dumps(calcules)) == lus and any(lus.values())
+    with open(fichier_chemins(base), encoding='utf-8') as f:
+        assert 'ZZ900001' not in f.read(), 'aucune valeur d’identité dans le fichier'
+
+
+def test_des_chemins_calcules_sur_une_autre_version_de_la_base_sont_ignores(base):
+    import json
+    from app.base_client import BaseClient, fichier_chemins
+    with open(fichier_chemins(base), 'w', encoding='utf-8') as f:
+        json.dump(dict(epoque='autre', chemins={'ZZD001': [], 'ZZD002': []}), f)
+    assert any(BaseClient(base).chemins_dossier.values())
+
+
+def test_les_noeuds_trop_charges_ne_changent_aucun_chemin(base, tmp_path):
+    """Coupure des nœuds de plus de 800 liens (√(2/n) sous le seuil d'affichage) : mêmes chemins qu'en les lisant."""
+    import shutil
+    from app.base_client import calculer_chemins
+    from pipeline.couches import c5_graphe as g
+    copie = str(tmp_path / 'charge.sqlite')
+    shutil.copy(base, copie)
+    cx = sqlite3.connect(copie)
+    cx.execute('UPDATE c5_compteur SET n = 5000 WHERE noeud IN (SELECT noeud FROM c5_compteur ORDER BY noeud LIMIT 3)')
+    cx.commit()
+    refs = [r for (r,) in cx.execute('SELECT ref FROM c3_dossier ORDER BY ref')]
+    avec = calculer_chemins(cx, refs)
+    d_origine = g.Contexte.infranchissable
+    try:
+        g.Contexte.infranchissable = lambda self, n: False
+        sans = calculer_chemins(cx, refs)
+    finally:
+        g.Contexte.infranchissable = d_origine
+    assert avec == sans
+    cx.close()

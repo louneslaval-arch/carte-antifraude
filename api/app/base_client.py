@@ -9,6 +9,7 @@ Aucun chiffre agrégé sous 5 (« < 5 ») ; aucune valeur d'identité dans un me
 """
 
 import hashlib
+import json
 import os
 import random
 import re
@@ -92,6 +93,33 @@ def trier(lignes, tri):
     return presents + absents
 
 
+def fichier_chemins(chemin_base):
+    return chemin_base + '.chemins.json'
+
+
+def calculer_chemins(cx, refs, progression=None):
+    """Chemins vers la liste noire de chaque dossier, avec un seul contexte (voisinages lus une fois)."""
+    contexte = c5_graphe.Contexte(cx)
+    sortie = {}
+    for k, ref in enumerate(refs, 1):
+        sortie[ref] = c5_graphe.chemins(cx, ref, contexte)
+        if progression:
+            progression(k, len(refs))
+    return sortie
+
+
+def lire_chemins_precalcules(chemin_base, epoque):
+    """Chemins précalculés pour cette base, ou None (absents, illisibles, ou calculés sur une autre version)."""
+    try:
+        with open(fichier_chemins(chemin_base), encoding='utf-8') as f:
+            contenu = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if not isinstance(contenu, dict) or contenu.get('epoque') != epoque:
+        return None
+    return contenu.get('chemins')
+
+
 class BaseClient:
     def __init__(self, chemin, donnees_reelles=False):
         if not os.path.exists(chemin):
@@ -142,10 +170,13 @@ class BaseClient:
 
     # ---- chemins vers la liste noire, calculés une fois ------------------------------------------------------------
     def _chemins(self, cx):
-        contexte = c5_graphe.Contexte(cx)
-        self.chemins_dossier = {}
-        for ref in self.indice_dossier:
-            self.chemins_dossier[ref] = c5_graphe.chemins(cx, ref, contexte)
+        """Chemins de chaque dossier : lus dans le fichier précalculé (`<base>.chemins.json`) s'il a été calculé sur
+        cette même base (même époque), sinon calculés ici."""
+        lus = lire_chemins_precalcules(self.chemin, self.epoque)
+        if lus is not None and set(lus) >= set(self.indice_dossier):
+            self.chemins_dossier = {ref: lus[ref] for ref in self.indice_dossier}
+        else:
+            self.chemins_dossier = calculer_chemins(cx, list(self.indice_dossier))
         self.niveau_dossier = {ref: (ch[0]['niveau'] if ch else None) for ref, ch in self.chemins_dossier.items()}
 
     @staticmethod

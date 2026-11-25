@@ -287,7 +287,15 @@ class Contexte:
         return self._noms[fiche]
 
     def liens(self, u):
-        """Liens qui partent d'une fiche : (voisin, longueur ajoutée, poids, étape, plafond, foyer, nœud traversé)."""
+        """Liens qui partent d'une fiche : (voisin, longueur ajoutée, poids, étape, plafond, foyer, nœud traversé).
+        Lus une fois par fiche tant que le contexte vit (la base ne change pas entre deux recherches) : les voisinages
+        des dossiers se recouvrent, et le registre entier en fait des centaines de milliers."""
+        cache = self.__dict__.setdefault('_liens', {})
+        if u not in cache:
+            cache[u] = self._lire_liens(u)
+        return cache[u]
+
+    def _lire_liens(self, u):
         p, sortie = self.p, []
         roles = {}
         for voisin, code in self.cx.execute("SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? "
@@ -300,6 +308,8 @@ class Contexte:
             sortie.append((voisin, 1, poids, dict(type='role', code=code, de=u, vers=voisin), None, False, None))
         for noeud, code in self.cx.execute("SELECT DISTINCT vers, code FROM c5_arete WHERE type = 'identifiant' "
                                            'AND de = ? ORDER BY 1', (u,)).fetchall():
+            if self.infranchissable(noeud):
+                continue                                  # aucun chemin qui le traverse n'atteint le seuil d'affichage
             for (voisin,) in self.cx.execute("SELECT DISTINCT de FROM c5_arete WHERE type = 'identifiant' AND vers = ? "
                                              'AND de <> ? ORDER BY 1', (noeud, u)).fetchall():
                 foyer = code == 'LOGEMENT' and u.startswith('pp_') and voisin.startswith('pp_') and \
@@ -311,11 +321,27 @@ class Contexte:
             poids, plafond, regle = self.rapprochements[(u, voisin)]
             sortie.append((voisin, 1, poids, dict(type='rapprochement', code=regle, de=u, vers=voisin), plafond,
                            False, None))
+        return sortie + self.liens_homonymes(u)
+
+    def liens_homonymes(self, u):
+        sortie = []
         for voisin in sorted(self.voisins_homonymes.get(u, ())):
             fiabilite, a_lever, regle = self.homonymies[(u, voisin)]
             sortie.append((voisin, 0, fiabilite, dict(type='homonymie', code=regle, de=u, vers=voisin),
                            'mineure' if a_lever else None, False, None))
         return sortie
+
+    def borne_poids(self):
+        """Plus grand poids qu'un lien puisse porter (1 pour une homonymie certaine)."""
+        if not hasattr(self, '_borne'):
+            self._borne = max([1.0] + [v for c, v in self.p.items() if c.startswith('c5_poids') and
+                                       isinstance(v, (int, float))])
+        return self._borne
+
+    def infranchissable(self, noeud):
+        """Vrai quand traverser ce nœud (fiche ou identifiant) suffit à passer sous le seuil d'affichage : la force
+        d'un chemin ne dépasse jamais 1, ni un poids `borne_poids()`. Ses voisins n'ont pas besoin d'être lus."""
+        return self.borne_poids() * cout(self.n(noeud)) < self.p['c5_seuil_affichage']
 
 
 def _departs(cx, ref):
@@ -363,7 +389,9 @@ def chercher(k, departs):
                     meilleurs[u] = candidat
             if not origine:
                 continue                                  # on s'arrête au premier inscrit atteint
-        for voisin, ajout, poids, etape, plafond_lien, foyer_lien, noeud in k.liens(u):
+        # fiche trop chargée pour être traversée : seules restent les homonymies qui rejoignent un inscrit (sans coût)
+        liens = k.liens_homonymes(u) if not bout and k.infranchissable(u) else k.liens(u)
+        for voisin, ajout, poids, etape, plafond_lien, foyer_lien, noeud in liens:
             homonymie = etape['type'] == 'homonymie'
             vers_inscrit = voisin in k.inscrits
             # le coût de u : jamais s'il est un bout (départ, ou fiche rapprochée de l'inscrit qu'on rejoint)
