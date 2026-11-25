@@ -64,3 +64,5 @@ import/
 !.claude/settings.json
 !.claude/skills/**/*.json
 *.sqlite.partiel
+jeu_essai/demo/carte_globale/
+jeu_essai/demo/carte_globale.partiel/

@@ -21,6 +21,8 @@ if RACINE not in sys.path:
 
 from pipeline.couches import c5_graphe  # noqa: E402
 
+from . import vue360  # noqa: E402
+
 SEUIL = 5
 NIVEAUX = ('critique', 'majeure', 'mineure', 'affiche', 'hors_alerte')
 LIBELLES_NIVEAU = {'critique': 'Critique', 'majeure': 'Majeure', 'mineure': 'Mineure', 'affiche': 'Affiché',
@@ -309,12 +311,19 @@ class BaseClient:
                         continue                              # chemin d'une autre partie du dossier : pas le sien
                     chemins.append(self._chemin_lisible(cx, ch, ref))
             chemins.sort(key=lambda c: (self._rang(c['niveau']), -c['force']))
-            return dict(indice=indice, identite=identite, alias=alias, adresses=adresses, sources=sources,
+            donnees = [self._donnees_dossier(cx, ref, fiche) for ref in refs]
+            csp = cx.execute(f'SELECT csp FROM c3_dossier WHERE ref IN ({self._dans(refs_propres)}) '
+                             'ORDER BY "businessReceivedAt" DESC, ref DESC LIMIT 1', refs_propres).fetchone() \
+                if refs_propres else None
+            roles = [r for r, in cx.execute('SELECT DISTINCT role FROM c2_role WHERE fiche = ?', (fiche,))]
+            prof, retraite = vue360.profil(identite['type'], csp[0] if csp else None, roles)
+            vue = dict(profil=prof, retraite=retraite, csp=csp[0] if csp else None, aussi=vue360.aussi(prof, societes),
+                       revenus=vue360.synthese_revenus(revenus), controles=vue360.controles(donnees, prof))
+            return dict(indice=indice, identite=identite, vue360=vue, alias=alias, adresses=adresses, sources=sources,
                         dossiers=dossiers, societes=societes, personnes=personnes, revenus=revenus, comptes=comptes,
                         vehicules=vehicules, chemins=chemins[:5], charges=self._charges(cx, refs_propres),
                         operations=self._operations(cx, refs_propres), incoherences=self._incoherences(cx, refs_propres),
-                        identifiants=self._identifiants(cx, fiche), donnees=[self._donnees_dossier(cx, ref, fiche)
-                                                                            for ref in refs],
+                        identifiants=self._identifiants(cx, fiche), donnees=donnees,
                         liste_noire=self._liste_noire(cx, fiche), registre=self._registre(cx, fiche))
         finally:
             cx.close()
@@ -539,65 +548,109 @@ class BaseClient:
             cx.close()
 
     # ---- réseau autour d'une fiche ---------------------------------------------------------------------------------
-    def reseau(self, indice, profondeur=2, limite=120):
-        """Fiches à `profondeur` liens au plus (rôles et identifiants partagés), pour le dessin. Les nœuds
-        d'identifiant ne portent que leur type : jamais la valeur du RIB ni de l'adresse."""
+    def cle_carte(self, indice):
+        """Ce qui retrouve une fiche sur la carte globale : son CIN (personne), son RC et son tribunal (société)."""
+        fiche = self.fiche_de.get(indice)
+        if fiche is None:
+            return None
+        cx = self.connexion()
+        try:
+            if fiche.startswith('pp_'):
+                r = cx.execute('SELECT cin FROM c2_personne WHERE identifiant = ?', (fiche,)).fetchone()
+                return ('cin', r[0]) if r and r[0] else None
+            r = cx.execute('SELECT rc, tribunal FROM c2_societe WHERE identifiant = ?', (fiche,)).fetchone()
+            return ('rc', r[0], r[1]) if r and r[0] else None
+        finally:
+            cx.close()
+
+    def _voisins(self, cx, u, cache):
+        """[(v, code, nœud d'identifiant ou None)] : rôles dans les deux sens, et fiches qui partagent un identifiant
+        porté par 30 fiches au plus (question n°106). Ordre stable."""
+        if u not in cache:
+            sortie = [(v, code, None) for v, code in cx.execute(
+                "SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? UNION "
+                "SELECT de, code FROM c5_arete WHERE type = 'role' AND vers = ?", (u, u)) if v != u]
+            for noeud, code in cx.execute("SELECT DISTINCT vers, code FROM c5_arete WHERE type = 'identifiant' "
+                                          'AND de = ?', (u,)).fetchall():
+                porteurs = [p[0] for p in cx.execute('SELECT DISTINCT de FROM c5_arete WHERE vers = ? AND de <> ?',
+                                                     (noeud, u))]
+                if len(porteurs) < 30:
+                    sortie += [(p, code, noeud) for p in porteurs]
+            cache[u] = sorted(sortie, key=lambda x: (x[0], x[1], x[2] or ''))
+        return cache[u]
+
+    def _proches_inscrits(self, cx):
+        """Pour chaque fiche, les inscrits qui lui sont reliés par un lien : calculé une fois (la base est en lecture
+        seule), pour trouver les inscrits à deux liens d'un client sans lire tout son voisinage."""
+        if not hasattr(self, '_proches'):
+            proches, cache = {}, {}
+            for x in sorted(self.inscrits):
+                for v, _, _ in self._voisins(cx, x, cache):
+                    proches.setdefault(v, set()).add(x)
+            self._proches = proches
+        return self._proches
+
+    def reseau(self, indice, limite=120, plafond=12):
+        """Le réseau d'un client à deux liens (rôles et identifiants partagés), pour le dessin. Les nœuds
+        d'identifiant ne portent que leur type : jamais la valeur du RIB ni de l'adresse.
+
+        Fiches dessinées : le départ ; chaque inscrit à deux liens au plus et la fiche qui y mène, toujours ; puis, nœud
+        par nœud dans un ordre stable, jusqu'à `plafond` voisins nouveaux et `limite` fiches en tout. Le départ et les
+        fiches dessinées à un lien sont déployés : tous leurs liens vers des fiches dessinées sont tracés, et `autres`
+        compte leurs voisins non dessinés. Seul le voisinage des fiches déployées est lu : le coût suit le dessin, pas
+        la taille du voisinage (un employeur de plusieurs milliers de salariés)."""
         depart = self.fiche_de.get(indice)
         if depart is None:
             return None
         cx = self.connexion()
         try:
-            noeuds, liens, front = {depart: 0}, [], [depart]
-            identifiants = {}
-            for niveau in range(1, profondeur + 1):
-                suivant = []
-                for u in front:
-                    voisins = []
-                    for v, code in cx.execute("SELECT vers, code FROM c5_arete WHERE type = 'role' AND de = ? UNION "
-                                              "SELECT de, code FROM c5_arete WHERE type = 'role' AND vers = ?", (u, u)):
-                        voisins.append((v, code, None))
-                    for noeud, code in cx.execute("SELECT DISTINCT vers, code FROM c5_arete WHERE type = 'identifiant' "
-                                                  'AND de = ?', (u,)).fetchall():
-                        porteurs = [p[0] for p in cx.execute("SELECT DISTINCT de FROM c5_arete WHERE vers = ? AND de <> ?",
-                                                             (noeud, u))]
-                        if porteurs and len(porteurs) < 30:
-                            for p in porteurs:
-                                voisins.append((p, code, noeud))
-                    for v, code, noeud in voisins:
-                        if len(noeuds) >= limite and v not in noeuds:
-                            continue
-                        if noeud:
-                            ident = identifiants.setdefault(noeud, f'id{len(identifiants)}')
-                            if ident not in noeuds:
-                                noeuds[ident] = niveau
-                                liens.append(dict(de=self.indice_fiche[u], vers=ident, code=code))
-                            if v not in noeuds:
-                                noeuds[v] = niveau
-                                suivant.append(v)
-                            liens.append(dict(de=ident, vers=self.indice_fiche[v], code=code))
-                        else:
-                            if v not in noeuds:
-                                noeuds[v] = niveau
-                                suivant.append(v)
-                            liens.append(dict(de=self.indice_fiche[u], vers=self.indice_fiche[v],
-                                              code=LIBELLES_ROLE.get(code, code)))
-                front = suivant
-            types_id = {i: c for n, i in identifiants.items() for c in
-                        [cx.execute('SELECT code FROM c5_arete WHERE vers = ? LIMIT 1', (n,)).fetchone()[0]]}
-            sortie = []
-            for n, niveau in noeuds.items():
-                if n in types_id:
-                    sortie.append(dict(id=n, type='identifiant', nom=types_id[n], niveau=niveau, inscrit=False))
-                else:
-                    sortie.append(dict(id=self.indice_fiche[n], type='societe' if n.startswith('pm_') else 'personne',
-                                       nom=self._nom(cx, n), niveau=niveau, inscrit=n in self.inscrits,
-                                       depart=n == depart))
-            vus, uniques = set(), []
-            for lien in liens:
-                cle = (lien['de'], lien['vers'], lien['code'])
-                if cle not in vus:
-                    vus.add(cle)
-                    uniques.append(lien)
-            return dict(noeuds=sortie, liens=uniques)
+            cache = {}
+            voisins = lambda u: self._voisins(cx, u, cache)                      # noqa: E731
+            proches = self._proches_inscrits(cx)
+            premiers = list(dict.fromkeys(v for v, _, _ in voisins(depart)))      # à un lien, ordre stable
+            distance = {depart: 0, **dict.fromkeys(premiers, 1)}
+            # inscrits à un lien ; à deux liens, avec la première fiche à un lien qui y mène
+            gardes = {depart} | {v for v in premiers if v in self.inscrits}
+            for v in premiers:
+                for x in sorted(proches.get(v, ())):
+                    if x not in distance:
+                        distance[x] = 2
+                        gardes.update((v, x))
+
+            def remplir(u):
+                nouveaux = 0
+                for v in dict.fromkeys(v for v, _, _ in voisins(u)):
+                    if nouveaux >= plafond or len(gardes) >= limite:
+                        return
+                    if v not in gardes:
+                        gardes.add(v)
+                        distance.setdefault(v, distance[u] + 1)
+                        nouveaux += 1
+            remplir(depart)
+            for u in premiers:
+                if u in gardes:
+                    remplir(u)
+            # liens et voisins non dessinés des fiches déployées (le départ et les fiches à un lien)
+            liens, identifiants, niveau_id, autres = {}, {}, {}, {}
+            for u in [depart] + [u for u in premiers if u in gardes]:
+                autres[u] = len({v for v, _, _ in voisins(u)} - gardes)
+                for v, code, noeud in voisins(u):
+                    if v not in gardes:
+                        continue
+                    a, b = self.indice_fiche[u], self.indice_fiche[v]
+                    if noeud:
+                        ident = identifiants.setdefault(noeud, (f'id{len(identifiants)}', code))[0]
+                        niveau_id[ident] = max(niveau_id.get(ident, 0), distance[u], distance[v])
+                        for x, y in ((a, ident), (ident, b)):
+                            liens.setdefault((frozenset((x, y)), code), dict(de=x, vers=y, code=code))
+                    else:
+                        libelle = LIBELLES_ROLE.get(code, code)
+                        liens.setdefault((frozenset((a, b)), libelle), dict(de=a, vers=b, code=libelle))
+            noeuds = [dict(id=self.indice_fiche[n], type='societe' if n.startswith('pm_') else 'personne',
+                           nom=self._nom(cx, n), niveau=distance[n], inscrit=n in self.inscrits, depart=n == depart,
+                           autres=autres.get(n, 0)) for n in sorted(gardes, key=lambda n: (distance[n], n))]
+            noeuds += [dict(id=i, type='identifiant', nom=code, niveau=niveau_id[i], inscrit=False, autres=0)
+                       for i, code in identifiants.values()]
+            return dict(noeuds=noeuds, liens=list(liens.values()))
         finally:
             cx.close()

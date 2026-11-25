@@ -1,4 +1,6 @@
 'use strict';
+// Vue 360° d'une entité : trois profils (personne salariée, personne entrepreneur, personne morale), chacun avec ses
+// blocs dans l'ordre utile ; puis toutes les données du client, dossier par dossier.
 document.addEventListener('DOMContentLoaded', async () => {
   const { el, api, nombre, montant, date, initiales } = Commun;
   Commun.entete('base.html');
@@ -13,101 +15,249 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   const id = f.identite;
+  const v = f.vue360 || { profil: id.type === 'personne' ? 'salarie' : 'pm', retraite: false, csp: null, aussi: [],
+    revenus: { declare: null, pieces: {}, ecart: null }, controles: [] };
+  const PROFILS = {
+    salarie: { nom: v.retraite ? 'Personne physique · retraitée' : 'Personne physique · salariée', classe: 'profil-salarie' },
+    entrepreneur: { nom: 'Personne physique · entrepreneur', classe: 'profil-entrepreneur' },
+    pm: { nom: 'Personne morale', classe: 'profil-pm' },
+  };
+  const P = PROFILS[v.profil];
+  const propres = f.dossiers.filter(d => d.demandeur);
+  const anomalies = v.controles.reduce((s, x) => s + x.anomalies, 0);
+
+  // ---- en-tête ------------------------------------------------------------------------------------------------------
   const definitions = id.type === 'personne'
-    ? [['CIN', id.cin], ['Date de naissance', date(id.date_naissance)], ['Adresse retenue', id.adresse]]
+    ? [['CIN', id.cin], ['Date de naissance', date(id.date_naissance)], ['Adresse retenue', id.adresse],
+      ['CSP', v.csp ? ({ SALARIE_PRIVE: 'salarié du privé', FONCTIONNAIRE: 'fonctionnaire', EMPLOYE_COMMUNE: 'employé de commune',
+        MILITAIRE: 'militaire', RETRAITE_PUBLIC: 'retraité du public', RETRAITE_CIMR: 'retraité CIMR', RETRAITE_INDETERMINE: 'retraité',
+        PROFESSION_LIBERALE: 'profession libérale', LOUEUR: 'loueur', AUTRE: 'autre' })[v.csp] || lib(v.csp) : null]]
     : [['RC', id.rc ? `${id.rc} · ${id.tribunal || ''}` : null], ['ICE', id.ice], ['Siège', id.adresse]];
-  const tete = el('section', { classe: 'carte identite' },
+  const tete = el('section', { classe: `carte identite tete-360 ${P.classe}` },
     el('div', { classe: `avatar ${id.type}${id.inscrit ? ' inscrit' : ''}`, 'aria-hidden': 'true', texte: initiales(id.nom) }),
-    el('div', {},
+    el('div', { classe: 'tete-texte' },
+      el('div', { classe: 'surtitre', texte: 'Vue 360°' }),
       el('h1', { texte: id.nom }),
       el('div', { classe: 'puces' },
-        id.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'Inscrit sur la liste noire' }) : null,
-        el('span', { classe: 'etiquette', texte: id.type === 'personne' ? 'Personne' : 'Société' })),
-      el('dl', { classe: 'definitions' }, definitions.map(([k, v]) => [el('dt', { texte: k }), el('dd', { texte: v || '—' })]))),
-    null);
+        el('span', { classe: `etiquette etiquette-profil ${P.classe}`, texte: P.nom }),
+        id.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'Inscrit sur la liste noire' }) : null),
+      el('dl', { classe: 'definitions' }, definitions.map(([k, x]) => [el('dt', { texte: k }), el('dd', { texte: x || '—' })])),
+      v.aussi.length ? el('p', { classe: 'bandeau-aussi' }, 'Aussi ',
+        v.aussi.map((s, k) => [k ? ', ' : '', `${s.role} de `, s.indice ? Commun.lienFiche(s) : s.nom])) : null));
 
-  const cites = f.dossiers.filter(d => !d.demandeur).length;
-  const dossiers = carte('Dossiers', f.dossiers.length ? tableau(
-    ['Reçu', 'Produit', 'Rôle', 'Verdict v2', ''],
-    f.dossiers.map(d => [date(d.recu), d.produit, d.role,
-      d.demandeur ? (d.verdict || '—') : '—',
-      el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
-    cites ? el('p', { classe: 'note', texte: `Cité dans ${nombre(cites)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null);
+  // ---- chiffres clés ------------------------------------------------------------------------------------------------
+  const niveau = f.chemins.length ? f.chemins[0].niveau : null;
+  const revenuRetenu = v.revenus.pieces.BULLETIN_DE_PAIE ?? v.revenus.pieces.ATTESTATION_TRAVAIL_SALAIRE
+    ?? v.revenus.pieces.ATTESTATION_PENSION ?? v.revenus.pieces.RELEVE_BANCAIRE ?? null;
+  const flux = fluxBancaires();
+  const dirigeants = regrouper(f.personnes);
+  const tuiles = el('div', { classe: 'tuiles-360' },
+    tuile('Dossiers', nombre(f.dossiers.length), propres.length !== f.dossiers.length ? `dont ${nombre(propres.length)} en demandeur` : 'en demandeur'),
+    v.profil === 'pm'
+      ? tuile('Crédits sur les relevés', flux.credit ? montant(flux.credit / Math.max(flux.mois, 1)) : '—', 'par mois, en moyenne')
+      : tuile(v.retraite ? 'Pension vérifiée' : (v.profil === 'entrepreneur' ? 'Revenu vérifié' : 'Salaire vérifié'),
+        revenuRetenu ? montant(revenuRetenu) : '—', v.revenus.declare ? `déclaré ${montant(v.revenus.declare)}` : 'aucun déclaré'),
+    v.profil === 'pm'
+      ? tuile('Personnes de la société', nombre(dirigeants.length), dirigeants.some(p => p.inscrit)
+        ? `dont ${nombre(dirigeants.filter(p => p.inscrit).length)} inscrite(s)` : 'gérants, associés', dirigeants.some(p => p.inscrit) ? 'niveau-critique' : '')
+      : tuile('Écart entre pièces', v.revenus.ecart === null ? '—' : `${Math.round(v.revenus.ecart * 100)} %`,
+        v.revenus.ecart !== null && v.revenus.ecart > 0.15 ? 'à regarder' : 'pièces de revenu', v.revenus.ecart > 0.15 ? 'attention' : ''),
+    tuile('Liste noire', niveau ? ({ critique: 'Critique', majeure: 'Majeure', mineure: 'Mineure', affiche: 'Affiché', hors_alerte: 'Hors alerte' })[niveau] || lib(niveau) : 'Aucun lien',
+      f.chemins.length ? `${nombre(f.chemins.length)} chemin(s) à moins de 4 liens` : 'à moins de 4 liens', niveau ? `niveau-${niveau}` : 'bon'),
+    tuile('Contrôles en anomalie', nombre(anomalies), `sur ${nombre(v.controles.reduce((s, x) => s + x.controles.length, 0))} contrôles`,
+      anomalies ? 'attention' : 'bon'),
+    tuile('Incohérences', nombre(f.incoherences.length), 'entre dossiers et pièces', f.incoherences.length ? 'attention' : 'bon'));
 
-  const chemins = carte('Liens avec la liste noire', f.chemins.length
-    ? Commun.listeChemins(f.chemins) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'));
-
-  const revenusVerifies = f.revenus.filter(r => r.nature === 'verifie');
-  const revenus = carte('Revenus et charges', f.revenus.length ? tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'],
-    f.revenus.map(r => [r.nature === 'declare' ? 'déclaré' : 'vérifié', libelleSource(r.source), periode(r), montant(r.montant),
-      lienDossier(r.dossier)])) : vide('Aucun revenu lu.'),
-    revenusVerifies.length ? el('p', { classe: 'note', texte: `${revenusVerifies.length} montant(s) vérifié(s) sur pièce.` }) : null,
-    f.charges.length ? tableau(['Charge', 'Période', 'Montant', 'Dossier'], f.charges.map(c => [
-      c.nature === 'credit_source' ? 'crédit prélevé à la source' : 'échéance de crédit', periode(c), montant(c.montant),
-      lienDossier(c.dossier)])) : null);
-
-
-  const identifiants = carte('Identifiants', f.identifiants.length ? tableau(['Type', 'Valeur', 'Dossier'],
-    f.identifiants.map(x => [x.type, x.valeur, lienDossier(x.dossier)])) : vide('Aucun identifiant lu (le RIB, masqué, est dans les comptes).'));
+  // ---- blocs --------------------------------------------------------------------------------------------------------
+  const B = {
+    revenus: () => carte(v.retraite ? 'Pension' : (v.profil === 'entrepreneur' ? 'Revenus d’activité' : 'Salaire et revenus'),
+      barresRevenus(), f.charges.length ? [el('h3', { texte: 'Charges' }), tableau(['Charge', 'Période', 'Montant', 'Dossier'],
+        f.charges.map(c => [c.nature === 'credit_source' ? 'crédit prélevé à la source' : 'échéance de crédit', periode(c),
+          montant(c.montant), lienDossier(c.dossier)]))] : null,
+      f.revenus.length ? el('details', {}, el('summary', { texte: `Détail des ${nombre(f.revenus.length)} montants` }),
+        tableau(['Nature', 'Pièce', 'Période', 'Montant', 'Dossier'], f.revenus.map(r => [r.nature === 'declare' ? 'déclaré' : 'vérifié',
+          libelleSource(r.source), periode(r), montant(r.montant), lienDossier(r.dossier)]))) : null),
+    employeur: () => {
+      const employeurs = f.societes.filter(s => s.role === 'salarié' || s.role === 'pensionné');
+      const declares = [...new Set(f.donnees.flatMap(x => x.contexte).filter(c => c.libelle === 'Employeur déclaré'
+        || c.libelle === 'Organisme de pension déclaré').map(c => String(c.valeur)))];
+      return carte(v.retraite ? 'Organisme de pension' : 'Employeur',
+        employeurs.length ? tableau(['Employeur', 'Rôle', 'Source'], employeurs.map(s => [s.indice ? Commun.lienFiche(s) : s.nom, s.role,
+          libelleSource(s.source)])) : vide('Aucun employeur relié.'),
+        declares.length ? el('p', { classe: 'note', texte: `Déclaré au dossier : ${declares.join(', ')}` }) : null,
+        controlesDe(['EMP']));
+    },
+    activite: () => carte('Sociétés et rôles', f.societes.length
+      ? tableau(['Société', 'Rôle', 'Source'], f.societes.map(s => [s.indice ? Commun.lienFiche(s) : s.nom,
+        etatRole(s.role), libelleSource(s.source)])) : vide('Aucune société reliée.'),
+      f.registre.length ? [el('h3', { texte: 'Au registre du commerce' }), tableau(['Société', 'Rôle', 'Parts', 'Adresse'],
+        f.registre.map(m => [m.societe, m.role, m.parts, m.adresse]))] : null),
+    piecesPro: () => carte('Pièces professionnelles', controlesDe(['PRO', 'IDT'], c => /^(PRO|IDT-1[0-1])/.test(c.controle))
+      || vide('Aucun contrôle de pièce professionnelle sur ses dossiers.')),
+    dirigeants: () => carte('Gérants, associés et bénéficiaires', dirigeants.length
+      ? tableau(['Nom', 'Rôles', 'Sources', ''], dirigeants.map(p => [p.indice ? Commun.lienFiche(p) : p.nom,
+        p.roles.map((r, k) => [k ? ', ' : '', etatRole(r)]), p.sources.map(libelleSource).join(', '),
+        p.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'inscrit' }) : '']))
+      : vide('Aucune personne reliée.'),
+      controlesDe(['IDT'], c => /^IDT-(1[2-9]|2\d)/.test(c.controle))),
+    registre: () => carte('Registre du commerce', f.registre.length ? tableau(['Société', 'Rôle', 'Parts', 'Adresse'],
+      f.registre.map(m => [m.societe, m.role, m.parts, m.adresse])) : vide('Aucune mention au registre.'),
+      identifiantsTableau()),
+    banque: () => carte(v.profil === 'pm' ? 'Comptes et flux de la société' : 'Comptes bancaires',
+      f.comptes.length ? tableau(['RIB', 'Banque', 'Titulaire'], f.comptes.map(c => [c.rib, c.banque || '—', c.titulaire || '—'])) : vide('Aucun compte lu.'),
+      flux.mois ? el('dl', { classe: 'definitions' },
+        [['Mois de relevés lus', nombre(flux.mois)], ['Crédits cumulés', montant(flux.credit)], ['Débits cumulés', montant(flux.debit)],
+          ['Échéances de crédit repérées', montant(flux.echeances)]].map(([k, x]) => [el('dt', { texte: k }), el('dd', { texte: x })])) : null,
+      controlesDe(['BNQ'])),
+    risque: () => carte('Risque',
+      el('h3', { texte: 'Liens avec la liste noire' }),
+      f.chemins.length ? el('div', { classe: 'pile' }, f.chemins.map(Commun.chemin)) : vide('Aucun chemin vers un inscrit à moins de 4 liens.'),
+      Commun.role() === 'ANALYSTE' ? el('p', {}, versLaCarte()) : null,
+      f.liste_noire.length ? [el('h3', { texte: 'Inscription sur la liste noire' }), tableau(
+        ['Libellé', 'Type de liste', 'Motif', 'Type de fraude', 'Statut', 'Première saisie', 'Inscriptions'],
+        f.liste_noire.map(l => [l.label, l.typeListe, l.motif, l.type_fraude, l.statut, date(l.premiere_saisie), nombre(l.nb_inscriptions)]))] : null,
+      f.incoherences.length ? [el('h3', { texte: 'Incohérences' }), tableau(['Incohérence', 'Gravité', 'Dossier', 'Autre dossier'],
+        f.incoherences.map(i => [i.libelle, i.gravite, lienDossier(i.dossier), lienDossier(i.autre_dossier)]))] : null,
+      controlesDe(['BLG'])),
+    controles: () => carte('Contrôles de l’antifraude, par famille', v.controles.length
+      ? el('div', { classe: 'familles' }, v.controles.map(familleControles))
+      : vide(propres.length ? 'Aucun contrôle sur ses dossiers.' : 'Cité seulement dans les dossiers d’autres clients : leurs contrôles ne figurent pas ici.'),
+      el('p', { classe: 'note', texte: 'Un contrôle en anomalie est un signal de l’antifraude, jamais une décision : seules la liste noire et les fraudes confirmées par la cellule fraude font foi.' })),
+    historique: () => carte('Historique des dossiers', f.dossiers.length ? tableau(
+      ['Reçu', 'Produit', 'Rôle', 'Verdict v2', ''],
+      f.dossiers.map(d => [date(d.recu), d.produit, d.role, d.demandeur ? (d.verdict || '—') : '—',
+        el('a', { href: `dossier.html?i=${d.indice}`, texte: 'Ouvrir' })])) : vide('Aucun dossier.'),
+      f.dossiers.some(d => !d.demandeur) ? el('p', { classe: 'note', texte: `Cité dans ${nombre(f.dossiers.filter(d => !d.demandeur).length)} dossier(s) d’autres clients : leurs revenus et charges ne figurent pas sur cette fiche.` }) : null,
+      f.vehicules.length ? [el('h3', { texte: 'Véhicules' }), tableau(['Pièce', 'Marque', 'Modèle', 'Prix'],
+        f.vehicules.map(x => [libelleSource(x.type_piece), x.marque || '—', x.modele || '—', montant(x.prix)]))] : null,
+      controlesDe(['AUT'])),
+    identite: () => carte('Identité et adresses',
+      el('div', { classe: 'puces' }, f.alias.map(a => el('span', { classe: 'etiquette', lang: a.ecriture === 'arabe' ? 'ar' : null, texte: `${a.nom} · ${a.nombre}` }))),
+      f.adresses.length ? tableau(['Adresse', 'Rôle'], f.adresses.map(a => [a.adresse, a.role || '—'])) : null,
+      v.profil === 'pm' ? null : identifiantsTableau(),
+      controlesDe(['IDT'], c => v.profil === 'pm' || !/^IDT-1[0-1]/.test(c.controle) || v.profil === 'salarie')),
+  };
+  // Ordre des blocs : deux colonnes, la gauche pour ce qui caractérise le profil.
+  const DISPOSITION = {
+    salarie: [['revenus', 'employeur', 'historique'], ['risque', 'banque', 'identite']],
+    entrepreneur: [['activite', 'revenus', 'piecesPro'], ['risque', 'banque', 'historique', 'identite']],
+    pm: [['dirigeants', 'registre', 'banque'], ['risque', 'historique', 'identite']],
+  }[v.profil];
 
   const operations = f.operations.length ? carte(`Opérations des relevés (${nombre(f.operations.length)})`,
     el('details', {}, el('summary', { texte: 'Afficher les opérations' }),
       tableau(['Date', 'Type', 'Libellé', 'Débit', 'Crédit', 'Dossier'], f.operations.map(o => [date(o.date_operation),
         o.type_operation || '—', court(o.libelle), montant(o.debit), montant(o.credit), lienDossier(o.dossier)])))) : null;
 
-  const liens = f.personnes.length ? f.personnes : f.societes;
-  const relations = carte(f.personnes.length ? 'Personnes de la société' : 'Sociétés', liens.length
-    ? tableau(['Nom', 'Rôle'], liens.map(s => [s.indice ? Commun.lienFiche(s) : s.nom, s.role]))
-    : vide('Aucune.'));
-
-  const comptes = carte('Comptes et véhicules', el('div', {},
-    f.comptes.length ? tableau(['RIB', 'Banque', 'Titulaire'], f.comptes.map(c => [c.rib, c.banque || '—', c.titulaire || '—'])) : vide('Aucun compte lu.'),
-    f.vehicules.length ? tableau(['Pièce', 'Marque', 'Modèle', 'Prix'], f.vehicules.map(v => [libelleSource(v.type_piece), v.marque || '—', v.modele || '—', montant(v.prix)])) : null));
-
-  const graphies = carte('Graphies et adresses', el('div', {},
-    el('div', { classe: 'puces' }, f.alias.map(a => el('span', { classe: 'etiquette', lang: a.ecriture === 'arabe' ? 'ar' : null, texte: `${a.nom} · ${a.nombre}` }))),
-    f.adresses.length ? tableau(['Adresse', 'Rôle'], f.adresses.map(a => [a.adresse, a.role || '—'])) : null));
-
-  const listeNoire = f.liste_noire.length ? carte('Inscription sur la liste noire', tableau(
-    ['Libellé', 'Type de liste', 'Motif', 'Type de fraude', 'Statut', 'Première saisie', 'Inscriptions'],
-    f.liste_noire.map(l => [l.label, l.typeListe, l.motif, l.type_fraude, l.statut, date(l.premiere_saisie), nombre(l.nb_inscriptions)]))) : null;
-  const registre = carte('Registre du commerce', f.registre.length ? tableau(['Société', 'Rôle', 'Parts', 'Adresse'],
-    f.registre.map(m => [m.societe, m.role, m.parts, m.adresse])) : vide('Aucune mention au registre.'));
-
-  const navigation = el('div', { classe: 'onglets', role: 'tablist', 'aria-label': 'Dossiers du client' });
-  const volets = el('div', {});
-  const onglets = f.donnees.map((x, k) => {
-    const id = `volet-${k}`;
-    const onglet = el('button', { classe: 'onglet', type: 'button', role: 'tab', id: `onglet-${k}`, 'aria-selected': String(k === 0),
-      tabindex: k === 0 ? '0' : '-1', 'aria-controls': id, texte: `Dossier ${x.reference}${x.demandeur ? '' : ' (cité)'}` });
-    const volet = el('div', { id, role: 'tabpanel', 'aria-labelledby': `onglet-${k}`, hidden: k !== 0 });
-    let rempli = false;                                // volet construit à la première ouverture
-    const ouvrir = () => {
-      if (!rempli) { volet.append(voletDossier(x)); rempli = true; }
-      for (const o of navigation.children) { const actif = o === onglet; o.setAttribute('aria-selected', String(actif)); o.tabIndex = actif ? 0 : -1; }
-      for (const v of volets.children) v.hidden = v !== volet;
-    };
-    onglet.addEventListener('click', ouvrir);
-    onglet.addEventListener('keydown', ev => {
-      const pas = { ArrowRight: 1, ArrowLeft: -1 }[ev.key];
-      if (!pas) return;
-      const suivant = onglets[(k + pas + onglets.length) % onglets.length];
-      suivant.ouvrir(); suivant.onglet.focus(); ev.preventDefault();
-    });
-    navigation.append(onglet);
-    volets.append(volet);
-    if (k === 0) ouvrir();
-    return { onglet, ouvrir };
-  });
-  const toutes = carte('Toutes les données du client',
-    el('p', { classe: 'note', texte: 'Chaque valeur lue dans chaque pièce de chaque dossier.' }),
-    f.donnees.length ? [navigation, volets] : vide('Aucun dossier.'));
-
-  main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Fiche client'),
-    tete, el('div', { classe: 'grille grille-2' }, el('div', { classe: 'pile' }, dossiers, chemins, listeNoire, registre),
-      el('div', { classe: 'pile' }, revenus, identifiants, relations, comptes, graphies)), operations, toutes].filter(Boolean));
+  main.replaceChildren(...[el('p', { classe: 'fil' }, el('a', { href: 'base.html', texte: 'Base client' }), ' › Vue 360°'),
+    tete, tuiles,
+    el('div', { classe: 'grille grille-2' }, DISPOSITION.map(col => el('div', { classe: 'pile' }, col.map(k => B[k]())))),
+    B.controles(), operations, toutesLesDonnees()].filter(Boolean));
   main.removeAttribute('aria-busy');
 
+  // ---- éléments -----------------------------------------------------------------------------------------------------
+  function tuile(titre, valeur, sous, ton = '') {
+    return el('div', { classe: `tuile-360 ${ton}` }, el('div', { classe: 'tuile-titre', texte: titre }),
+      el('div', { classe: 'tuile-valeur', texte: valeur }), el('div', { classe: 'tuile-sous', texte: sous }));
+  }
+  function barresRevenus() {
+    const lignes = [['Déclaré', v.revenus.declare, 'declare']].concat(
+      [['BULLETIN_DE_PAIE', 'Bulletin de paie'], ['ATTESTATION_TRAVAIL_SALAIRE', 'Attestation de salaire'],
+        ['ATTESTATION_PENSION', 'Justificatif de pension'], ['RELEVE_BANCAIRE', 'Retrouvé sur les relevés']]
+        .filter(([s]) => v.revenus.pieces[s] !== undefined).map(([s, n]) => [n, v.revenus.pieces[s], 'verifie']))
+      .filter(([, m]) => m !== null && m !== undefined);
+    if (!lignes.length) return vide(propres.length ? 'Aucun revenu lu.' : 'Cité seulement : les revenus des dossiers d’autres clients ne figurent pas ici.');
+    const max = Math.max(...lignes.map(([, m]) => m)) || 1;
+    return el('div', { classe: 'barres-revenus', role: 'list' }, lignes.map(([n, m, genre]) => {
+      const barre = el('span', { classe: `barre ${genre}` });
+      barre.style.width = `${Math.max(2, m / max * 100)}%`;              // CSSOM : permis par la politique de la plateforme
+      return el('div', { classe: 'ligne-revenu', role: 'listitem' }, el('span', { classe: 'nom-revenu', texte: n }),
+        el('span', { classe: 'piste' }, barre), el('span', { classe: 'montant-revenu', texte: montant(m) }));
+    }), v.revenus.ecart !== null ? el('p', { classe: 'note', texte: `Écart entre pièces : ${Math.round(v.revenus.ecart * 100)} % (dernier montant de chaque pièce).` }) : null);
+  }
+  function controlesDe(familles, garder = () => true) {
+    const noms = { IDT: 'Identité', BNQ: 'Relevés bancaires', BLG: 'Liste noire et géographie', EMP: 'Revenus et employeur',
+      PRO: 'Pièces professionnelles', AUT: 'Véhicule' };
+    const lignes = v.controles.filter(x => familles.some(p => noms[p] === x.famille)).flatMap(x => x.controles).filter(garder);
+    if (!lignes.length) return null;
+    const enAnomalie = lignes.filter(c => c.resultat === 'ANOMALIE').length;
+    return el('details', { classe: 'controles-bloc', open: enAnomalie > 0 },
+      el('summary', {}, `Contrôles (${nombre(lignes.length)})`, enAnomalie
+        ? el('span', { classe: 'etiquette etiquette-rouge', texte: `${nombre(enAnomalie)} en anomalie` }) : el('span', { classe: 'etiquette ok', texte: 'tous conformes' })),
+      el('ul', { classe: 'liste-controles' }, lignes.map(ligneControle)));
+  }
+  function familleControles(x) {
+    return el('details', { classe: 'famille', open: x.anomalies > 0 },
+      el('summary', {}, el('strong', { texte: x.famille }), ` · ${nombre(x.controles.length)} contrôle(s)`,
+        x.anomalies ? el('span', { classe: 'etiquette etiquette-rouge', texte: `${nombre(x.anomalies)} en anomalie` }) : null),
+      el('ul', { classe: 'liste-controles' }, x.controles.map(ligneControle)));
+  }
+  function ligneControle(c) {
+    const r = { ANOMALIE: ['anomalie', 'anomalie'], CONFORME: ['conforme', 'conforme'], NON_APPLICABLE: ['neutre', 'non applicable'],
+      NON_EXECUTABLE: ['neutre', 'non exécutable'], ERREUR_TECHNIQUE: ['neutre', 'erreur technique'] }[c.resultat] || ['neutre', lib(c.resultat)];
+    return el('li', { classe: `controle ${r[0]}`, title: c.description ? `${c.controle} · ${c.description}` : c.controle },
+      el('span', { classe: 'pastille', 'aria-hidden': 'true' }),
+      el('span', { classe: 'controle-texte' }, el('code', { texte: c.controle }), ' ', c.libelle,
+        c.description ? el('span', { classe: 'controle-desc', texte: c.description }) : null),
+      el('span', { classe: 'controle-etat' }, r[1], c.criticite ? ` · ${String(c.criticite).toLowerCase()}` : ''),
+      c.dossier ? el('a', { href: `dossier.html?i=${c.dossier}`, texte: 'dossier', 'aria-label': `Ouvrir le dossier du contrôle ${c.controle}` }) : null);
+  }
+  function identifiantsTableau() {
+    return f.identifiants.length ? [el('h3', { texte: 'Identifiants' }), tableau(['Type', 'Valeur', 'Dossier'],
+      f.identifiants.map(x => [x.type, x.valeur, lienDossier(x.dossier)]))] : null;
+  }
+  function fluxBancaires() {
+    const t = { mois: 0, credit: 0, debit: 0, echeances: 0 };
+    for (const x of f.donnees) for (const p of x.pieces) for (const m of p.mois) {
+      t.mois += 1; t.credit += m.total_credit || 0; t.debit += m.total_debit || 0; t.echeances += m.echeances_credits || 0;
+    }
+    return t;
+  }
+  function regrouper(personnes) {                        // une ligne par personne, ses rôles et ses sources réunis
+    const par = new Map();
+    for (const p of personnes) {
+      const cle = p.indice ?? p.nom;
+      const x = par.get(cle) || { ...p, roles: [], sources: [] };
+      if (p.role && !x.roles.includes(p.role)) x.roles.push(p.role);
+      if (p.source && !x.sources.includes(p.source)) x.sources.push(p.source);
+      x.inscrit = x.inscrit || p.inscrit;
+      par.set(cle, x);
+    }
+    return [...par.values()];
+  }
+  function etatRole(r) {
+    return /sortant|cédant|liquidateur/.test(r || '') ? el('span', { classe: 'note', texte: `${r} (terminé)` }) : r;
+  }
+  function toutesLesDonnees() {
+    const navigation = el('div', { classe: 'onglets', role: 'tablist', 'aria-label': 'Dossiers du client' });
+    const volets = el('div', {});
+    const onglets = f.donnees.map((x, k) => {
+      const idv = `volet-${k}`;
+      const onglet = el('button', { classe: 'onglet', type: 'button', role: 'tab', id: `onglet-${k}`, 'aria-selected': String(k === 0),
+        tabindex: k === 0 ? '0' : '-1', 'aria-controls': idv, texte: `Dossier ${x.reference}${x.demandeur ? '' : ' (cité)'}` });
+      const volet = el('div', { id: idv, role: 'tabpanel', 'aria-labelledby': `onglet-${k}`, hidden: k !== 0 });
+      let rempli = false;                                // volet construit à la première ouverture
+      const ouvrir = () => {
+        if (!rempli) { volet.append(voletDossier(x)); rempli = true; }
+        for (const o of navigation.children) { const actif = o === onglet; o.setAttribute('aria-selected', String(actif)); o.tabIndex = actif ? 0 : -1; }
+        for (const w of volets.children) w.hidden = w !== volet;
+      };
+      onglet.addEventListener('click', ouvrir);
+      onglet.addEventListener('keydown', ev => {
+        const pas = { ArrowRight: 1, ArrowLeft: -1 }[ev.key];
+        if (!pas) return;
+        const suivant = onglets[(k + pas + onglets.length) % onglets.length];
+        suivant.ouvrir(); suivant.onglet.focus(); ev.preventDefault();
+      });
+      navigation.append(onglet);
+      volets.append(volet);
+      if (k === 0) ouvrir();
+      return { onglet, ouvrir };
+    });
+    return carte('Toutes les données du client',
+      el('p', { classe: 'note', texte: 'Chaque valeur lue dans chaque pièce de chaque dossier.' }),
+      f.donnees.length ? [navigation, volets] : vide('Aucun dossier.'));
+  }
   function voletDossier(x) {
     const contexte = el('dl', { classe: 'definitions' }, x.contexte.filter(c => !c.libelle.startsWith('Alertes')).map(c => [el('dt', { texte: c.libelle }), el('dd', { texte: String(c.valeur) })]));
     const pieces = x.pieces.map(p => el('details', { classe: 'piece' },
@@ -128,14 +278,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       el('div', {}, el('h3', { texte: 'Contexte déclaré' }), contexte, lien),
       el('div', {}, el('h3', { texte: `Pièces (${x.pieces.length})` }), ...pieces));
   }
+  // Carte globale centrée sur le client s'il y figure (retrouvé par son CIN ou son RC), sinon sa vue réseau
+  function versLaCarte() {
+    const reseau = `reseau.html?i=${encodeURIComponent(indice)}`;
+    return el('a', { href: reseau, texte: 'Voir son réseau sur la carte →', onclick: async ev => {
+      ev.preventDefault();
+      try {
+        const r = await api(`/api/base/carte/${encodeURIComponent(indice)}`);
+        location.href = `carte.html?n=${encodeURIComponent(r.indice)}`;
+      } catch (e) {
+        if (e.message !== 'session') location.href = reseau;
+      }
+    } });
+  }
+  function lib(s) { return String(s).toLowerCase().replaceAll('_', ' '); }
   function periode(x) { return x.mois ? `${String(x.mois).padStart(2, '0')}/${x.annee}` : '—'; }
   function lienDossier(i) { return i ? el('a', { href: `dossier.html?i=${i}`, texte: 'Ouvrir' }) : '—'; }
-  function court(v) {
-    if (v === null || v === undefined) return '—';
-    const t = String(v);
+  function court(x) {
+    if (x === null || x === undefined) return '—';
+    const t = String(x);
     return t.length > 140 ? el('span', { title: t, texte: `${t.slice(0, 138)}…` }) : t;
   }
-
   function carte(titre, ...contenu) { return el('section', { classe: 'carte' }, el('h2', { texte: titre }), ...contenu); }
   function vide(t) { return el('p', { classe: 'vide', texte: t }); }
   function tableau(entetes, lignes) {

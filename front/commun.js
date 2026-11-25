@@ -5,6 +5,7 @@ const Commun = (() => {
   const PAGES = [
     ['index.html', 'Portail'],
     ['base.html', 'Base client'],
+    ['carte.html', 'Carte antifraude'],
   ];
 
   function el(balise, attributs = {}, ...enfants) {
@@ -41,7 +42,11 @@ const Commun = (() => {
     }
     const r = await fetch(chemin, init);
     if (r.status === 401 && !options.sansRedirection) { retourConnexion(); throw new Error('session'); }
-    if (!r.ok) { const e = new Error('http'); e.statut = r.status; throw e; }
+    if (!r.ok) {
+      const e = new Error('http'); e.statut = r.status;
+      try { e.detail = (await r.json()).detail || ''; } catch (x) { e.detail = ''; }       // message du serveur, sans valeur reçue
+      throw e;
+    }
     return r.status === 204 ? null : r.json();
   }
 
@@ -53,7 +58,7 @@ const Commun = (() => {
 
   function entete(courante, sombre = false) {
     const nav = el('nav', { 'aria-label': 'Navigation principale' },
-      PAGES.map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
+      PAGES.filter(([lien]) => lien !== 'carte.html' || role() === 'ANALYSTE').map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
     const langue = el('div', { classe: 'langue', role: 'group', 'aria-label': 'Langue' },
       el('button', { type: 'button', 'aria-pressed': 'true', texte: 'Fr' }),
       el('button', { type: 'button', 'aria-pressed': 'false', disabled: true, title: 'Arabe : bientôt',

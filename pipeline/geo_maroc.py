@@ -10,6 +10,7 @@ y = −latitude × 100 (y vers le bas sur l'écran). 1 unité ≈ 1,1 km.
 import json
 import math
 import os
+import sys
 
 VILLES = {
     'AGADIR': (30.42, -9.60), 'AHFIR': (34.95, -2.10), 'AIN HARROUDA': (33.64, -7.45), 'AIT MELLOUL': (30.34, -9.50),
@@ -44,13 +45,31 @@ def monde(lat, lon):
     return lon * ECHELLE_X, -lat * ECHELLE_Y
 
 
-def contour():
-    """Anneaux des régions en coordonnées monde, [[x, y], …]."""
-    chemin = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'maroc_regions.json')
-    with open(chemin, encoding='utf-8') as f:
+def ecrire_module(chemin_json, chemin_py):
+    """Écrit `maroc_regions.py` à partir du contour source (.json Natural Earth : {source, regions: [{nom, anneau}]})."""
+    with open(chemin_json, encoding='utf-8') as f:
         d = json.load(f)
+    lignes = ['"""Contour des régions du Maroc (données publiques Natural Earth, sans donnée personnelle), pour la carte du '
+              'Maroc.', '',
+              "FICHIER GÉNÉRÉ depuis maroc_regions.json par geo_maroc.ecrire_module() : un module Python plutôt qu'un .json, "
+              'que la', 'garde des données refuse dans le dépôt. Ne pas le modifier à la main."""', '',
+              f"SOURCE = {d['source']!r}", 'REGIONS = [']
+    for r in d['regions']:
+        lignes.append(f"    {{\"nom\": {r['nom']!r}, \"anneau\": [")
+        pts = [f'[{lon!r}, {lat!r}]' for lon, lat in r['anneau']]
+        lignes += ['        ' + ', '.join(pts[k:k + 8]) + ',' for k in range(0, len(pts), 8)]
+        lignes.append('    ]},')
+    lignes.append(']')
+    with open(chemin_py, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(lignes) + '\n')
+
+
+def contour():
+    """Anneaux des régions en coordonnées monde, [[x, y], …]. Lus dans le module versionné `maroc_regions.py`."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import maroc_regions
     return [dict(nom=r['nom'], pts=[[round(lon * ECHELLE_X, 1), round(-lat * ECHELLE_Y, 1)] for lon, lat in r['anneau']])
-            for r in d['regions']]
+            for r in maroc_regions.REGIONS]
 
 
 def rayon_ville(n, plafond=38.0):

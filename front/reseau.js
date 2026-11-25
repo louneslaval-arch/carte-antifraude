@@ -2,38 +2,51 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const { el, api } = Commun;
   Commun.entete('reseau.html');
-  const ACTIVE = false;                                        // carte désactivée pour l'instant (choix du 16/11)
-  if (!ACTIVE) {
-    document.getElementById('sous-titre').textContent =
-      'La carte est désactivée pour l’instant. Les liens avec la liste noire restent visibles sur chaque fiche client.';
-    for (const id of ['scene', 'choix']) document.getElementById(id).hidden = true;
-    document.querySelector('.legende').hidden = true;
-    return;
-  }
   const NS = 'http://www.w3.org/2000/svg';
   const scene = document.getElementById('scene');
   const indice = Commun.parametre('i');
 
   if (Commun.role() !== 'ANALYSTE') {
     document.getElementById('sous-titre').textContent = 'La carte des réseaux est réservée à la cellule fraude.';
-    scene.hidden = true;
+    masquerScene();
     return;
   }
-  const choix = document.getElementById('choix');
-  const select = document.getElementById('client');
+  // Recherche d'un client par son nom (dans le corps d'une requête POST, jamais dans l'URL) : aucun nom n'est chargé
+  // tant que l'analyste n'a rien cherché.
+  const choix = document.getElementById('choix'), champ = document.getElementById('recherche');
+  const resultats = document.getElementById('resultats');
   choix.hidden = false;
-  for (const niveau of ['critique', 'majeure', 'mineure']) {
-    const r = await api('/api/base/clients', { corps: { niveau, taille: 40 } });
-    for (const c of r.items) select.append(el('option', { value: c.indice, texte: `${c.nom} · ${c.niveau_libelle}` }));
-  }
-  select.addEventListener('change', () => { if (select.value) location.href = `reseau.html?i=${select.value}`; });
+  choix.addEventListener('submit', ev => ev.preventDefault());
+  let minuterie = null, numero = 0;
+  champ.addEventListener('input', () => {
+    clearTimeout(minuterie);
+    minuterie = setTimeout(async () => {
+      const texte = champ.value.trim(), moi = ++numero;
+      if (texte.length < 2) { resultats.replaceChildren(); return; }
+      try {
+        const r = await api('/api/base/clients', { corps: { texte, taille: 12, tri: 'alpha' } });
+        if (moi !== numero) return;
+        resultats.replaceChildren(...(r.items.length ? r.items.map(c => el('li', {},
+          el('a', { href: `reseau.html?i=${c.indice}`, texte: c.nom }), c.inscrit ? el('span', { classe: 'etiquette etiquette-rouge', texte: 'inscrit' }) : null))
+          : [el('li', { classe: 'vide', texte: 'Aucun client ne correspond.' })]));
+      } catch (e) {
+        if (moi === numero) resultats.replaceChildren(el('li', { classe: 'vide', role: 'alert', texte: Commun.erreur(e, 'Recherche') }));
+      }
+    }, 250);
+  });
   if (!indice) {
-    if (select.options.length > 1) location.replace(`reseau.html?i=${select.options[1].value}`);
+    document.getElementById('sous-titre').textContent = 'Cherchez un client pour afficher son réseau, ou ouvrez-le depuis sa fiche.';
+    masquerScene();
     return;
   }
-  select.value = indice;
   let r;
-  try { r = await api(`/api/base/reseau/${encodeURIComponent(indice)}`); } catch (e) { return; }
+  try {
+    r = await api(`/api/base/reseau/${encodeURIComponent(indice)}`);
+  } catch (e) {
+    document.getElementById('sous-titre').textContent = Commun.erreur(e, 'Réseau');
+    masquerScene();
+    return;
+  }
   const depart = r.noeuds.find(n => n.depart);
   document.getElementById('titre').textContent = `Réseau de ${depart ? depart.nom : 'ce client'}`;
   dessiner(r);
@@ -43,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     scene.setAttribute('viewBox', `0 0 ${L} ${H}`);
     const parId = new Map(noeuds.map((n, k) => {
       const angle = k * 2.399963;                                   // angle d'or : départ déterministe
-      const rayon = n.depart ? 0 : 60 + n.niveau * 110 + (k % 5) * 6;
+      const rayon = n.depart ? 0 : 90 + n.niveau * 150 + (k % 5) * 6;
       return [String(n.id), Object.assign(n, { x: L / 2 + rayon * Math.cos(angle), y: H / 2 + rayon * Math.sin(angle), vx: 0, vy: 0 })];
     }));
     const aretes = liens.map(l => ({ a: parId.get(String(l.de)), b: parId.get(String(l.vers)), code: l.code })).filter(l => l.a && l.b);
@@ -52,11 +65,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       for (const a of noeuds) for (const b of noeuds) {
         if (a === b) continue;
         const dx = a.x - b.x, dy = a.y - b.y, d2 = Math.max(dx * dx + dy * dy, 25);
-        const f = 2200 / d2;
+        const f = 5200 / d2;
         a.vx += dx / Math.sqrt(d2) * f; a.vy += dy / Math.sqrt(d2) * f;
       }
       for (const { a, b } of aretes) {
-        const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1), f = (d - 90) * 0.02;
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1), f = (d - 150) * 0.02;
         a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
       }
       for (const n of noeuds) {
@@ -64,6 +77,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (n.depart) { n.vx = 0; n.vy = 0; continue; }
         n.x = Math.min(L - 30, Math.max(30, n.x + n.vx * t)); n.y = Math.min(H - 24, Math.max(24, n.y + n.vy * t));
         n.vx *= 0.55; n.vy *= 0.55;
+      }
+      for (const a of noeuds) for (const b of noeuds) {            // écart minimal : aucun nœud ne recouvre un autre
+        if (a === b || a.depart) continue;
+        const dx = a.x - b.x, dy = a.y - b.y, d = Math.hypot(dx, dy) || 1, min = 72;
+        if (d < min) { const p = (min - d) / (b.depart ? 1 : 2); a.x += dx / d * p; a.y += dy / d * p; }
       }
     }
     const groupeLiens = svg('g'), groupeNoeuds = svg('g');
@@ -90,6 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           'font-weight': n.depart || n.inscrit ? 700 : 500, fill: n.inscrit ? '#b4141e' : '#4a4f63' }, raccourcir(n.nom)));
       } else {
         g.append(svg('title', {}, `même ${n.nom.toLowerCase()}`));
+      }
+      if (n.autres) {                                 // nœud replié : ses autres voisins ne sont que comptés
+        g.append(svg('text', { y: taille + 27, 'text-anchor': 'middle', 'font-size': 10, fill: '#7a8096' },
+          `+ ${n.autres} autre${n.autres > 1 ? 's' : ''} non affiché${n.autres > 1 ? 's' : ''}`));
       }
       if (n.type !== 'identifiant') {
         const ouvrir = () => { location.href = `fiche.html?i=${n.id}`; };
@@ -119,6 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
     placer();
+  }
+  function masquerScene() {                       // l'attribut, car la propriété `hidden` n'existe pas sur un SVG
+    scene.setAttribute('hidden', '');
+    document.querySelector('.legende').hidden = true;
   }
   function svg(balise, attributs = {}, texte) {
     const n = document.createElementNS(NS, balise);

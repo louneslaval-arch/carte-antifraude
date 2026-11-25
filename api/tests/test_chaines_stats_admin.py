@@ -15,7 +15,7 @@ ROUTES = [  # (méthode, chemin, corps, droit)
     ('get', '/api/carte/geometrie', None, 'carte.geometrie'),
     ('post', '/api/carte/noms', {'indices': [0]}, 'carte.noms'),
     ('get', '/api/carte/noeud/0', None, 'carte.noeud'),
-    ('post', '/api/carte/recherche', {'q': 'FASSI'}, 'carte.recherche'),
+    ('post', '/api/carte/recherche', {'q': 'QIBOUSI'}, 'carte.recherche'),
     ('get', '/api/chaines/inscrits', None, 'chaines'),
     ('get', '/api/chaines/{inscrit}', None, 'chaines'),
     ('get', '/api/stats/villes', None, 'stats'),
@@ -48,8 +48,8 @@ def test_liste_des_inscrits_sans_cin(client, etat, publication):
     geo = etat.publication.geometrie['inscrits']
     assert [x['indice'] for x in r] == [p['i'] for p in geo]
     assert all(set(x) == {'indice', 'nom', 'type', 'compte', 'alerte', 'certain'} for x in r)
-    fassi = next(x for x in r if x['indice'] == indice_de(publication, 'E:9'))
-    assert fassi['nom'] == 'FASSI YOUSSEF' and fassi['certain'] is True and fassi['type'] == 'PP'
+    qibousi = next(x for x in r if x['indice'] == indice_de(publication, 'E:9'))
+    assert qibousi['nom'] == 'QIBOUSI YOUSSEF' and qibousi['certain'] is True and qibousi['type'] == 'PP'
     texte = json.dumps(r)
     assert 'ZZ9000' not in texte
 
@@ -157,4 +157,4 @@ def test_purge_du_journal(etat):
     with etat.base.begin() as s:
         s.execute(update(Journal).where(Journal.id == 1).values(horodatage=maintenant() - timedelta(days=400)))
     assert journal.purger(etat.base, 365) == 1
-    assert journal.indices_servis(etat.base, 'ana', ('noms',), depuis=timedelta(days=1000)) == {3}
+    assert {i for _e, i in journal.indices_servis(etat.base, 'ana', ('noms',), depuis=timedelta(days=1000))} == {3}

@@ -7,16 +7,18 @@ const CONTENU_PORTAIL = {
   introduction: 'Une seule identité par client, construite à partir des dossiers, du registre du commerce et de la '
     + 'liste noire. Autour, les modules déjà branchés sur la base, et les usages qu’elle rend possibles.',
   centre: {
-    nom: 'Base client',
-    accroche: 'Une fiche par personne et par société',
+    nom: 'Vue 360°',
+    accroche: 'Chaque client vu sous tous les angles',
+    profils: ['Salarié', 'Entrepreneur', 'Société'],
     lien: 'base.html',
     x: 50, y: 50,
   },
   modules: [
-    { id: 'map', nom: 'Map antifraude', etat: 'a_venir', x: 69, y: 30,
+    { id: 'map', nom: 'Map antifraude', etat: 'actif', lien: 'carte.html', x: 69, y: 30,
       accroche: 'Les liens entre clients et inscrits',
-      contexte: 'Le réseau de chaque client : sociétés, gérants, RIB et logements partagés, jusqu’à la liste noire. '
-        + 'La carte est désactivée pour l’instant ; les liens avec la liste noire restent visibles sur chaque fiche client.',
+      contexte: 'Tout le registre du commerce relié, avec la liste noire par-dessus : réseaux de sociétés et de personnes, '
+        + 'vue réseau et carte du Maroc en relief, filtres (liste noire, départs certains, rôles terminés, force). Depuis '
+        + 'une fiche client, la carte se centre sur le client ; la mise à jour en direct viendra avec les étapes suivantes.',
       usages: [{ nom: 'Liens avec la liste noire, à 3 liens au plus', etat: 'en cours' },
         { nom: 'Incohérences entre dossiers (même châssis, même RIB)', etat: 'déjà dans la base' }],
       donnees: [{ nom: 'Rôles dans les sociétés', source: 'registre du commerce' },
