@@ -273,6 +273,11 @@ class BaseClient:
                         chemins=self._chemins(cx, ref)[:3], relations_c7=relations, alertes_c6=alertes)
 
     def reseau(self, indice, profondeur=2, limite=120):
+        """Réseau des identités et signaux explicites de rapprochement af_lien.
+
+        Les signaux sont distincts des entités inscrites : af_lien ne prouve pas
+        à lui seul que l'identité source figure sur une liste noire.
+        """
         depart = self.fiche_de.get(indice)
         if depart is None: return None
         with self.connexion() as cx:
@@ -297,6 +302,21 @@ class BaseClient:
             noeuds = [dict(id=self.indice_fiche[i], type=types.get(i, 'personne'), nom=self._nom(cx, i),
                           niveau=distance, inscrit=i in self.inscrits, depart=i == depart)
                       for i, distance in connus.items()]
+            # Signaux issus des rapprochements AWS : ne jamais exposer cible_id,
+            # cle_valeur ni les identifiants internes dans la réponse du graphe.
+            signaux = cx.execute(
+                'SELECT lien_id, identite_id, regle, niveau FROM af_lien '
+                'WHERE identite_id = ANY(%s) ORDER BY lien_id LIMIT %s',
+                (list(connus), max(0, limite - len(noeuds)))).fetchall()
+            for s in signaux:
+                ident = s['identite_id']
+                if ident not in connus:
+                    continue
+                signal_id = f"signal{len(noeuds)}"
+                code = s['regle'] or 'signal'
+                noeuds.append(dict(id=signal_id, type='identifiant', nom=f'Signal {code}',
+                                   niveau=connus[ident] + 1, inscrit=False, depart=False))
+                liens.append(dict(de=self.indice_fiche[ident], vers=signal_id, code=code))
             uniques = list({(l['de'], l['vers'], l['code']): l for l in liens}.values())
             return dict(noeuds=noeuds, liens=uniques)
 
