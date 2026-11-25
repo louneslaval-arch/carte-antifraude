@@ -206,3 +206,39 @@ def test_le_reglage_a_la_demande_se_lit_dans_l_environnement():
     env = {'CARTE_CLE_JWT': 'x' * 40, 'CARTE_BASE_URL': 'sqlite:///:memory:'}
     assert lire_reglages(env).chemins_a_la_demande is False
     assert lire_reglages(dict(env, CARTE_CHEMINS_A_LA_DEMANDE='1')).chemins_a_la_demande is True
+
+
+def test_gerant_et_associe_lus_sur_une_autre_piece_que_la_societe_lui_restent_rattaches(tmp_path):
+    """Dossier de société : le gérant n'est lu que sur sa CIN, l'associé sur des statuts sans le nom de la société ;
+    `societe_af_id` dit à quelle société ils appartiennent. La fiche de la société les porte tous deux, et la vue 360°
+    du dossier peut déplier leur étoile."""
+    carte = str(tmp_path / 'carte.sqlite')
+    shutil.copy(KIT, carte)
+    cx = sqlite3.connect(carte)
+    cx.executescript(charger_antifraude.SCHEMA)
+    _inserer(cx, 'af_dossier', ref='ZZD010', lot='prod', actif=1, type_personne='PM', produit='LOA',
+             client_nom='EXEMPLE ORBITA BATIMENT SARL', recu_le='2026-10-07')
+    _inserer(cx, 'af_societe', af_societe_id=10, dossier_ref='ZZD010', lot='prod', role='societe_cliente',
+             denomination='EXEMPLE ORBITA BATIMENT SARL', rc_brut='999010', rc_num='999010', tribunal_code='RABAT',
+             piece_type='REGISTRE_COMMERCE', piece_id='rc10', source='AMONT')
+    _inserer(cx, 'af_personne', af_personne_id=10, dossier_ref='ZZD010', lot='prod', role='gerant',
+             nom_complet='TALIBOUN YASSIR', nom='TALIBOUN', prenom='YASSIR', cin_brut='ZZ900010', cin_norm='ZZ900010',
+             piece_type='CIN', piece_id='cin10', source='AMONT', societe_af_id=10)
+    _inserer(cx, 'af_personne', af_personne_id=11, dossier_ref='ZZD010', lot='prod', role='associe',
+             nom_complet='MERZAKOUN NADIA', nom='MERZAKOUN', prenom='NADIA', cin_brut='ZZ900011', cin_norm='ZZ900011',
+             parts='40', piece_type='STATUTS', piece_id='st10', source='AMONT', societe_af_id=10)
+    cx.commit()
+    cx.close()
+    base = str(tmp_path / 'base_client.sqlite')
+    bc.construire(carte, base, maintenant=T0)
+    from app.base_client import BaseClient
+    b = BaseClient(base)
+    societe = next(c for c in b.clients() if c['type'] == 'societe')
+    f = b.fiche(societe['indice'])
+    roles = {p['nom']: p['role'] for p in f['personnes']}
+    assert roles.get('TALIBOUN YASSIR') == 'gérant' and roles.get('MERZAKOUN NADIA') == 'associé', roles
+    assert all(p['indice'] for p in f['personnes'])
+    dossier = next(x for x in b.liste_dossiers() if x['reference'] == 'ZZD010')
+    v = b.dossier(dossier['indice'])['vue']
+    dirigeants = next(x for x in v['vue360']['etoile']['branches'] if x['cle'] == 'dirigeants')
+    assert len([l for l in dirigeants['lignes'] if (l.get('lien') or '').startswith('fiche.html?i=')]) == 2

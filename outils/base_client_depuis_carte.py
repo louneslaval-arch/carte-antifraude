@@ -120,6 +120,37 @@ def champs_piece(type_piece, personnes, societes, comptes):
     return f
 
 
+def _rattacher_dirigeants(par_piece):
+    """Un gérant, un associé ou un dirigeant lu sur une autre pièce que sa société (sa CIN, des statuts sans le nom de
+    la société) : `societe_af_id` dit à quelle société il appartient. Il est repris aussi parmi les personnes de la pièce
+    qui porte cette société, pour que la société ait ses dirigeants ; sa pièce d'origine reste telle quelle. Sans
+    `societe_af_id`, la société cliente du dossier quand il n'y en a qu'une."""
+    piece_de_societe, clientes = {}, defaultdict(list)
+    for cle, contenu in par_piece.items():
+        for s in contenu['societes']:
+            piece_de_societe.setdefault(s['af_societe_id'], cle)
+            if s['role'] == 'societe_cliente':
+                clientes[cle[0]].append(s['af_societe_id'])
+    ajouts = []
+    for cle, contenu in par_piece.items():
+        for p in contenu['personnes']:
+            if p['role'] not in DIRIGEANTS:
+                continue
+            societe = p.get('societe_af_id')
+            if societe is None and len(set(clientes[cle[0]])) == 1:
+                societe = clientes[cle[0]][0]
+            cible = piece_de_societe.get(societe)
+            if cible is None or cible == cle or cible[0] != cle[0]:
+                continue                                     # déjà sur la pièce de sa société, ou société inconnue
+            ajouts.append((cible, p))
+    for cible, p in ajouts:
+        deja = par_piece[cible]['personnes']
+        meme = lambda q: (q['role'] == p['role'] and ((p['cin_norm'] and q['cin_norm'] == p['cin_norm'])  # noqa: E731
+                          or (not p['cin_norm'] and (q['nom_complet'] or q['nom']) == (p['nom_complet'] or p['nom']))))
+        if not any(meme(q) for q in deja):
+            deja.append(p)
+
+
 def dossiers(cx):
     """Chaque dossier de la base de la carte, sous la forme de `DossierDetail`."""
     par_piece = defaultdict(lambda: dict(personnes=[], societes=[], comptes=[]))
@@ -129,6 +160,7 @@ def dossiers(cx):
             cle = (ligne['dossier_ref'], ligne['piece_id'])
             par_piece[cle][genre].append(ligne)
             types.setdefault(cle, ligne['piece_type'] or 'AUTRE')
+    _rattacher_dirigeants(par_piece)
     pieces = defaultdict(list)
     for (ref, piece_id), contenu in sorted(par_piece.items()):
         type_piece = types[(ref, piece_id)]
