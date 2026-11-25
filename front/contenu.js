@@ -1,20 +1,22 @@
 // Contenu du portail : noms, accroches, textes, positions (en % de la scène). Modifiable sans toucher au code.
+// L'accueil ne montre que la base client et les modules actifs (25/11/2026, Lounès) : les modules à venir et les usages
+// restent décrits ici, sans être affichés.
 // Fichier .js plutôt que .json : la garde des données n'admet pas de .json dans front/ (questions ouvertes n°70, 76).
 'use strict';
 
 const CONTENU_PORTAIL = {
-  titre: 'Une base client, dix façons de s’en servir',
-  introduction: 'Une seule identité par client, construite à partir des dossiers, du registre du commerce et de la '
-    + 'liste noire. Autour, les modules déjà branchés sur la base, et les usages qu’elle rend possibles.',
+  titre: 'Base client et map antifraude',
+  introduction: 'Chaque dossier et son client, construits à partir des dossiers de l’antifraude, du registre du commerce '
+    + 'et de la liste noire ; et la carte des liens entre clients et inscrits.',
   centre: {
-    nom: 'Vue 360°',
-    accroche: 'Chaque client vu sous tous les angles',
+    nom: 'Base client',
+    accroche: 'Chaque dossier vu sous tous les angles',
     profils: ['Salarié', 'Entrepreneur', 'Société'],
     lien: 'base.html',
-    x: 50, y: 50,
+    x: 36, y: 50,
   },
   modules: [
-    { id: 'map', nom: 'Map antifraude', etat: 'actif', lien: 'carte.html', x: 69, y: 30,
+    { id: 'map', nom: 'Map antifraude', etat: 'actif', lien: 'carte.html', x: 68, y: 50,
       accroche: 'Les liens entre clients et inscrits',
       contexte: 'Tout le registre du commerce relié, avec la liste noire par-dessus : réseaux de sociétés et de personnes, '
         + 'vue réseau et carte du Maroc en relief, filtres (liste noire, départs certains, rôles terminés, force). Depuis '

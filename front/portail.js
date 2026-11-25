@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const ilots = [];                                           // [{ element, donnee, genre, courbe }]
 
   // ---- tuile centrale, puis modules, puis usages : c'est aussi l'ordre de tabulation -----------------------------
-  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : chercher un client et ouvrir sa vue 360°` },
+  const centre = el('a', { classe: 'ilot ilot-centre', href: C.centre.lien, 'aria-label': `${C.centre.nom} : chercher un dossier et ouvrir sa vue 360°` },
     el('div', { classe: 'ilot-nom', texte: C.centre.nom }),
     el('div', { classe: 'ilot-accroche', texte: C.centre.accroche }),
     (C.centre.profils || []).length ? el('div', { classe: 'centre-profils' },
@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     el('div', { classe: 'centre-maj', id: 'centre-maj' }));
   ajouter(centre, C.centre, 'centre');
 
-  C.modules.forEach((m, k) => {
+  // Seuls les modules actifs s'affichent ; les modules à venir et les usages restent décrits dans contenu.js.
+  C.modules.filter(m => m.etat === 'actif').forEach((m, k) => {
     const libelleEtat = { actif: 'actif', a_venir: 'à venir', source: 'source', libre: 'place libre' }[m.etat];
     const b = el('button', { type: 'button', classe: `ilot ilot-module ilot-flotte etat-${m.etat}`,
       'aria-label': `${m.nom} : ${m.accroche}` },
@@ -35,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ajouter(b, m, 'module');
   });
 
-  C.usages.forEach((u, k) => {
+  [].forEach((u, k) => {                                      // usages : plus affichés à l'accueil
     const b = el('button', { type: 'button', classe: `ilot ilot-usage ilot-flotte${u.enCours ? ' en-cours' : ''}`,
       'aria-label': `${u.nom} : ${u.accroche}` },
       el('span', { classe: 'numero', texte: u.n }), el('span', { classe: 'ilot-nom', texte: u.nom }));
@@ -179,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     minuterie = setTimeout(() => {
       if (!survol && !panneauOuvert && !etroit.matches) {
         const usages = ilots.filter(i => i.genre === 'usage' && i !== precedent);
+        if (!usages.length) return;                           // aucun usage affiché : rien à illuminer
         const choisi = usages[Math.floor(Math.random() * usages.length)];
         precedent = choisi;
         choisi.element.classList.add('illumine');
