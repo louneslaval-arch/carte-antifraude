@@ -12,8 +12,7 @@ from .debit import Debit
 from .erreurs import attraper_tout, validation
 from .graphe import charger
 from .base_client_aws import BaseClient
-from .routes import admin, auth, base, carte, chaines, flux, stats
-
+from .routes import admin, auth, base, carte, carte_globale_pg, chaines, flux, graphe_pg, stats
 VERSION = '0.3.0'
 
 
@@ -66,7 +65,7 @@ def creer_app(reglages: Reglages) -> FastAPI:
                            allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type'])
 
     app.include_router(auth.routeur)
-    for module in (carte, chaines, stats, admin, flux, base):
+    for module in (carte, carte_globale_pg, graphe_pg, chaines, stats, admin, flux, base):
         app.include_router(module.routeur)
     if reglages.front:                                              # pages statiques, sans donnée : à la racine
         from fastapi.staticfiles import StaticFiles
