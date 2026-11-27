@@ -11,10 +11,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   let scale = 1, dx = 0, dy = 0, width = 1, height = 1, chosen = -1;
   let down = null, moved = false;
 
+  // Le layout initial PostgreSQL range 5 000+ composantes en lignes très hautes.
+  // Les repacker localement évite la colonne verticale lors du zoom global.
+  function placerReseaux() {
+    const groupes = new Map();
+    nodes.forEach((n, i) => {
+      if (filter.checked && !highlighted.has(i)) return;
+      if (!groupes.has(n.c)) groupes.set(n.c, []);
+      groupes.get(n.c).push(n);
+    });
+    const groupesTries = [...groupes.values()].sort((a, b) => b.length - a.length);
+    const visibles = groupesTries.reduce((n, g) => n + g.length, 0);
+    const taille = 20, marge = 45;
+    const largeurMax = Math.max(500, Math.sqrt(visibles) * taille * 1.5);
+    let x = marge, y = marge, hauteurLigne = 0;
+    for (const groupe of groupesTries) {
+      const colonnes = Math.max(1, Math.ceil(Math.sqrt(groupe.length)));
+      const lignes = Math.ceil(groupe.length / colonnes);
+      const largeur = colonnes * taille + marge;
+      const hauteur = lignes * taille + marge;
+      if (x + largeur > largeurMax && x > marge) {
+        x = marge; y += hauteurLigne; hauteurLigne = 0;
+      }
+      groupe.forEach((n, i) => {
+        n.x = x + (i % colonnes) * taille;
+        n.y = y + Math.floor(i / colonnes) * taille;
+      });
+      x += largeur;
+      hauteurLigne = Math.max(hauteurLigne, hauteur);
+    }
+  }
+
   function fit() {
     if (!nodes.length) return;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const n of nodes) {
+    for (let i = 0; i < nodes.length; i++) {
+      if (filter.checked && !highlighted.has(i)) continue;
+      const n = nodes[i];
       minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
       minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
     }
@@ -103,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     scale = next; draw();
   }, {passive: false});
   document.getElementById('tout-voir').addEventListener('click', fit);
-  filter.addEventListener('change', draw);
+  filter.addEventListener('change', () => {placerReseaux(); fit();});
   window.addEventListener('resize', () => {resize(); fit();});
 
   try {
@@ -117,8 +150,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Conserver seulement les composantes signalées dans la couche géométrique.
     const sensitiveNetworks = new Set(geo.reseaux_bl || []);
     highlighted = new Set(nodes.flatMap((n, i) => sensitiveNetworks.has(n.c) ? [i] : []));
+    filter.checked = highlighted.size > 0;
     status.textContent = `${stats.noeuds.toLocaleString('fr-FR')} nœuds · ${stats.aretes.toLocaleString('fr-FR')} liens`;
-    resize(); fit();
+    placerReseaux(); resize(); fit();
   } catch (error) {
     if (error.message !== 'session') {
       status.textContent = error.statut === 503 ? 'Publication PostgreSQL indisponible.' :
