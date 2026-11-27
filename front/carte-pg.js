@@ -7,51 +7,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   const status = document.getElementById('statut');
   const detail = document.getElementById('identite-pg');
   const filter = document.getElementById('bl-seulement');
-  let nodes = [], edges = [], highlighted = new Set();
+  let nodes = [], edges = [], highlighted = new Set(), regions = [], villes = {};
   let scale = 1, dx = 0, dy = 0, width = 1, height = 1, chosen = -1;
   let down = null, moved = false;
 
-  // Le layout initial PostgreSQL range 5 000+ composantes en lignes très hautes.
-  // Les repacker localement évite la colonne verticale lors du zoom global.
-  function placerReseaux() {
+  // Positions liées aux villes réelles. Les identités sans ville restent non localisées.
+  function placerParVille() {
     const groupes = new Map();
-    nodes.forEach((n, i) => {
-      if (filter.checked && !highlighted.has(i)) return;
-      if (!groupes.has(n.c)) groupes.set(n.c, []);
-      groupes.get(n.c).push(n);
-    });
-    const groupesTries = [...groupes.values()].sort((a, b) => b.length - a.length);
-    const visibles = groupesTries.reduce((n, g) => n + g.length, 0);
-    const taille = 20, marge = 45;
-    const largeurMax = Math.max(500, Math.sqrt(visibles) * taille * 1.5);
-    let x = marge, y = marge, hauteurLigne = 0;
-    for (const groupe of groupesTries) {
-      const colonnes = Math.max(1, Math.ceil(Math.sqrt(groupe.length)));
-      const lignes = Math.ceil(groupe.length / colonnes);
-      const largeur = colonnes * taille + marge;
-      const hauteur = lignes * taille + marge;
-      if (x + largeur > largeurMax && x > marge) {
-        x = marge; y += hauteurLigne; hauteurLigne = 0;
-      }
+    for (const n of nodes) {
+      n.localise = Boolean(n.v && villes[n.v]);
+      if (!n.localise) continue;
+      if (!groupes.has(n.v)) groupes.set(n.v, []);
+      groupes.get(n.v).push(n);
+    }
+    const angleOr = Math.PI * (3 - Math.sqrt(5));
+    for (const [ville, groupe] of groupes) {
+      const [cx, cy] = villes[ville];
       groupe.forEach((n, i) => {
-        n.x = x + (i % colonnes) * taille;
-        n.y = y + Math.floor(i / colonnes) * taille;
+        const rayon = i === 0 ? 0 : Math.sqrt(i) * 2.4;
+        n.x = cx + rayon * Math.cos(i * angleOr);
+        n.y = cy + rayon * Math.sin(i * angleOr);
       });
-      x += largeur;
-      hauteurLigne = Math.max(hauteurLigne, hauteur);
     }
   }
 
   function fit() {
-    if (!nodes.length) return;
+    if (!regions.length) return;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (let i = 0; i < nodes.length; i++) {
-      if (filter.checked && !highlighted.has(i)) continue;
-      const n = nodes[i];
-      minX = Math.min(minX, n.x); maxX = Math.max(maxX, n.x);
-      minY = Math.min(minY, n.y); maxY = Math.max(maxY, n.y);
+    for (const region of regions) {
+      for (const [x, y] of region.pts) {
+        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+      }
     }
-    scale = Math.min((width - 60) / Math.max(1, maxX - minX), (height - 60) / Math.max(1, maxY - minY), 2);
+    scale = Math.min((width - 60) / Math.max(1, maxX - minX), (height - 60) / Math.max(1, maxY - minY));
     dx = width / 2 - scale * (minX + maxX) / 2;
     dy = height / 2 - scale * (minY + maxY) / 2;
     draw();
@@ -68,20 +57,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function draw() {
     ctx.clearRect(0, 0, width, height);
-    if (!nodes.length) return;
+    if (!regions.length) return;
     ctx.save(); ctx.translate(dx, dy); ctx.scale(scale, scale);
+    for (const region of regions) {
+      if (!region.pts?.length) continue;
+      ctx.beginPath();
+      region.pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+      ctx.closePath();
+      ctx.fillStyle = '#e5efe6'; ctx.fill();
+      ctx.strokeStyle = '#aac5af'; ctx.lineWidth = 1 / scale; ctx.stroke();
+    }
+    for (const [nom, [x, y]] of Object.entries(villes)) {
+      if (!nodes.some((n, i) => n.v === nom && (!filter.checked || highlighted.has(i)))) continue;
+      ctx.fillStyle = '#386b55';
+      ctx.font = `${Math.max(10, 12 / scale)}px sans-serif`;
+      ctx.fillText(nom, x + 8 / scale, y - 8 / scale);
+    }
     const filtered = filter.checked;
     ctx.lineWidth = Math.max(.45, 1 / scale);
     for (const a of edges) {
       if (filtered && (!highlighted.has(a.a) || !highlighted.has(a.b))) continue;
       const p = nodes[a.a], q = nodes[a.b];
-      if (!p || !q) continue;
+      if (!p?.localise || !q?.localise) continue;
       ctx.strokeStyle = a.type === 'liste_noire' ? '#d65757' : '#b6c4d3';
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
     }
     for (let i = 0; i < nodes.length; i++) {
       const n = nodes[i];
-      if (filtered && !highlighted.has(i)) continue;
+      if (!n.localise || (filtered && !highlighted.has(i))) continue;
       ctx.fillStyle = n.bl ? '#c53945' : n.t === 'societe' ? '#3758a2' : n.t === 'dossier' ? '#8b6c52' : '#25907d';
       const radius = (i === chosen ? 6 : 3.5) / Math.max(.5, Math.sqrt(scale));
       ctx.beginPath(); ctx.arc(n.x, n.y, radius, 0, Math.PI * 2); ctx.fill();
@@ -110,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const p = point(e);
     let index = -1, distance = 15 * 15;
     for (let i = 0; i < nodes.length; i++) {
-      if (filter.checked && !highlighted.has(i)) continue;
+      if (!nodes[i].localise || (filter.checked && !highlighted.has(i))) continue;
       const n = nodes[i], x = n.x * scale + dx - p.x, y = n.y * scale + dy - p.y;
       const d = x * x + y * y;
       if (d < distance) { index = i; distance = d; }
@@ -136,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     scale = next; draw();
   }, {passive: false});
   document.getElementById('tout-voir').addEventListener('click', fit);
-  filter.addEventListener('change', () => {placerReseaux(); fit();});
+  filter.addEventListener('change', () => {fit();});
   window.addEventListener('resize', () => {resize(); fit();});
 
   try {
@@ -147,12 +150,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (geo.type !== 'graphe_af_postgresql' || !Array.isArray(geo.noeuds) || !Array.isArray(geo.aretes)) throw Error('format');
     nodes = geo.noeuds;
     edges = geo.aretes;
+    regions = geo.regions || [];
+    villes = geo.villes || {};
+    if (!regions.length || !Object.keys(villes).length) throw Error('Carte géographique absente : republier le graphe');
     // Conserver seulement les composantes signalées dans la couche géométrique.
     const sensitiveNetworks = new Set(geo.reseaux_bl || []);
     highlighted = new Set(nodes.flatMap((n, i) => sensitiveNetworks.has(n.c) ? [i] : []));
     filter.checked = highlighted.size > 0;
-    status.textContent = `${stats.noeuds.toLocaleString('fr-FR')} nœuds · ${stats.aretes.toLocaleString('fr-FR')} liens`;
-    placerReseaux(); resize(); fit();
+    placerParVille();
+    const localises = nodes.filter(n => n.localise).length;
+    status.textContent = `${stats.noeuds.toLocaleString('fr-FR')} nœuds · ${stats.aretes.toLocaleString('fr-FR')} liens · ${localises.toLocaleString('fr-FR')} localisés par ville`;
+    document.getElementById('sans-ville').textContent = `${(nodes.length - localises).toLocaleString('fr-FR')} nœuds sans ville fiable ne sont pas positionnés sur la carte.`;
+    resize(); fit();
   } catch (error) {
     if (error.message !== 'session') {
       status.textContent = error.statut === 503 ? 'Publication PostgreSQL indisponible.' :

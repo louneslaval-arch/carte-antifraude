@@ -61,10 +61,16 @@ def valider(source):
                for a in aretes):
         raise ValueError('Arête hors limites')
     # Allowlist stricte : les champs libres (noms, pièces, CIN) ne passent pas.
-    champs_noeuds = {'id', 't', 'bl', 'x', 'y', 'c', 'deg'}
+    champs_noeuds = {'id', 't', 'bl', 'x', 'y', 'c', 'deg', 'v'}
     champs_aretes = {'a', 'b', 'type'}
     if any(set(n) - champs_noeuds for n in noeuds):
         raise ValueError('Champ identifiant ou inconnu dans la géométrie')
+    villes = geo.get('villes') or {}
+    if any(n.get('v') is not None and n['v'] not in villes for n in noeuds):
+        raise ValueError('Ville absente du référentiel géographique')
+    if not all(isinstance(p, list) and len(p) == 2 and all(isinstance(c, (int, float)) for c in p)
+               for p in villes.values()):
+        raise ValueError('Coordonnées géographiques invalides')
     if any(set(a) - champs_aretes for a in aretes):
         raise ValueError('Champ libre dans une arête')
     ids_geo = {n['id'] for n in noeuds}

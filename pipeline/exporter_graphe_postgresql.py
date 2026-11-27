@@ -19,6 +19,18 @@ import tempfile
 
 import psycopg
 from psycopg.rows import dict_row
+try:
+    from pipeline.geo_maroc import VILLES, contour, monde
+except ModuleNotFoundError:
+    from geo_maroc import VILLES, contour, monde
+
+
+def ville_connue(valeur):
+    """Ne publier que les codes de villes présents dans le référentiel géographique."""
+    if not isinstance(valeur, str):
+        return None
+    code = valeur.strip().upper()
+    return code if code in VILLES else None
 
 
 def construire(identites, relations, liens_bl):
@@ -32,7 +44,8 @@ def construire(identites, relations, liens_bl):
         idx = len(noeuds)
         ref[k] = idx
         t = 'societe' if i['type_identite'] in ('PM', 'societe') else 'personne'
-        noeuds.append({'id': secrets.token_urlsafe(15), 't': t, 'bl': 0})
+        noeuds.append({'id': secrets.token_urlsafe(15), 't': t, 'bl': 0,
+                       'v': ville_connue(i.get('ville_code'))})
         noms.append({'id': noeuds[idx]['id'], 'nom': i['nom'], 'type': t, 'liste_noire': False})
 
     dedup = set()
@@ -57,7 +70,7 @@ def construire(identites, relations, liens_bl):
             dossier_key = ('dossier', dossier_ref)
             if dossier_key not in ref:
                 ref[dossier_key] = len(noeuds)
-                noeuds.append({'id': secrets.token_urlsafe(15), 't': 'dossier', 'bl': 0})
+                noeuds.append({'id': secrets.token_urlsafe(15), 't': 'dossier', 'bl': 0, 'v': None})
                 noms.append({'id': noeuds[-1]['id'], 'nom': dossier_ref,
                              'type': 'dossier', 'liste_noire': False})
             a = ref[dossier_key]
@@ -65,7 +78,8 @@ def construire(identites, relations, liens_bl):
         if key not in ref:
             ref[key] = len(noeuds)
             t = 'societe' if l['type_entite'] in ('PM', 'societe') else 'personne'
-            noeuds.append({'id': secrets.token_urlsafe(15), 't': t, 'bl': 1})
+            noeuds.append({'id': secrets.token_urlsafe(15), 't': t, 'bl': 1,
+                           'v': ville_connue(l.get('ville_code'))})
             noms.append({'id': noeuds[-1]['id'], 'nom': l['nom_affiche'], 'type': t, 'liste_noire': True})
         b = ref[key]
         if a is None:
@@ -115,9 +129,12 @@ def construire(identites, relations, liens_bl):
             group_index[node_index] = numero
         xstart += width + 70; row_height = max(row_height, height)
 
+    villes = {nom: [round(x, 2), round(y, 2)] for nom, (lat, lon) in VILLES.items()
+              for x, y in [monde(lat, lon)]}
     return ({'format': 1, 'type': 'graphe_af_postgresql', 'noeuds': noeuds,
              'aretes': aretes, 'reseaux': [len(g) for g in groups],
-             'reseaux_bl': sorted({group_index[i] for i, n in enumerate(noeuds) if n['bl']})},
+             'reseaux_bl': sorted({group_index[i] for i, n in enumerate(noeuds) if n['bl']}),
+             'villes': villes, 'regions': contour()},
             {'format': 1, 'noeuds': noms, 'liens': details,
              'liens_liste_noire_sans_rattachement': non_rattaches})
 
@@ -126,11 +143,11 @@ def extraire(url):
     with psycopg.connect(url, row_factory=dict_row, connect_timeout=8) as cx:
         cx.execute('SET TRANSACTION READ ONLY')
         cx.execute("SET LOCAL statement_timeout = '120000ms'")
-        identites = cx.execute('SELECT identite_id, type_identite, nom FROM af_identite ORDER BY identite_id').fetchall()
+        identites = cx.execute('SELECT identite_id, type_identite, nom, ville_code FROM af_identite ORDER BY identite_id').fetchall()
         relations = cx.execute('SELECT relation_id, pp_identite_id, pm_identite_id, role FROM af_relation ORDER BY relation_id').fetchall()
         liens_bl = cx.execute('''
             SELECT l.lien_id, l.identite_id, l.dossier_ref, l.regle, l.niveau,
-                   b.entite_id, b.nom_affiche, b.type_entite
+                   b.entite_id, b.nom_affiche, b.type_entite, b.ville_code
             FROM af_lien l JOIN bl_entite b
               ON l.cible = 'bl_entite' AND l.cible_id = b.entite_id::text
             ORDER BY l.lien_id
