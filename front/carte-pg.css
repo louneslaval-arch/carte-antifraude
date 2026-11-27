@@ -1,0 +1,11 @@
+.graphe-pg { max-width: 1500px; margin: 1.5rem auto; padding: 0 1.2rem 2rem; }
+.graphe-pg h1 { margin-bottom: .4rem; }
+.precaution { color: #8b4a28; }
+.outils-pg { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; margin: 1rem 0; }
+.outils-pg button { cursor: pointer; padding: .45rem .9rem; }
+.scene-pg { height: min(70vh, 750px); min-height: 380px; border: 1px solid #d3dbe4; border-radius: 12px; overflow: hidden; background: #f7f9fc; }
+#reseau-pg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#reseau-pg:active { cursor: grabbing; }
+.aide-pg { font-size: .9rem; color: #556579; }
+.detail-pg { border: 1px solid #d3dbe4; border-radius: 12px; padding: 1rem; }
+.detail-pg h2 { font-size: 1.1rem; margin: 0 0 .5rem; }

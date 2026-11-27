@@ -6,6 +6,7 @@ const Commun = (() => {
     ['index.html', 'Portail'],
     ['base.html', 'Base client'],
     ['carte.html', 'Carte antifraude'],
+    ['carte-pg.html', 'Graphe AF PostgreSQL'],
   ];
 
   function el(balise, attributs = {}, ...enfants) {
@@ -58,7 +59,7 @@ const Commun = (() => {
 
   function entete(courante, sombre = false) {
     const nav = el('nav', { 'aria-label': 'Navigation principale' },
-      PAGES.filter(([lien]) => lien !== 'carte.html' || role() === 'ANALYSTE').map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
+      PAGES.filter(([lien]) => !['carte.html', 'carte-pg.html'].includes(lien) || role() === 'ANALYSTE').map(([lien, libelle]) => el('a', { href: lien, 'aria-current': lien === courante ? 'page' : null, texte: libelle })));
     const langue = el('div', { classe: 'langue', role: 'group', 'aria-label': 'Langue' },
       el('button', { type: 'button', 'aria-pressed': 'true', texte: 'Fr' }),
       el('button', { type: 'button', 'aria-pressed': 'false', disabled: true, title: 'Arabe : bientôt',

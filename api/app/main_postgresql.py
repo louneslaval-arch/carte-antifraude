@@ -12,6 +12,7 @@ from .debit import Debit
 from .erreurs import attraper_tout, validation
 from .graphe import charger
 from .base_client_aws import BaseClient
+from .publication_pg import depuis_environnement as publication_pg
 from .routes import admin, auth, base, carte, carte_globale_pg, chaines, flux, graphe_pg, stats
 VERSION = '0.3.0'
 
@@ -36,7 +37,12 @@ def creer_app(reglages: Reglages) -> FastAPI:
     def sante():
         p = app.state.etat.publication
         if p is None:
-            return JSONResponse({'etat': 'sans_publication', 'version': VERSION}, status_code=503)
+            try:
+                pg = publication_pg()
+            except (OSError, ValueError, KeyError):
+                return JSONResponse({'etat': 'sans_publication', 'version': VERSION}, status_code=503)
+            return {'etat': 'ok', 'version': VERSION, 'type_publication': 'graphe_af_postgresql',
+                    'noeuds': pg.stats['noeuds']}
         return {'etat': 'ok', 'version': VERSION, 'date_publication': p.manifeste['date_publication'],
                 'noeuds': p.noeuds, 'fictif': p.manifeste['fictif']}
 
